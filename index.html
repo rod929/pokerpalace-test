@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Palace — TD Close-out (Cloud)</title>
+<style>
+  body{margin:0;background:#0c0b0c;color:#efe9ea;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;padding:26px 16px 60px;line-height:1.5}
+  .wrap{max-width:560px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:#a08f92;font-size:13.5px;margin:0 0 20px}
+  .card{background:#1b1617;border:1px solid #322a2c;border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 12px}
+  label{display:block;font-size:13px;color:#a08f92;margin:12px 0 5px}
+  input,select{width:100%;box-sizing:border-box;background:#120d0e;border:1px solid #322a2c;border-radius:9px;color:#efe9ea;font-size:15px;padding:11px 12px;outline:none;font-family:inherit}
+  input:focus,select:focus{border-color:#D00E26}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{margin-top:16px;width:100%;border:none;font-weight:600;font-size:15px;border-radius:10px;padding:13px;cursor:pointer}
+  .primary{background:#D00E26;color:#fff} .primary:hover{filter:brightness(1.1)}
+  .ghost{background:#221c1d;border:1px solid #322a2c;color:#efe9ea} .ghost:hover{border-color:#D00E26}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .status{padding:12px 14px;border-radius:11px;font-size:13.5px;margin-bottom:16px;border:1px solid #322a2c;background:#1b1617;display:none}
+  .status.show{display:block}
+  .status.ok{border-color:#3f8c66;background:rgba(92,184,138,.1);color:#9fe3c0}
+  .status.err{border-color:#a4493a;background:rgba(224,122,95,.1);color:#f0b3a3}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1b1617;border:1px solid #322a2c;border-radius:11px;padding:11px 14px;margin-bottom:16px;font-size:13px}
+  .bar .who{color:#a08f92} .bar .who b{color:#efe9ea}
+  .bar button{margin:0;width:auto;padding:7px 12px;font-size:12.5px}
+  .co{background:#1b1617;border:1px solid #322a2c;border-radius:11px;padding:13px 15px;margin-bottom:9px}
+  .co.fresh{border-color:#5cb88a;background:rgba(92,184,138,.08)}
+  .cotop{display:flex;justify-content:space-between;gap:10px}
+  .coname{font-weight:700;font-size:15px}
+  .codate{color:#a08f92;font-size:12.5px;font-family:'JetBrains Mono',monospace}
+  .cometa{color:#a08f92;font-size:12.5px;margin-top:5px;font-family:'JetBrains Mono',monospace}
+  .listhead{font-size:13px;color:#a08f92;margin:24px 0 10px}
+  #app.hidden,#loginCard.hidden{display:none}
+</style>
+
+<div class="wrap">
+  <h1>🃏 TD Nightly Close-out</h1>
+  <p class="sub">Live version — sign in, submit a night, and it saves to the central cloud stamped as you.</p>
+
+  <div id="status" class="status"></div>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>Sign in</h2>
+    <label>Email</label>
+    <input id="email" type="email" placeholder="admin@test.com" autocomplete="username">
+    <label>Password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="primary" id="signinBtn">Sign in</button>
+  </div>
+
+  <!-- APP (after login) -->
+  <div id="app" class="hidden">
+    <div class="bar">
+      <div class="who">Signed in as <b id="whoEmail">—</b></div>
+      <button class="ghost" id="signoutBtn">Sign out</button>
+    </div>
+
+    <div class="card">
+      <h2>Submit a close-out</h2>
+      <label>Venue</label>
+      <select id="venueSel"><option value="">Loading venues…</option></select>
+      <label>Game name</label>
+      <input id="gameName" placeholder="e.g. Sunday Deepstack" autocomplete="off">
+      <label>Date</label>
+      <input id="gameDate" type="date">
+      <div class="row2">
+        <div><label>Entries</label><input id="entries" inputmode="numeric" placeholder="58"></div>
+        <div><label>Money in ($)</label><input id="moneyIn" inputmode="numeric" placeholder="2030"></div>
+      </div>
+      <label>Leftover cash ($)</label>
+      <input id="leftover" inputmode="numeric" placeholder="120">
+      <button class="primary" id="submitBtn">Submit close-out to the cloud</button>
+    </div>
+
+    <div class="listhead" id="listhead">Your close-outs…</div>
+    <div id="coList"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPABASE_URL = 'https://tqlwkqtlxvozrgsavupg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = id => document.getElementById(id);
+  let currentUser = null, lastId = null;
+
+  function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
+  function clearStatus(){ $('status').className='status'; }
+
+  function showApp(user){
+    currentUser = user;
+    $('loginCard').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('whoEmail').textContent = user.email;
+    $('gameDate').valueAsDate = new Date();
+    loadVenues();
+    loadCloseouts();
+  }
+  function showLogin(){
+    currentUser = null;
+    $('app').classList.add('hidden');
+    $('loginCard').classList.remove('hidden');
+  }
+
+  async function loadVenues(){
+    try{
+      const { data, error } = await supabase.from('venues').select('name').order('name');
+      if(error) throw error;
+      $('venueSel').innerHTML = '<option value="">— choose a venue —</option>' +
+        data.map(v=>'<option>'+ (v.name||'') +'</option>').join('');
+    }catch(e){ $('venueSel').innerHTML = '<option value="">(could not load venues)</option>'; }
+  }
+
+  async function loadCloseouts(){
+    try{
+      const { data, error } = await supabase.from('closeouts').select('*').order('id',{ascending:false});
+      if(error) throw error;
+      if(!data.length){ $('listhead').textContent='You have no close-outs yet — submit one above.'; $('coList').innerHTML=''; return; }
+      $('listhead').textContent = 'Your close-outs ('+data.length+') — read live from the cloud';
+      $('coList').innerHTML = data.map(c=>{
+        const fresh = c.id===lastId ? ' fresh' : '';
+        return '<div class="co'+fresh+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+(fresh?'  ⟵ just submitted':'')+'</div>'+
+          '<div class="codate">'+(c.game_date||'')+'</div></div>'+
+          '<div class="cometa">'+(c.venue_name||'')+' · '+(c.entries||0)+' entries · money in $'+(c.money_in||0)+' · leftover $'+(c.leftover_cash||0)+'</div></div>';
+      }).join('');
+    }catch(e){ $('listhead').textContent=''; setStatus('Could not load close-outs: '+(e.message||e),'err'); }
+  }
+
+  async function signIn(){
+    const email=$('email').value.trim(), password=$('password').value;
+    if(!email||!password){ setStatus('Enter email and password.','err'); return; }
+    $('signinBtn').disabled=true; setStatus('⏳ Signing in…','ok');
+    try{
+      const { data, error } = await supabase.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      clearStatus(); showApp(data.user);
+    }catch(e){ setStatus('✗ '+(e.message||e),'err'); }
+    finally{ $('signinBtn').disabled=false; }
+  }
+
+  async function submitCloseout(){
+    if(!currentUser){ setStatus('Please sign in first.','err'); return; }
+    const venue=$('venueSel').value, game=$('gameName').value.trim(), date=$('gameDate').value;
+    if(!venue || !game){ setStatus('Pick a venue and enter a game name.','err'); return; }
+    $('submitBtn').disabled=true; setStatus('⏳ Saving to the cloud…','ok');
+    try{
+      const row = {
+        submitted_by: currentUser.id,           // stamp with the logged-in user
+        venue_name: venue,
+        game_name: game,
+        game_date: date || null,
+        entries: $('entries').value ? Number($('entries').value) : null,
+        money_in: $('moneyIn').value ? Number($('moneyIn').value) : null,
+        leftover_cash: $('leftover').value ? Number($('leftover').value) : null
+      };
+      const { data, error } = await supabase.from('closeouts').insert(row).select();
+      if(error) throw error;
+      lastId = data && data[0] ? data[0].id : null;
+      setStatus('✓ Close-out submitted to the cloud, stamped as you!','ok');
+      $('gameName').value=''; $('entries').value=''; $('moneyIn').value=''; $('leftover').value='';
+      loadCloseouts();
+    }catch(e){ setStatus('✗ Could not submit: '+(e.message||e)+'<br><br>If it mentions a policy, check the INSERT policy on closeouts.','err'); }
+    finally{ $('submitBtn').disabled=false; }
+  }
+
+  async function signOut(){ await supabase.auth.signOut(); clearStatus(); showLogin(); }
+
+  $('signinBtn').addEventListener('click', signIn);
+  $('submitBtn').addEventListener('click', submitCloseout);
+  $('signoutBtn').addEventListener('click', signOut);
+  $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
+
+  (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
+</script>
