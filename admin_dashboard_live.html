@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Palace — Admin Command Centre</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
+  :root{--bg:#16161a;--line:#34343a;--line-soft:#26262b;--ink:#ecebe9;--ink-dim:#a5a4a8;--ink-faint:#76757a;
+    --good:#5cb88a;--good-deep:#3f8c66;--amber:#e0ad55;--red:#e07a5f;--blue:#7fa0c4;--gold:#c9b896;--pp:#D00E26;
+    --chip:#1e1e23;--card:#22222a;--radius:14px;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#16161a;color:var(--ink);font-family:'Libre Franklin',sans-serif;-webkit-font-smoothing:antialiased;padding:22px 16px 110px;line-height:1.5;font-size:17px}
+  .wrap{max-width:820px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .logo img{height:40px;display:block}
+  .top .right{text-align:right;font-family:'JetBrains Mono';font-size:12px;color:var(--ink-faint)} .top .right .role{color:var(--gold)}
+  .hero{margin:14px 0 6px}
+  .hero h1{font-family:'Archivo';font-weight:800;font-size:26px;margin:0}
+  .hero p{font-size:14.5px;color:var(--ink-dim);margin:5px 0 0}
+  .status{padding:13px 15px;border-radius:11px;font-size:14px;margin:14px 0 0;border:1px solid var(--line);background:var(--chip);display:none}
+  .status.show{display:block}.status.err{border-color:#7a3328;background:rgba(224,122,95,.12);color:#f0b3a3}
+  .loginwrap{max-width:430px;margin:30px auto 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+  .card h2{font-family:'Archivo';font-weight:600;font-size:16px;margin:0 0 12px}
+  label{display:block;font-size:13px;color:var(--ink-dim);margin:12px 0 5px}
+  input{width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-size:15px;padding:11px 12px;outline:none;font-family:inherit}
+  input:focus{border-color:var(--blue)}
+  .signinbtn{width:100%;margin-top:16px;background:var(--blue);border:none;color:#0e1a26;font-weight:700;font-size:15px;border-radius:10px;padding:13px;cursor:pointer}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 0;font-size:13px;color:var(--ink-dim)}
+  .bar b{color:var(--ink)}
+  .bar button{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer}
+  .bar button:hover{border-color:var(--blue);color:var(--blue)}
+  .toggle{display:inline-flex;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:3px;margin:16px 0 12px;gap:2px;flex-wrap:wrap}
+  .toggle button{background:none;border:none;color:var(--ink-dim);font-family:'Libre Franklin';font-size:12.5px;padding:7px 13px;border-radius:7px;cursor:pointer}
+  .toggle button.on{background:var(--pp);color:#fff;font-weight:600}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+  @media(max-width:560px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;cursor:pointer;transition:border-color .15s,transform .1s;position:relative}
+  .metric:hover{border-color:var(--blue);transform:translateY(-2px)}
+  .metric .ml{font-size:12.5px;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+  .metric .mv{font-family:'JetBrains Mono';font-weight:700;font-size:24px;margin-top:9px;line-height:1}
+  .metric .md{font-size:11px;margin-top:7px;font-family:'JetBrains Mono';color:var(--ink-faint)}
+  .metric .md.trend .up{color:var(--good)} .metric .md.trend .down{color:var(--red)} .metric .md.trend .flat{color:var(--ink-faint)}
+  .metric .arrow{position:absolute;right:13px;bottom:11px;color:var(--ink-faint);font-size:13px}
+  .metric.pnl .mv{color:var(--good)} .metric.cash .mv{color:var(--gold)} .metric.prize .mv{color:var(--blue)}
+  .metric.inv .mv{color:var(--amber)} .metric.flags .mv{color:var(--amber)} .metric.venwin .mv{color:var(--good)} .metric.venloss .mv{color:var(--red)}
+  .metric.coming{opacity:.6;border-style:dashed}
+  .metric.coming .mv{color:var(--ink-faint);font-size:13px}
+  .ctag{font-size:9px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:4px;padding:2px 6px;margin-left:auto}
+  .sech{font-family:'Archivo';font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);margin:22px 0 12px}
+  .vrow{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:8px;cursor:pointer}
+  .vrow:hover{border-color:var(--blue)}
+  .vrow .vn{font-weight:600} .vrow .vsub{font-size:12px;color:var(--ink-faint);font-family:'JetBrains Mono';margin-top:2px}
+  .vrow .vv{font-family:'JetBrains Mono';font-weight:700;color:var(--good)}
+  .empty{color:var(--ink-faint);text-align:center;padding:18px;font-size:13.5px}
+  .allbtn{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--good-deep);border:1px solid var(--good);color:#fff;font-family:'Archivo';font-weight:700;font-size:16px;padding:15px 30px;border-radius:14px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:20}
+  .allbtn:hover{filter:brightness(1.1)}
+  .menu,.detail{position:fixed;inset:0;background:rgba(10,10,12,.96);z-index:30;display:none;overflow:auto;padding:30px 18px 100px}
+  .menu.open,.detail.open{display:block}
+  .mwrap{max-width:720px;margin:0 auto}
+  .mwrap h2{font-family:'Archivo';font-weight:800;font-size:22px;margin:6px 0 4px}
+  .menu h2{text-align:center} .menu .msub{text-align:center;color:var(--ink-dim);font-size:13px;margin-bottom:22px}
+  .mgrp{font-family:'Archivo';font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:20px 0 10px}
+  .mtile{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin-bottom:9px;cursor:pointer;text-decoration:none;color:var(--ink)}
+  .mtile:hover{border-color:var(--blue)} .mtile.soon{opacity:.5;cursor:default}
+  .mtile .ic{font-size:21px;flex:none}.mtile .mt{font-family:'Archivo';font-weight:600;font-size:15px}.mtile .mdh{font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .mtile .live{margin-left:auto;font-size:10px;color:var(--good);background:rgba(92,184,138,.12);border:1px solid rgba(92,184,138,.3);border-radius:5px;padding:3px 8px}
+  .mtile .soontag{margin-left:auto;font-size:10px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:5px;padding:3px 8px}
+  .closem{position:fixed;top:18px;right:18px;background:#fff;color:#16161a;border:none;border-radius:9px;padding:9px 15px;font-weight:600;cursor:pointer;z-index:31}
+  .dtitle{font-family:'Archivo';font-weight:800;font-size:20px;margin:0 0 3px}
+  .dsub{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
+  .drow{display:flex;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin-bottom:8px;font-size:14px}
+  .drow .l{color:var(--ink-dim)} .drow .r{font-family:'JetBrains Mono';font-weight:700}
+  .comingbox{background:rgba(201,184,150,.07);border:1px solid rgba(201,184,150,.3);border-radius:13px;padding:22px;text-align:center}
+  .comingbox .ic{font-size:38px}.comingbox h3{font-family:'Archivo';font-size:18px;margin:12px 0 6px}.comingbox p{font-size:14px;color:var(--ink-dim);max-width:480px;margin:0 auto;line-height:1.6}
+  .comingbox .need{margin-top:14px;font-family:'JetBrains Mono';font-size:12px;color:var(--gold)}
+  .legalfoot{text-align:center;font-family:'JetBrains Mono';font-size:11px;color:var(--ink-faint);line-height:1.7;margin-top:26px;padding-top:18px;border-top:1px solid var(--line-soft)}
+  .legalfoot b{color:var(--ink-dim)}
+  .notadmin{background:rgba(224,122,95,.1);border:1px solid #7a3328;border-radius:12px;padding:20px;text-align:center;color:#f0b3a3;font-size:14px}
+  #app.hidden,#login.hidden{display:none}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><img alt="Poker Palace" src="data:image/png;base64,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"></div>
+    <div class="right"><div id="dt">-</div><div class="role" id="roleLbl"></div></div>
+  </div>
+  <div id="status" class="status"></div>
+
+  <div class="loginwrap" id="login">
+    <div class="card"><h2>Sign in (admin)</h2>
+      <label>Email</label><input id="email" type="email" placeholder="admin@pokerpalace.test" autocomplete="username">
+      <label>Password</label><input id="password" type="password" placeholder="********" autocomplete="current-password">
+      <button class="signinbtn" id="signinBtn">Sign in</button>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="hero"><h1 id="greet">Command Centre</h1><p>Tap any box for the full detail.</p></div>
+    <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
+    <div id="adminArea">
+      <div class="toggle" id="periodToggle">
+        <button data-p="month" class="on">This month</button><button data-p="7">Last 7 days</button>
+        <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
+      </div>
+      <div class="metrics">
+        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric cash" data-d="cash"><div class="ml">🪙 Cash held by Admin</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">handed up − banked</div><span class="arrow">›</span></div>
+        <div class="metric bank coming" data-d="bank"><div class="ml">🏦 Money in bank<span class="ctag">COMING</span></div><div class="mv">needs bank + overheads</div></div>
+        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">›</span></div>
+        <div class="metric flags" data-d="flags"><div class="ml">⚑ Needs action</div><div class="mv" id="mFlags">0</div><div class="md" id="mFlagsSub">items to review</div><span class="arrow">›</span></div>
+        <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">—</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">›</span></div>
+        <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">—</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="venues"><div class="ml">🏛 All venues</div><div class="mv" id="mVenN">0</div><div class="md">tap for breakdown</div><span class="arrow">›</span></div>
+        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
+      </div>
+    </div>
+    <div id="notAdmin" class="notadmin" style="display:none">This dashboard is for admins.</div>
+  </div>
+  <div class="legalfoot"><b>S&amp;R Promotions Pty Ltd</b> &middot; ABN 59 638 242 350<br><b>Poker Palace League Pty Ltd</b> &middot; ABN 49 659 444 514</div>
+</div>
+
+<button class="allbtn" id="allBtn" style="display:none">▤ All sections</button>
+
+<div class="detail" id="detail"><button class="closem" id="closeDetail">Close</button><div class="mwrap" id="detailBody"></div></div>
+
+<div class="menu" id="menu">
+  <button class="closem" id="closeMenu">Close</button>
+  <div class="mwrap">
+    <h2>All sections</h2><div class="msub">Your Poker Palace screens</div>
+    <div class="mgrp">⚙ Operations</div>
+    <a class="mtile" href="closeout_live.html"><span class="ic">🃏</span><div><div class="mt">TD Nightly Close-out</div><div class="mdh">Entries, money, placings, staff</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="payment_reconciliation_live.html"><span class="ic">💸</span><div><div class="mt">Payment Reconciliation</div><div class="mdh">Tick each prize paid</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="cash_custody_live.html"><span class="ic">🪙</span><div><div class="mt">Cash Custody</div><div class="mdh">TD→admin→owners, with approval</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="admin_view_cloud_test.html"><span class="ic">🛡️</span><div><div class="mt">Admin View</div><div class="mdh">Every TD's close-outs</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">💰 Money &amp; reporting</div>
+    <a class="mtile" href="venues_invoicing_live.html"><span class="ic">🏛</span><div><div class="mt">Venues &amp; Invoicing</div><div class="mdh">Monthly club-money invoices</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="expenses_live.html"><span class="ic">📒</span><div><div class="mt">Overheads &amp; Expenses</div><div class="mdh">Costs, bulk paste, receipts</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="owner_payments_live.html"><span class="ic">💼</span><div><div class="mt">Owner Payments &amp; Loans</div><div class="mdh">Record → owner approves</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">⚙ Setup &amp; people</div>
+    <a class="mtile" href="game_setup_live.html"><span class="ic">🎲</span><div><div class="mt">Game Setup</div><div class="mdh">Games + buy-in/rake/add-on</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="staff_rates_live.html"><span class="ic">👥</span><div><div class="mt">Staff &amp; Rates</div><div class="mdh">Staff list + locked rates</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="expense_categories_live.html"><span class="ic">🗂</span><div><div class="mt">Expense Categories</div><div class="mdh">Manage category dropdowns</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">📊 Coming</div>
+    <div class="mtile soon"><span class="ic">🏦</span><div><div class="mt">Money in Bank</div><div class="mdh">Rolling bank balance</div></div><span class="soontag">SOON</span></div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPABASE_URL='https://tqlwkqtlxvozrgsavupg.supabase.co';
+  const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+  const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+  const $=id=>document.getElementById(id);
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],period='month',computed={};
+  const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
+  const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
+  function setStatus(m,k){const s=$('status');s.className='status show '+(k||'');s.innerHTML=m;}
+  function clearStatus(){$('status').className='status';}
+
+  async function showApp(u){
+    user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
+    try{const{data}=await supabase.from('profiles').select('role,full_name').eq('user_id',u.id);if(Array.isArray(data)&&data.length){isAdmin=data.some(r=>r.role==='admin');const fn=data.find(r=>r.full_name);if(fn&&fn.full_name)$('greet').textContent='Welcome back, '+fn.full_name.split(' ')[0];}else isAdmin=false;}catch(e){isAdmin=false;}
+    $('roleLbl').textContent=isAdmin?'ADMIN':'TD';
+    if(!isAdmin){$('adminArea').style.display='none';$('notAdmin').style.display='block';return;}
+    $('allBtn').style.display='block';await loadAll();
+  }
+  function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');$('allBtn').style.display='none';}
+
+  async function loadAll(){
+    try{
+      const co=await supabase.from('closeouts').select('*');if(co.error)throw co.error;CLOSEOUTS=co.data||[];
+      PLACINGS=(await supabase.from('placings').select('*')).data||[];
+      STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
+      INVOICES=(await supabase.from('invoices').select('*')).data||[];
+      GAMES=(await supabase.from('games').select('*')).data||[];
+      VENUES=(await supabase.from('venues').select('*')).data||[];
+      EXPENSES=(await supabase.from('expenses').select('*')).data||[];
+      OWNERPAY=(await supabase.from('owner_payments').select('*')).data||[];
+      CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      compute();
+    }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
+  }
+  function periodRange(which){
+    // returns {start,end} for current or previous period
+    const d=new Date(); let start,end;
+    if(period==='7'){ end=new Date(d); start=new Date(d); start.setDate(start.getDate()-7); }
+    else if(period==='month'){ start=new Date(d.getFullYear(),d.getMonth(),1); end=new Date(d.getFullYear(),d.getMonth()+1,1); }
+    else if(period==='ytd'){ start=new Date(d.getFullYear(),0,1); end=new Date(d.getFullYear()+1,0,1); }
+    else { return {start:null,end:null}; } // all time
+    if(which==='prev'){
+      if(period==='7'){ const e=new Date(start); const s2=new Date(start); s2.setDate(s2.getDate()-7); return {start:s2,end:e}; }
+      if(period==='month'){ return {start:new Date(d.getFullYear(),d.getMonth()-1,1), end:new Date(d.getFullYear(),d.getMonth(),1)}; }
+      if(period==='ytd'){ return {start:new Date(d.getFullYear()-1,0,1), end:new Date(d.getFullYear(),0,1)}; }
+    }
+    return {start,end};
+  }
+  function inRange(c,r){ if(!r.start)return true; const ds=c.game_date||c.created_at; if(!ds)return true; const t=new Date(ds); return t>=r.start && (!r.end||t<r.end); }
+  function inPeriod(c){ return inRange(c, periodRange('cur')); }
+
+  function metricsFor(cos){
+    const ids=new Set(cos.map(c=>c.id));
+    let prizes=0,outstanding=0,outN=0;
+    PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
+    return {prizes,outstanding,outN,count:cos.length};
+  }
+  function trendHtml(cur,prev){
+    if(prev===0){ return cur>0?'<span class="up">▲ new</span>':'<span class="flat">— no prior</span>'; }
+    const pct=Math.round((cur-prev)/Math.abs(prev)*100);
+    if(pct>0) return '<span class="up">▲ '+pct+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
+    if(pct<0) return '<span class="down">▼ '+Math.abs(pct)+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
+    return '<span class="flat">— flat</span>';
+  }
+
+  // find the game setup for a close-out (match by game name + venue)
+  function gameFor(c){
+    return GAMES.find(g=>(g.name||'')===(c.game_name||'') && (g.venue_name||'')===(c.venue_name||''))
+        || GAMES.find(g=>(g.name||'')===(c.game_name||''));
+  }
+  // per-close-out gaming margin = rake collected − overlay
+  function gamingMargin(c){
+    const g=gameFor(c); if(!g) return {rake:0,overlay:0,margin:0,known:false};
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, gtee=Number(g.guarantee)||0, addonPrice=Number(g.addon_price)||0;
+    const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
+    const rakeCollected=rake*entries;
+    const prizePool=(buyin-rake)*entries + addonPrice*addons;
+    const overlay=Math.max(0, gtee - prizePool);
+    return {rake:rakeCollected, overlay, margin:rakeCollected-overlay, known:true};
+  }
+  // full Net P&L for a set of close-outs + the period's earned club money & expenses
+  function pnlFor(cos, useExpenses){
+    const ids=new Set(cos.map(c=>c.id));
+    let margin=0, rakeTot=0, overlayTot=0;
+    cos.forEach(c=>{const m=gamingMargin(c); margin+=m.margin; rakeTot+=m.rake; overlayTot+=m.overlay;});
+    let wages=0; STAFF.forEach(s=>{if(ids.has(s.closeout_id)) wages+=(Number(s.hours)||0)*(Number(s.rate)||0);});
+    // club money = EARNED from rates (not invoiced)
+    const club=earnedClubTotal(cos);
+    // overheads/expenses for the period
+    let exp=0; (useExpenses||[]).forEach(e=>{ exp+=Number(e.amount)||0; });
+    const net = margin + club - wages - exp;
+    return {net, margin, rakeTot, overlayTot, wages, club, exp};
+  }
+  function expInPeriod(e){
+    const r=periodRange('cur'); if(!r.start) return true;
+    const ds=e.expense_date||''; if(!ds) return false;
+    const t=new Date(ds); return t>=r.start && (!r.end||t<r.end);
+  }
+
+  // earned club money per venue, from the venue's rate + basis (NOT from invoices)
+  function earnedClubByVenue(cos){
+    // count this period's games per venue from the close-outs
+    const gamesByVenue={};
+    cos.forEach(c=>{const v=c.venue_name||'(no venue)'; gamesByVenue[v]=(gamesByVenue[v]||0)+1;});
+    const out={};
+    VENUES.forEach(v=>{
+      const basis=v.club_money_basis||'', rate=Number(v.club_money_rate)||0;
+      const games=gamesByVenue[v.name]||0;
+      let earned=0;
+      if(basis==='fixed_monthly'){ earned = games>0 ? rate : 0; } // only earned if at least one game ran that period
+      else if(basis==='per_game'){ earned = rate*games; }
+      if(earned>0 || games>0) out[v.name]={earned, games, basis, rate};
+    });
+    return out;
+  }
+  function earnedClubTotal(cos){ const e=earnedClubByVenue(cos); return Object.values(e).reduce((s,x)=>s+x.earned,0); }
+  function compute(){
+    const cos=CLOSEOUTS.filter(inPeriod);const ids=new Set(cos.map(c=>c.id));
+    let prizes=0,outstanding=0,outN=0;
+    PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
+    // per venue: gaming margin + club money − venue wages − venue-tagged expenses
+    const byV={};
+    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0});
+      const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin;});
+    // wages per venue (from staff shifts on that venue's close-outs)
+    STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
+    // club money per venue (invoiced this period)
+    invsForVenues().forEach(i=>{ const v=i.venue_name||'(no venue)'; if(byV[v]) byV[v].club+=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; });
+    // venue-tagged expenses this period
+    EXPENSES.filter(expInPeriod).forEach(e=>{ if(e.venue_name && byV[e.venue_name]) byV[e.venue_name].exp+=Number(e.amount)||0; });
+    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp})).sort((a,b)=>b.profit-a.profit);
+    computed={cos,prizes,outstanding,outN,vlist,byV};
+
+    // invoices — outstanding club money (status not paid) for the relevant period
+    const invs=INVOICES.filter(invInPeriod);
+    let invOut=0, invOutN=0, invTotal=0;
+    invs.forEach(i=>{ const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; invTotal+=amt; if(i.status!=='paid'){ invOut+=amt; invOutN++; } });
+    computed.invs=invs; computed.invOut=invOut; computed.invTotal=invTotal;
+    $('mInv').textContent=money(invOut);
+    $('mInvSub').textContent=invOutN+' unpaid · '+money(invTotal)+' invoiced';
+
+    // Net P&L (overlay-aware): gaming margin + club money − wages − expenses
+    const expsCur=EXPENSES.filter(expInPeriod);
+    const pnl=pnlFor(cos, expsCur);
+    computed.pnl=pnl;
+    $('mPnl').textContent=money(pnl.net);
+    $('mPnl').style.color = pnl.net>=0 ? 'var(--good)' : 'var(--red)';
+
+    // previous period for trends
+    const prevCos=CLOSEOUTS.filter(c=>inRange(c,periodRange('prev')));
+    const prev=metricsFor(prevCos);
+    // prev-period P&L for its trend
+    const prevR=periodRange('prev');
+    const prevInvs=INVOICES.filter(i=>{ if(!i.period)return false; const d=new Date(); if(period==='month'){const pm=new Date(d.getFullYear(),d.getMonth()-1,1);return i.period===pm.getFullYear()+'-'+('0'+(pm.getMonth()+1)).slice(-2);} return false; });
+    const prevExps=EXPENSES.filter(e=>{const ds=e.expense_date||'';if(!ds||!prevR.start)return false;const t=new Date(ds);return t>=prevR.start&&(!prevR.end||t<prevR.end);});
+    const prevPnl=pnlFor(prevCos, prevExps);
+
+    $('mPnl').textContent=money(pnl.net);
+    $('mPnlTrend').innerHTML=trendHtml(pnl.net, prevPnl.net);
+    $('mPrize').textContent=money(prizes);
+    $('mPrizeTrend').innerHTML=trendHtml(prizes,prev.prizes);
+    $('mOut').textContent=money(outstanding);
+    $('mOutTrend').innerHTML=trendHtml(outstanding,prev.outstanding);
+    $('mVenN').textContent=vlist.length;
+    // most/least profitable venue
+    if(vlist.length){
+      const w=vlist[0], l=vlist[vlist.length-1];
+      $('mVenWin').textContent=w.name; $('mVenWinSub').textContent=money(w.profit)+' profit';
+      $('mVenLoss').textContent=l.name; $('mVenLossSub').textContent=money(l.profit)+' profit';
+    } else { $('mVenWin').textContent='—'; $('mVenLoss').textContent='—'; $('mVenWinSub').textContent='no data'; $('mVenLossSub').textContent='no data'; }
+
+    // ---- needs action flags ----
+    const flags=[];
+    // 1. unpaid placings (across all close-outs in period)
+    const unpaid=PLACINGS.filter(p=>!p.paid && cos.some(c=>c.id===p.closeout_id));
+    if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation'}); }
+    // 2. owner payments pending approval
+    const pend=OWNERPAY.filter(o=>o.status==='pending');
+    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); flags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' pending approval',d:money(amt)+' awaiting owner sign-off'}); }
+    // 3. invoices not yet sent/paid (this period)
+    const draftInv=invsForVenues().filter(i=>i.status==='draft');
+    if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period'}); }
+    // 4. close-outs whose game has no setup (breaks P&L)
+    const noSetup=cos.filter(c=>{const g=gameFor(c); return !g || (!(Number(g.buy_in))&&!(Number(g.rake))&&!(Number(g.guarantee)));});
+    if(noSetup.length){ flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these'}); }
+    // 5. overlay games (lost on the guarantee)
+    const overlays=cos.filter(c=>gamingMargin(c).overlay>0);
+    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0); flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — under guarantee'}); }
+    computed.flags=flags;
+    $('mFlags').textContent=flags.length;
+    $('mFlags').style.color = flags.length ? 'var(--amber)' : 'var(--good)';
+    $('mFlagsSub').textContent = flags.length ? 'items to review' : 'all clear';
+
+    // cash held by admin = approved received from TDs − cash expenses − given to owners
+    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
+    const cashExp=EXPENSES.filter(e=>e.paid_from_cash).reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner').reduce((s,m)=>s+(Number(m.amount)||0),0);
+    const cashHeld=received-cashExp-toOwners;
+    computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
+    $('mCash').textContent=money(cashHeld);
+    $('mCashSub').textContent=money(received)+' in − '+money(cashExp+toOwners)+' out';
+  }
+
+  // invoices for the current period (for per-venue club money attribution)
+  function invsForVenues(){ return INVOICES.filter(invInPeriod); }
+
+  // which invoice periods (YYYY-MM strings) count for the current toggle
+  function invInPeriod(i){
+    if(!i.period) return period==='all';
+    if(period==='all') return true;
+    const d=new Date();
+    const thisMonth=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
+    if(period==='month') return i.period===thisMonth;
+    if(period==='ytd') return i.period.startsWith(String(d.getFullYear()));
+    if(period==='7'){ // invoices are monthly; for a 7-day view show the current month's
+      return i.period===thisMonth;
+    }
+    return true;
+  }
+
+  // ---- detail overlay ----
+  const COMING={
+    bank:{ic:'🏦',t:'Money in bank',p:'A rolling bank balance: opening balance + transfers in (at games) − player payments − overhead costs and expenses. It needs a starting bank figure plus the overheads/expenses feeders and a record of transfers, none of which are in the system yet.',need:'Build: Bank balance + Overheads/Expenses + Transfers'}
+  };
+  function openDetail(key){
+    const b=$('detailBody');
+    if(COMING[key]){const c=COMING[key];b.innerHTML='<div class="comingbox"><div class="ic">'+c.ic+'</div><h3>'+c.t+'</h3><p>'+c.p+'</p><div class="need">'+c.need+'</div></div>';$('detail').classList.add('open');return;}
+    if(key==='cash'){
+      const recent=[...CASH].sort((a,b)=>(b.move_date||'').localeCompare(a.move_date||'')).slice(0,20);
+      b.innerHTML='<div class="dtitle">🪙 Cash held by Admin</div><div class="dsub">Running balance: approved cash received from TDs, minus cash expenses and cash given to owners. (A live balance, not period-bound.)</div>'+
+        '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
+        '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
+        '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+        '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
+        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>');
+    } else if(key==='flags'){
+      const fl=computed.flags||[];
+      b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub">Things worth a look this period — drawn from your live data.</div>'+(fl.length?fl.map(f=>'<div class="drow"><span class="l"><span style="font-size:16px;margin-right:8px">'+f.ic+'</span>'+f.t+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+f.d+'</span></span></div>').join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
+    } else if(key==='pnl'){
+      const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0};
+      const line=(l,v,col)=>'<div class="drow"><span class="l">'+l+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Gaming margin + club money − wages − overheads, for this period.</div>'+
+        line('Rake collected', p.rakeTot, 'var(--good)')+
+        line('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)')+
+        '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Gaming margin</b></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
+        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">› tap for breakdown</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
+        line('Less: wages', -p.wages, 'var(--red)')+
+        line('Less: overheads & expenses', -p.exp, 'var(--red)')+
+        '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'−':'')+money(Math.abs(p.net))+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period. Older close-outs created before add-ons were saved may show a higher overlay than reality.</div>';
+    } else if(key==='prize'){
+      const rows=computed.cos.map(c=>{const pr=PLACINGS.filter(p=>p.closeout_id===c.id).reduce((s,p)=>s+(Number(p.amount)||0),0);return {n:(c.game_name||'(no name)')+' · '+(c.venue_name||''),v:pr};}).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+      b.innerHTML='<div class="dtitle">🏆 Prizepools</div><div class="dsub">Total prize money by game, this period</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--blue)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">No prizes in this period.</div>');
+    } else if(key==='payouts'){
+      const rows=PLACINGS.filter(p=>!p.paid&&computed.cos.some(c=>c.id===p.closeout_id)).map(p=>{const c=computed.cos.find(x=>x.id===p.closeout_id);return {n:(p.player_name||'(no name)')+' · place '+(p.place||'')+' · '+(c?c.game_name:''),v:p.amount};}).sort((a,b)=>b.v-a.v);
+      b.innerHTML='<div class="dtitle">⏳ Outstanding payouts</div><div class="dsub">Unpaid placings — reconcile these on the Payment Reconciliation screen</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--amber)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">Everything\'s paid. 🎉</div>');
+    } else if(key==='inv'){
+      const invs=(computed.invs||[]).slice().sort((a,b)=>{const av=(a.override_amount!=null?a.override_amount:a.calculated_amount)||0;const bv=(b.override_amount!=null?b.override_amount:b.calculated_amount)||0;return bv-av;});
+      b.innerHTML='<div class="dtitle">🧾 Outstanding invoices</div><div class="dsub">Club-money invoices for this period — manage on the Venues &amp; Invoicing screen</div>'+(invs.length?invs.map(i=>{const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0;const col=i.status==='paid'?'var(--good)':'var(--amber)';return '<div class="drow"><span class="l">'+i.venue_name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+i.period+' · '+i.status+(i.games_count?(' · '+i.games_count+' games'):'')+'</span></span><span class="r" style="color:'+col+'">'+money(amt)+'</span></div>';}).join(''):'<div class="empty">No invoices saved for this period yet. Generate them on the Venues &amp; Invoicing screen.</div>');
+    } else if(key==='venues'||key==='venwin'||key==='venloss'){
+      const title = key==='venwin'?'📈 Most profitable venue':key==='venloss'?'📉 Least profitable venue':'🏛 All venues — by profit';
+      let vl=computed.vlist||[];
+      if(key==='venloss') vl=[...vl].reverse();
+      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Shared overheads sit at the business level, not here.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
+    } else if(key==='clubdetail'){
+      const cos=computed.cos||[];
+      const earned=earnedClubByVenue(cos);
+      const names=Object.keys(earned).sort((a,b)=>earned[b].earned-earned[a].earned);
+      const invs=invsForVenues();
+      b.innerHTML='<div class="dtitle">💰 Club money — earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
+        (names.length?names.map(n=>{
+          const e=earned[n];
+          const inv=invs.find(i=>i.venue_name===n);
+          const invMark = inv ? ('<span style="font-size:10px;color:'+(inv.status==='paid'?'var(--good)':inv.status==='sent'?'var(--blue)':'var(--amber)')+';border:1px solid currentColor;border-radius:5px;padding:2px 7px;margin-left:6px">'+inv.status+'</span>') : '<span style="font-size:10px;color:var(--ink-faint);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-left:6px">not invoiced</span>';
+          return '<div class="drow"><span class="l">'+n+invMark+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.basis==='fixed_monthly'?'fixed monthly':money(e.rate)+' × '+e.games+' games')+'</span></span><span class="r" style="color:var(--good)">'+money(e.earned)+'</span></div>';
+        }).join(''):'<div class="empty">No club money earned this period.</div>');
+    }
+    $('detail').classList.add('open');
+    // wire any nested clickable rows (e.g. club money inside the P&L detail)
+    b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
+  }
+
+  document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('open'));
+  $('periodToggle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;period=b.dataset.p;$('periodToggle').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));compute();});
+  $('allBtn').addEventListener('click',()=>$('menu').classList.add('open'));
+  $('closeMenu').addEventListener('click',()=>$('menu').classList.remove('open'));
+
+  async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
+  async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
+  $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
+  (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
+</script>
