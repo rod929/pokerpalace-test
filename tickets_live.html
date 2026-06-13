@@ -37,6 +37,7 @@
   .tk .del{background:none;border:none;color:var(--ink-faint);font-size:18px;cursor:pointer} .tk .del:hover{color:var(--red)}
   .empty{color:var(--ink-faint);text-align:center;padding:18px;font-size:13.5px}
   .notadmin{background:rgba(224,122,95,.1);border:1px solid #7a3328;border-radius:12px;padding:20px;text-align:center;color:#f0b3a3;font-size:14px}
+  .vnote{background:rgba(91,155,213,.1);border:1px solid rgba(91,155,213,.3);border-radius:11px;padding:13px 15px;color:#b5cce6;font-size:13.5px;margin-bottom:14px}
   .legalfoot{text-align:center;font-family:'JetBrains Mono';font-size:11px;color:var(--ink-faint);line-height:1.7;margin-top:26px;padding-top:18px;border-top:1px solid var(--line-soft)} .legalfoot b{color:var(--ink-dim)}
   #app.hidden,#login.hidden{display:none}
 </style>
@@ -70,9 +71,10 @@
           <button class="addbtn" id="addBtn">Add</button>
         </div>
       </div>
-      <div id="tkList"></div>
     </div>
-    <div id="notAdmin" class="notadmin" style="display:none">This screen is for admins.</div>
+    <div id="viewNote" class="vnote" style="display:none">👀 View only — tickets are managed by admins. These are the seats/prizes you can pick on the close-out.</div>
+    <div id="tkList"></div>
+    <div id="notAllowed" class="notadmin" style="display:none">This screen is for admins and TDs.</div>
   </div>
 </div>
 <div class="legalfoot"><b>S&amp;R Promotions Pty Ltd</b> &middot; ABN 59 638 242 350<br><b>Poker Palace League Pty Ltd</b> &middot; ABN 49 659 444 514</div>
@@ -92,9 +94,16 @@
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
-    try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);isAdmin=Array.isArray(data)&&data.some(r=>r.role==='admin');}catch(e){isAdmin=false;}
-    $('roleLbl').textContent=isAdmin?'ADMIN':'(view)';
-    if(!isAdmin){$('adminArea').style.display='none';$('notAdmin').style.display='block';return;}
+    let role='';
+    try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);
+      isAdmin=Array.isArray(data)&&data.some(r=>r.role==='admin');
+      role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';
+    }catch(e){isAdmin=false;}
+    $('roleLbl').textContent=isAdmin?'ADMIN':(role?role.toUpperCase():'(view)');
+    const isTD = role==='td';
+    if(!isAdmin && !isTD){ $('adminArea').style.display='none'; $('notAllowed').style.display='block'; return; }
+    $('adminArea').style.display = isAdmin ? 'block':'none';   // add tools admin-only
+    $('viewNote').style.display = isAdmin ? 'none':'block';     // view note for TD
     await loadTickets();
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');}
@@ -104,12 +113,16 @@
     catch(e){setStatus('Could not load: '+(e.message||e),'err');}
   }
   function render(){
-    if(!TICKETS.length){ $('tkList').innerHTML='<div class="empty">No tickets yet. Add your first above.</div>'; return; }
-    $('tkList').innerHTML=TICKETS.map(t=>'<div class="tk'+(t.active===false?' inactive':'')+'"><span class="nm">'+t.name+'</span><span class="val">'+money(t.value)+'</span>'+
-      '<button class="toggle" data-tog="'+t.id+'">'+(t.active===false?'activate':'hide')+'</button>'+
-      '<button class="del" data-del="'+t.id+'">&times;</button></div>').join('');
-    $('tkList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delT(b.dataset.del)));
-    $('tkList').querySelectorAll('[data-tog]').forEach(b=>b.addEventListener('click',()=>toggleT(b.dataset.tog)));
+    // TDs only see active tickets (the ones pickable on close-out); admins see all
+    const list = isAdmin ? TICKETS : TICKETS.filter(t=>t.active!==false);
+    if(!list.length){ $('tkList').innerHTML='<div class="empty">'+(isAdmin?'No tickets yet. Add your first above.':'No tickets available.')+'</div>'; return; }
+    $('tkList').innerHTML=list.map(t=>'<div class="tk'+(t.active===false?' inactive':'')+'"><span class="nm">'+t.name+'</span><span class="val">'+money(t.value)+'</span>'+
+      (isAdmin?('<button class="toggle" data-tog="'+t.id+'">'+(t.active===false?'activate':'hide')+'</button>'+
+      '<button class="del" data-del="'+t.id+'">&times;</button>'):'')+'</div>').join('');
+    if(isAdmin){
+      $('tkList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delT(b.dataset.del)));
+      $('tkList').querySelectorAll('[data-tog]').forEach(b=>b.addEventListener('click',()=>toggleT(b.dataset.tog)));
+    }
   }
   async function addT(){
     const name=$('tName').value.trim(), value=$('tValue').value;

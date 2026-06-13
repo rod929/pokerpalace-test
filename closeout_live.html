@@ -360,7 +360,7 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[];
-  let LOCKED_ID=null, RECON=[], GES_NAMES=[];
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[];
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -617,7 +617,8 @@
         cash_in:cashIn||null, transfer_in:tfrIn||null, ticket_in:tktIn||null,
         other_in:othIn||null, other_in_note:$('otherInNote').value.trim()||null,
         money_in:moneyInTotal||null, cash_leftover_calc:Math.round(leftover), leftover_cash:Math.round(leftover),
-        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null
+        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null,
+        ges_ticket_players: GES_TICKET_NAMES.length ? GES_TICKET_NAMES.join('\n') : null
       };
       let co=null;
       const ins = await supabase.from('closeouts').insert(row).select();
@@ -843,7 +844,7 @@
     const dataLines=lines.slice(headerIdx+1);
     const splitCSV=(line)=>{ const out=[]; let cur='',q=false; for(const ch of line){ if(ch==='"'){q=!q;} else if(ch===','&&!q){out.push(cur);cur='';} else cur+=ch; } out.push(cur); return out.map(s=>s.trim()); };
     const players=new Map(); let entries=0; const playerNames=new Set();
-    const pmCount={cash:0,transfer:0,ticket:0,other:0}; const unknownLabels=new Set();
+    const pmCount={cash:0,transfer:0,ticket:0,other:0}; const unknownLabels=new Set(); const ticketEntryNames=new Set();
     dataLines.forEach(l=>{
       const c=splitCSV(l);
       const last=(c[0]||'').replace(/^'/,'').trim(), first=(c[1]||'').replace(/^'/,'').trim();
@@ -856,13 +857,14 @@
       const pm=((c[pmIdx]||'').replace(/^'/,'').trim()).toLowerCase();
       if(/cash/.test(pm)) pmCount.cash++;
       else if(/transfer|eft|bank|card|online|direct/.test(pm)) pmCount.transfer++;
-      else if(/ticket|satellite|sat|comp|seat|voucher/.test(pm)) pmCount.ticket++;
+      else if(/ticket|satellite|sat|comp|seat|voucher/.test(pm)){ pmCount.ticket++; if(disp) ticketEntryNames.add(disp); }
       else { pmCount.other++; if(pm) unknownLabels.add(pm); }
     });
     if(!entries){ $('gesResult').style.color='var(--red)'; $('gesResult').textContent='No entry rows found — is this the GES entry report?'; return; }
     const unique=players.size, reentries=entries-unique;
     // store the unique player display names for reconciliation
     GES_NAMES = [...playerNames].sort();
+    GES_TICKET_NAMES = [...ticketEntryNames].sort();
     $('totent').value=entries; $('uniq').value=unique; $('reent').value=reentries;
     // money in by method = count × buy-in (from game setup)
     const buyin=currentGame?Number(currentGame.buy_in)||0:0;
