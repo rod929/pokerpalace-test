@@ -51,6 +51,11 @@
   .big{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:34px;line-height:1}
   .big.gold{color:var(--gold)} .big.good{color:var(--good)}
   .psub{font-size:13px;color:var(--ink-faint);margin-top:8px} .psub b{color:var(--ink-dim)}
+  .cashbd{margin-top:12px;border-top:1px solid var(--line-soft);padding-top:10px}
+  .cashbd .cbrow{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-dim);padding:3px 0}
+  .cashbd .cbrow span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+  .cashbd .cbrow.bal{border-top:1px solid var(--line-soft);margin-top:5px;padding-top:8px;font-weight:700;color:var(--ink)}
+  .cashbd .cbrow.bal span:last-child{color:var(--good);font-size:15px}
   .trend{display:flex;align-items:center;gap:14px}
   .trend .num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:30px}
   .delta{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;padding:4px 10px;border-radius:20px}
@@ -172,7 +177,11 @@
         <div class="pcard">
           <h2><span class="ico">🪙</span> Cash you're holding</h2>
           <div class="big" id="tdCash">$0</div>
-          <div class="psub">running cash — hand to admin at settle-up</div>
+          <div class="cashbd">
+            <div class="cbrow"><span>Cash in hand</span><span id="tdCashRaw">$0</span></div>
+            <div class="cbrow"><span>Less: ticket money owed</span><span id="tdCashTix">$0</span></div>
+            <div class="cbrow bal"><span>Clear balance</span><span id="tdCashBal">$0</span></div>
+          </div>
         </div>
         <!-- unique players -->
         <div class="pcard">
@@ -250,7 +259,7 @@
   }
 
   // ===== TD dashboard =====
-  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], earnPeriod='7';
+  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], earnPeriod='7';
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function periodStart(p){
     const d=new Date();
@@ -273,6 +282,7 @@
       TD_CASH = (await supabase.from('cash_movements').select('*').eq('from_user',user.id)).data||[];
       // placings for biggest winners (my close-outs)
       TD_PLACINGS = coIds.length ? ((await supabase.from('placings').select('*').in('closeout_id',coIds)).data||[]) : [];
+      TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
       renderEarn(); renderCash(); renderPlayers(); renderActive();
     }catch(e){ /* silent */ }
   }
@@ -288,10 +298,40 @@
     $('tdEarnSub').textContent = 'your wages — '+lbl;
   }
   function renderCash(){
-    // cash held by this TD = their close-out leftover not yet approved-up. Approximate: sum leftover of own close-outs − approved td_to_admin hand-ups
     const leftover=TD_CO.reduce((s,c)=>s+(Number(c.leftover_cash)||0),0);
     const handedApproved=TD_CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
-    $('tdCash').textContent=money(Math.max(0,leftover-handedApproved));
+    const cashRaw=Math.max(0,leftover-handedApproved);
+    const tixOwed=outstandingTicketMoney();
+    const bal=cashRaw-tixOwed;
+    $('tdCash').textContent=money(cashRaw);
+    $('tdCashRaw').textContent=money(cashRaw);
+    $('tdCashTix').textContent='−'+money(tixOwed);
+    $('tdCashBal').textContent=money(bal);
+    const balEl=$('tdCashBal'); if(balEl) balEl.style.color = bal<0 ? 'var(--red)' : 'var(--good)';
+  }
+  // outstanding ticket money = value of won tickets not yet redeemed (same logic as ticket register)
+  function outstandingTicketMoney(){
+    const won=(TD_PLACINGS||[]).filter(p=>p.paid_by==='ticket'&&p.player_name).map(p=>{
+      const co=(TD_CO.find(c=>c.id===p.closeout_id))||{};
+      const t=p.ticket_id?(TD_TICKETS.find(x=>String(x.id)===String(p.ticket_id))):null;
+      return {player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(p.ticket_value||p.amount||0), wonDate:co.game_date||''};
+    });
+    // redemptions: ticket-entry players per close-out (game name + date)
+    const redemptions=[];
+    TD_CO.forEach(c=>{ (c.ges_ticket_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(n=>{
+      redemptions.push({player:n.toLowerCase(), game:(c.game_name||'').toLowerCase(), date:c.game_date||''}); }); });
+    won.sort((a,b)=>(a.wonDate||'').localeCompare(b.wonDate||''));
+    const consumed=new Set();
+    let owed=0;
+    won.forEach(w=>{ let used=false;
+      for(let i=0;i<redemptions.length;i++){ if(consumed.has(i))continue; const r=redemptions[i];
+        if(r.player!==w.player) continue; if(!r.game||!w.ticket) continue;
+        const nameMatch=w.ticket.includes(r.game)||r.game.includes(w.ticket); if(!nameMatch) continue;
+        if(w.wonDate&&r.date&&r.date<w.wonDate) continue;
+        used=true; consumed.add(i); break; }
+      if(!used) owed+=w.value;
+    });
+    return owed;
   }
   function renderPlayers(){
     const wk=(weeksAgo)=>{ const end=weekKeyAgo(weeksAgo-1), start=weekKeyAgo(weeksAgo);

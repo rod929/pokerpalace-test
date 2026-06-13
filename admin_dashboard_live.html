@@ -160,7 +160,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],period='month',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],period='month',computed={};
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -180,6 +180,7 @@
     try{
       const co=await supabase.from('closeouts').select('*');if(co.error)throw co.error;CLOSEOUTS=co.data||[];
       PLACINGS=(await supabase.from('placings').select('*')).data||[];
+      TICKETS=(await supabase.from('tickets').select('*')).data||[];
       STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];
       GAMES=(await supabase.from('games').select('*')).data||[];
@@ -272,6 +273,29 @@
     return out;
   }
   function earnedClubTotal(cos){ const e=earnedClubByVenue(cos); return Object.values(e).reduce((s,x)=>s+x.earned,0); }
+  // outstanding ticket money across all close-outs (won tickets not yet redeemed) — same logic as ticket register
+  function outstandingTicketMoneyAll(){
+    const coById={}; CLOSEOUTS.forEach(c=>coById[c.id]=c);
+    const tkById={}; TICKETS.forEach(t=>tkById[t.id]=t);
+    const won=PLACINGS.filter(p=>p.paid_by==='ticket'&&p.player_name).map(p=>{
+      const co=coById[p.closeout_id]||{}; const t=p.ticket_id?tkById[p.ticket_id]:null;
+      return {player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(p.ticket_value||p.amount||0), wonDate:co.game_date||''};
+    });
+    const redemptions=[];
+    CLOSEOUTS.forEach(c=>{ (c.ges_ticket_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(n=>{
+      redemptions.push({player:n.toLowerCase(), game:(c.game_name||'').toLowerCase(), date:c.game_date||''}); }); });
+    won.sort((a,b)=>(a.wonDate||'').localeCompare(b.wonDate||''));
+    const consumed=new Set(); let owed=0;
+    won.forEach(w=>{ let used=false;
+      for(let i=0;i<redemptions.length;i++){ if(consumed.has(i))continue; const r=redemptions[i];
+        if(r.player!==w.player) continue; if(!r.game||!w.ticket) continue;
+        if(!(w.ticket.includes(r.game)||r.game.includes(w.ticket))) continue;
+        if(w.wonDate&&r.date&&r.date<w.wonDate) continue;
+        used=true; consumed.add(i); break; }
+      if(!used) owed+=w.value; });
+    return owed;
+  }
+
   function compute(){
     const cos=CLOSEOUTS.filter(inPeriod);const ids=new Set(cos.map(c=>c.id));
     let prizes=0,outstanding=0,outN=0;
@@ -355,8 +379,10 @@
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner').reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashHeld=received-cashExp-toOwners;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
+    computed.ticketOwed=outstandingTicketMoneyAll();
+    computed.cashClear=cashHeld-computed.ticketOwed;
     $('mCash').textContent=money(cashHeld);
-    $('mCashSub').textContent=money(received)+' in − '+money(cashExp+toOwners)+' out';
+    $('mCashSub').textContent=money(computed.cashClear||0)+' clear after tickets';
   }
 
   // invoices for the current period (for per-venue club money attribution)
@@ -390,6 +416,9 @@
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
         '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Ticket money set aside</div>'+
+        '<div class="drow"><span class="l">Outstanding ticket/seat money owed</span><span class="r" style="color:var(--amber)">−'+money(computed.ticketOwed||0)+'</span></div>'+
+        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>Clear balance (cash − tickets)</b></span><span class="r" style="color:'+((computed.cashClear||0)<0?'var(--red)':'var(--good)')+'"><b>'+money(computed.cashClear||0)+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
         (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>');
     } else if(key==='flags'){
