@@ -9,6 +9,81 @@
     --good:#2f9e6f;--good-deep:#1f6e4d;--amber:#e0a44a;--red:#e0604f;--blue:#5b9bd5;--gold:#d8b15a;
     --pp:#D00E26;--pp-deep:#9c0c1f;--chip:#1d1819;--radius:14px;
   }
+  .gesbox{background:var(--chip);border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:16px}
+  .gesh{font-family:'Archivo',sans-serif;font-weight:700;font-size:14px;margin-bottom:5px}
+  .gesp{font-size:12.5px;color:var(--ink-dim);margin:0 0 10px;line-height:1.5}
+  .gesbox textarea{width:100%;box-sizing:border-box;min-height:90px;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px;outline:none;resize:vertical}
+  .gesbox textarea:focus{border-color:var(--blue)}
+  .gesrow{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .gesbtn{background:var(--blue);border:none;color:#0c1722;font-weight:700;font-size:13.5px;border-radius:9px;padding:10px 16px;cursor:pointer}
+  .gesbtn:hover{filter:brightness(1.08)}
+  .gesresult{font-size:12.5px;color:var(--good);font-family:'JetBrains Mono',monospace}
+  .gesfile{width:100%;box-sizing:border-box;background:var(--bg);border:1px dashed var(--line);border-radius:9px;color:var(--ink-dim);font-size:13px;padding:14px;cursor:pointer}
+  .gesfile::file-selector-button{background:var(--blue);border:none;color:#0c1722;font-weight:700;font-size:13px;border-radius:7px;padding:8px 14px;margin-right:12px;cursor:pointer}
+  .gesdet{margin-top:11px}
+  .gesdet summary{font-size:12.5px;color:var(--ink-dim);cursor:pointer;padding:4px 0}
+  .gesdet summary:hover{color:var(--ink)}
+  .ppool{background:linear-gradient(160deg,#13251c,#10191a);border:1px solid var(--good-deep);border-radius:11px;padding:14px 16px;margin:6px 0 16px}
+  .pph{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:9px}
+  .pprow{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;color:var(--ink-dim)}
+  .pprow span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+  .pprow.total{border-top:1px solid var(--line);margin-top:5px;padding-top:9px;font-weight:700;color:var(--ink)}
+  .pprow.total span:last-child{color:var(--good);font-size:16px;font-weight:700}
+  .phasebar{display:flex;align-items:center;gap:12px;margin:22px 2px 14px}
+  .phasebar .pb-line{flex:1;height:1px;background:var(--line)}
+  .phasebar .pb-txt{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.04em;color:var(--gold);white-space:nowrap}
+  .frm{font-size:10px;font-weight:600;color:var(--blue);background:rgba(91,155,213,.12);border:1px solid rgba(91,155,213,.3);border-radius:5px;padding:2px 6px;margin-left:5px;vertical-align:middle}
+  .frm.man{color:var(--amber);background:rgba(224,164,74,.12);border-color:rgba(224,164,74,.3)}
+  .fld.span2{grid-column:1/-1}
+  input[readonly]{opacity:.85;cursor:default}
+  #reconBox.ok b{color:var(--good)} #reconBox.bad b{color:var(--red)} #reconBox.bad{border-color:#7a3328}
+  .leftbox{background:linear-gradient(160deg,#241d12,#19140d);border:1px solid var(--gold);border-radius:11px;padding:14px 16px;margin-top:14px}
+  .leftbox .lh{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:9px}
+  .leftbox .lrow{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;color:var(--ink-dim)}
+  .leftbox .lrow span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+  .leftbox .lrow.total{border-top:1px solid var(--line);margin-top:5px;padding-top:9px;font-weight:700;color:var(--ink)}
+  .leftbox .lrow.total span:last-child{color:var(--gold);font-size:17px;font-weight:700}
+  .leftbox .lnote{font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic}
+  .reconprog{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .reconprog .rbar{flex:1;height:9px;background:var(--chip);border-radius:5px;overflow:hidden}
+  .reconprog .rfill{height:100%;width:0;background:linear-gradient(90deg,var(--good-deep),var(--good));transition:width .3s}
+  .reconprog .rtxt{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-dim);white-space:nowrap}
+  .rrow{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:7px}
+  .rrow.paid{border-left:3px solid var(--good);opacity:.7}
+  .rrow.pendingtfr{border-left:3px solid var(--amber)}
+  .rrow .pendtag{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber);white-space:nowrap}
+  .reconform .paybtn.tfr{background:var(--amber);color:#1a1408;border-color:var(--amber)}
+  .rrow .rpl{font-family:'Archivo',sans-serif;font-weight:700;font-size:14px;width:54px}
+  .rrow .rmid{flex:1} .rrow .ramt{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px} .rrow .rmeta{font-size:11px;color:var(--ink-faint);text-transform:capitalize}
+  .rrow .paybtn{background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+  .rrow .paybtn:hover{filter:brightness(1.1)} .rrow .paidtag{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--good);white-space:nowrap}
+  .sumwrap{background:var(--card);border:1px solid var(--gold);border-radius:16px;padding:24px;margin-bottom:16px}
+  .sumwrap .sh{font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;margin:0 0 4px}
+  .sumwrap .ssub{font-size:13px;color:var(--ink-dim);font-family:'JetBrains Mono',monospace;margin-bottom:18px}
+  .sumsec{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 9px}
+  .sumrow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+  .sumrow span:last-child{font-family:'JetBrains Mono',monospace}
+  .sumprofit{background:linear-gradient(160deg,#13251c,#10191a);border:1px solid var(--good-deep);border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+  .sumprofit .pl{font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em} .sumprofit .pv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:30px;margin-top:5px}
+  .sumbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  .sumbtns a,.sumbtns button{flex:1;min-width:150px;text-align:center;text-decoration:none;border-radius:10px;padding:13px;font-weight:700;font-size:14px;cursor:pointer;border:none}
+  .sumbtns .recon{background:var(--good);color:#0c1a12} .sumbtns .new{background:var(--chip);border:1px solid var(--line);color:var(--ink)}
+  .reconform{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:9px}
+  .reconform .rfh{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .reconform .rpl{font-family:'Archivo',sans-serif;font-weight:700;font-size:15px}
+  .reconform .rfamt{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--gold)}
+  .reconform .rfmeta{font-size:11px;color:var(--ink-faint);text-transform:capitalize;margin-left:auto}
+  .reconform .rfsel{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-size:14px;padding:10px;margin-bottom:9px;font-family:inherit}
+  .reconform .paybtn{width:100%;background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:9px;padding:11px;font-weight:600;font-size:14px;cursor:pointer}
+  .reconform .paybtn:hover{filter:brightness(1.1)}
+  .sumbox{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .sumrow.profitrow{border-bottom:none;border-top:1px solid var(--line);margin-top:6px;padding-top:10px;font-size:16px}
+  .cashbig{background:linear-gradient(160deg,#241d12,#19140d);border:1px solid var(--gold);border-radius:14px;padding:22px;text-align:center;margin:6px 0 16px}
+  .cashbig .cbl{font-size:13px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em}
+  .cashbig .cbv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:40px;color:var(--gold);margin-top:8px}
+  .ppflag{margin-top:10px;border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600}
+  .ppflag.over{background:rgba(224,96,79,.12);border:1px solid #7a3328;color:#f0a99c}
+  .ppflag.ok{background:rgba(47,158,111,.12);border:1px solid var(--good-deep);color:#8fdcb6}
   *{box-sizing:border-box}
   body{margin:0;background:
       radial-gradient(1200px 600px at 82% -12%,#2a1014 0%,transparent 55%),
@@ -154,51 +229,106 @@
 
     <!-- 1. entries -->
     <div class="card">
-      <h2><span class="n">1</span> Entries <span class="req">&#9679;</span><span class="soonchip">GES cross-check coming</span></h2>
-      <p class="lead">Enter the night's numbers. When GES adds this to their reporting, these will auto-fill and cross-check against your count.</p>
+      <h2><span class="n">1</span> Entries <span class="req">&#9679;</span></h2>
+      <p class="lead">Paste the GES entry report below to auto-fill the counts — or type them in. Add-ons stay manual (GES doesn't report those).</p>
+
+      <div class="gesbox">
+        <div class="gesh">📋 Import GES entry report</div>
+        <p class="gesp">After registration closes, export the entry report from GES, then upload the CSV file here. It counts total entries, unique players and re-entries automatically.</p>
+        <input type="file" id="gesFile" accept=".csv,text/csv" class="gesfile">
+        <details class="gesdet"><summary>or paste the report instead</summary>
+          <textarea id="gesPaste" placeholder="Paste the GES CSV here (including the header rows)…"></textarea>
+          <div class="gesrow"><button type="button" id="gesBtn" class="gesbtn">Read pasted report</button></div>
+        </details>
+        <div id="gesResult" class="gesresult" style="margin-top:10px"></div>
+      </div>
+
       <div class="grid">
         <div class="fld"><label>Total entries</label><div class="inrow"><input id="totent" type="number" placeholder="0" min="0"></div></div>
         <div class="fld"><label>Unique players</label><div class="inrow"><input id="uniq" type="number" placeholder="0" min="0"></div></div>
         <div class="fld"><label>Re-entries</label><div class="inrow"><input id="reent" type="number" placeholder="0" min="0"></div></div>
-        <div class="fld"><label>Add-ons / reloads</label><div class="inrow"><input id="addon" type="number" placeholder="0" min="0"></div></div>
+        <div class="fld"><label>Add-ons / reloads <span style="color:var(--ink-faint);font-size:11px">(manual)</span></label><div class="inrow"><input id="addon" type="number" placeholder="0" min="0"></div></div>
         <div class="fld"><label>New players</label><div class="inrow"><input id="newp" type="number" placeholder="0" min="0"></div></div>
       </div>
-      <label class="confirm"><input type="checkbox" id="confirmEntries"><span class="t">These numbers are correct for tonight<small>You're the source of record until GES reporting catches up</small></span></label>
+
+      <div class="ppool" id="ppoolBox" style="display:none">
+        <div class="pph">Prize pool (live)</div>
+        <div class="pprow"><span>From buy-ins</span><span id="ppBuyins">$0</span></div>
+        <div class="pprow"><span>From add-ons</span><span id="ppAddons">$0</span></div>
+        <div class="pprow total"><span>Total prize pool</span><span id="ppTotal">$0</span></div>
+        <div class="pprow" id="ppGteeRow" style="display:none"><span id="ppGteeLabel">Guarantee</span><span id="ppGtee">$0</span></div>
+        <div class="ppflag" id="ppOverlay" style="display:none"></div>
+      </div>
+
+      <label class="confirm"><input type="checkbox" id="confirmEntries"><span class="t">These numbers are correct for tonight<small>You're the source of record — cross-checked against the GES report</small></span></label>
     </div>
+
+    <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">✅ As soon as registration closes</span><span class="pb-line"></span></div>
 
     <!-- 2. money in -->
     <div class="card">
       <h2><span class="n">2</span> Money In</h2>
-      <p class="lead">Total taken tonight, and the cash left in the float after payouts.</p>
+      <p class="lead">Cash, transfer and ticket totals come from the GES import. Add anything else under "Other in".</p>
       <div class="grid">
-        <div class="fld"><label>Total money in</label><div class="inrow"><span class="pre">$</span><input id="moneyIn" type="number" placeholder="0" min="0"></div></div>
-        <div class="fld"><label>Leftover cash</label><div class="inrow"><span class="pre">$</span><input id="leftover" type="number" placeholder="0" min="0"></div></div>
+        <div class="fld"><label>Cash in <span class="frm">GES + add-ons</span></label><div class="inrow"><span class="pre">$</span><input id="cashIn" type="number" placeholder="0" min="0" readonly></div></div>
+        <div class="fld"><label>Transfer in <span class="frm">from GES</span></label><div class="inrow"><span class="pre">$</span><input id="transferIn" type="number" placeholder="0" min="0" readonly></div></div>
+        <div class="fld"><label>Ticket / satellite in <span class="frm">from GES</span></label><div class="inrow"><span class="pre">$</span><input id="ticketIn" type="number" placeholder="0" min="0" readonly></div></div>
+        <div class="fld"><label>Other in <span class="frm man">manual</span></label><div class="inrow"><span class="pre">$</span><input id="otherIn" type="number" placeholder="0" min="0"></div></div>
+        <div class="fld span2"><label>Other in — what is it?</label><div class="inrow"><input id="otherInNote" type="text" placeholder="e.g. bar tab contribution, sponsor add"></div></div>
+      </div>
+      <div class="splitline" style="grid-template-columns:1fr 1fr">
+        <div class="s tot"><small>Total money in</small><b id="moneyInTot">$0</b></div>
+        <div class="s" id="reconBox"><small>vs prize pool</small><b id="reconMsg">—</b></div>
       </div>
     </div>
 
     <!-- 3. placings -->
     <div class="card">
       <h2><span class="n">3</span> Placing Schedule</h2>
-      <p class="lead">Set the prize for each place and how it was paid. Add a row per paid place.</p>
+      <p class="lead">One row per paid place — the placing number, prize amount, and how it's paid. For tickets, pick which ticket. No player names needed.</p>
       <table class="wtbl" id="placeTbl">
-        <thead><tr><th class="pl">#</th><th>Player</th><th class="r">Prize $</th><th>Paid by</th><th></th></tr></thead>
+        <thead><tr><th class="pl">Place</th><th class="r">Prize $</th><th>Paid by</th><th>Ticket</th><th></th></tr></thead>
         <tbody id="placeBody"></tbody>
       </table>
       <button class="addrow" id="addPlace" type="button">+ add placing</button>
       <div class="splitline">
         <div class="s cash"><small>Cash paid</small><b id="cashOut">$0</b></div>
-        <div class="s tfr"><small>Transfer paid</small><b id="tfrOut">$0</b></div>
+        <div class="s tfr"><small>Transfer to pay</small><b id="tfrOut">$0</b></div>
         <div class="s sat"><small>Tickets out</small><b id="satOut">$0</b></div>
         <div class="s tot"><small>Total prizes</small><b id="prizeTot">$0</b></div>
       </div>
+      <div class="leftbox" id="leftBox">
+        <div class="lh">💵 Cash leftover (auto)</div>
+        <div class="lrow"><span>Cash in (incl. other in)</span><span id="lfCashIn">$0</span></div>
+        <div class="lrow"><span>Less: cash prizes paid</span><span id="lfCashPaid">$0</span></div>
+        <div class="lrow total"><span>Cash leftover in till</span><span id="lfTotal">$0</span></div>
+        <div class="lnote">Tickets &amp; transfers aren't deducted — that cash stays in the till.</div>
+      </div>
+      <button class="submit block" id="lockBtn" style="margin-top:16px">🔒 Lock prize pool &amp; save</button>
+      <div class="blockwhy" id="lockWhy"></div>
     </div>
+
+    <!-- 3b. reconciliation (appears after lock) -->
+    <div class="card" id="reconCard" style="display:none">
+      <h2><span class="n">✓</span> Payment Reconciliation</h2>
+      <p class="lead">Pick the winner for each place and confirm. Transfers are assigned a winner but paid later by Admin (they stay pending).</p>
+      <div class="reconprog"><div class="rbar"><div class="rfill" id="rFill"></div></div><div class="rtxt" id="rTxt">0 of 0 paid</div></div>
+      <div id="reconList"></div>
+      <div class="splitline" style="grid-template-columns:1fr 1fr">
+        <div class="s cash"><small>Paid out</small><b id="rPaid">$0</b></div>
+        <div class="s tot"><small>Still to pay</small><b id="rOut">$0</b></div>
+      </div>
+    </div>
+
+    <div id="phase2" style="display:none">
+    <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">⏱ At tournament completion</span><span class="pb-line"></span></div>
 
     <!-- 4. staff -->
     <div class="card">
       <h2><span class="n">4</span> Staff Timesheet</h2>
       <p class="lead">Pick who worked from the staff list and enter their hours — the rate comes from the locked staff setup. Add a row per person.</p>
       <table class="wtbl" id="staffTbl">
-        <thead><tr><th>Name</th><th>Role</th><th class="r">Hours</th><th class="r">Rate $</th><th class="r">Pay</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th class="r">Start</th><th class="r">Finish</th><th class="r">Hours</th><th class="r">Rate $</th><th class="r">Pay</th><th></th></tr></thead>
         <tbody id="staffBody"></tbody>
       </table>
       <button class="addrow" id="addStaff" type="button">+ add staff</button>
@@ -207,8 +337,12 @@
       </div>
     </div>
 
-    <button class="submit block" id="submitBtn">Submit close-out</button>
+    <button class="submit block" id="submitBtn">Finalise close-out</button>
     <div class="blockwhy" id="blockWhy"></div>
+    </div>
+
+    <!-- summary page (after finalise) -->
+    <div id="summaryPage" style="display:none"></div>
 
     <div class="note"><b>Live &amp; central:</b> this saves to the cloud stamped as you. Admins see all close-outs; you see your own below.</div>
 
@@ -226,6 +360,7 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[];
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[];
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -237,7 +372,7 @@
     $('chipTD').textContent=u.email.split('@')[0];
     $('gameDate').valueAsDate=new Date();
     syncChips();
-    loadVenues(); loadGames(); loadStaffList(); loadMine();
+    loadVenues(); loadGames(); loadStaffList(); loadTickets(); loadMine();
     places=[]; addPlace(); addPlace(); addPlace();
     staff=[]; addStaff(); addStaff();
   }
@@ -267,6 +402,11 @@
       if(error) throw error;
       $('venueSel').innerHTML='<option value="">- choose venue -</option>'+data.map(v=>'<option>'+(v.name||'')+'</option>').join('');
     }catch(e){ $('venueSel').innerHTML='<option value="">(could not load)</option>'; }
+  }
+
+  async function loadTickets(){
+    try{ const { data } = await supabase.from('tickets').select('*').eq('active',true).order('name'); TICKETS=data||[]; }
+    catch(e){ TICKETS=[]; }
   }
 
   async function loadGames(){
@@ -311,22 +451,31 @@
 
   // ---- placings (child rows) ----
   let places=[];
+  let TICKETS=[];
+  function ticketOpts(selId){
+    return '<option value="">- ticket -</option>'+TICKETS.map(t=>'<option value="'+t.id+'"'+(String(selId)===String(t.id)?' selected':'')+'>'+t.name+' ($'+Math.round(t.value)+')</option>').join('');
+  }
   function renderPlaces(){
     const tb=$('placeBody');
     tb.innerHTML=places.map((p,i)=>
       '<tr>'+
       '<td class="pl">'+(i+1)+'</td>'+
-      '<td><input class="tinput" data-f="player" data-i="'+i+'" placeholder="Player name" value="'+(p.player||'')+'"></td>'+
-      '<td><input class="tinput r" data-f="amount" data-i="'+i+'" type="number" min="0" placeholder="0" value="'+(p.amount||'')+'"></td>'+
+      '<td><input class="tinput r" data-f="amount" data-i="'+i+'" type="number" min="0" placeholder="0" value="'+(p.amount||'')+'"'+(p.paid==='ticket'?' readonly':'')+'></td>'+
       '<td><select class="tinput" data-f="paid" data-i="'+i+'">'+
         ['cash','transfer','ticket'].map(o=>'<option value="'+o+'"'+(p.paid===o?' selected':'')+'>'+o.charAt(0).toUpperCase()+o.slice(1)+'</option>').join('')+
       '</select></td>'+
+      '<td>'+(p.paid==='ticket'?('<select class="tinput" data-f="ticket" data-i="'+i+'">'+ticketOpts(p.ticket_id)+'</select>'):'<span style="color:var(--ink-faint);font-size:12px">—</span>')+'</td>'+
       '<td><button class="delrow" data-del="'+i+'" type="button">&times;</button></td>'+
       '</tr>'
     ).join('');
     tb.querySelectorAll('.tinput').forEach(el=>{
-      el.addEventListener('input',e=>{ const i=+el.dataset.i, f=el.dataset.f; places[i][f]= (f==='amount')?el.value:el.value; recalcPlaces(); });
-      el.addEventListener('change',e=>{ const i=+el.dataset.i, f=el.dataset.f; places[i][f]=el.value; recalcPlaces(); });
+      el.addEventListener('input',()=>{ const i=+el.dataset.i, f=el.dataset.f; places[i][f]=el.value; recalcPlaces(); });
+      el.addEventListener('change',()=>{ const i=+el.dataset.i, f=el.dataset.f;
+        places[i][f]=el.value;
+        if(f==='paid'){ if(el.value!=='ticket'){ places[i].ticket_id=null; } renderPlaces(); }
+        if(f==='ticket'){ const t=TICKETS.find(x=>String(x.id)===String(el.value)); places[i].ticket_id=el.value||null; places[i].amount = t?t.value:places[i].amount; renderPlaces(); }
+        recalcPlaces();
+      });
     });
     tb.querySelectorAll('.delrow').forEach(b=>b.addEventListener('click',()=>{ places.splice(+b.dataset.del,1); renderPlaces(); recalcPlaces(); }));
     recalcPlaces();
@@ -338,20 +487,49 @@
     $('tfrOut').textContent='$'+tfr.toLocaleString();
     $('satOut').textContent='$'+sat.toLocaleString();
     $('prizeTot').textContent='$'+tot.toLocaleString();
+    updateLeftover(cash);
   }
-  function addPlace(){ places.push({player:'',amount:'',paid:'cash'}); renderPlaces(); }
+  function addPlace(){ places.push({amount:'',paid:'cash',ticket_id:null}); renderPlaces(); }
+
+  // cash leftover = cash in − overlay − transfer prizes − ticket prizes
+  function currentOverlay(){
+    const g=currentGame; if(!g) return 0;
+    const entries=Number($('totent').value)||0, addons=Number($('addon').value)||0;
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+    const pool=(buyin-rake)*entries + addonPrice*addons;
+    return Math.max(0, gtee-pool);
+  }
+  function updateLeftover(cashPrizes){
+    const cashIn=Number($('cashIn').value)||0;
+    const otherIn=Number($('otherIn').value)||0;
+    const tillIn=cashIn+otherIn;
+    const leftover=tillIn-(cashPrizes||0);
+    $('lfCashIn').textContent='$'+tillIn.toLocaleString();
+    $('lfCashPaid').textContent='−$'+Math.round(cashPrizes||0).toLocaleString();
+    $('lfTotal').textContent='$'+Math.round(leftover).toLocaleString();
+  }
 
   // ---- staff timesheet (child rows) ----
   let staff=[];
+  function calcHours(start,finish){
+    if(!start||!finish) return 0;
+    const [sh,sm]=start.split(':').map(Number); const [fh,fm]=finish.split(':').map(Number);
+    if([sh,sm,fh,fm].some(n=>isNaN(n))) return 0;
+    let mins=(fh*60+fm)-(sh*60+sm);
+    if(mins<0) mins+=24*60; // finish after midnight
+    return Math.round((mins/60)*100)/100;
+  }
   function renderStaff(){
     const tb=$('staffBody');
     tb.innerHTML=staff.map((s,i)=>{
       const opts='<option value="">- pick staff -</option>'+ALL_STAFF.map(p=>'<option value="'+p.id+'"'+(String(s.staff_id)===String(p.id)?' selected':'')+'>'+p.name+'</option>').join('');
-      const pay=((Number(s.hours)||0)*(Number(s.rate)||0))||0;
+      const hrs=calcHours(s.start,s.finish);
+      const pay=(hrs*(Number(s.rate)||0))||0;
       return '<tr>'+
-      '<td><select class="tinput" data-sf="staff_id" data-si="'+i+'">'+opts+'</select></td>'+
-      '<td style="color:var(--ink-dim);font-size:13px">'+(s.role||'-')+'</td>'+
-      '<td><input class="tinput r" data-sf="hours" data-si="'+i+'" type="number" min="0" step="0.5" placeholder="0" value="'+(s.hours||'')+'"></td>'+
+      '<td><select class="tinput" data-sf="staff_id" data-si="'+i+'">'+opts+'</select>'+(s.role?'<div style="font-size:11px;color:var(--ink-faint);margin-top:3px">'+s.role+'</div>':'')+'</td>'+
+      '<td><input class="tinput r" data-sf="start" data-si="'+i+'" type="time" value="'+(s.start||'')+'"></td>'+
+      '<td><input class="tinput r" data-sf="finish" data-si="'+i+'" type="time" value="'+(s.finish||'')+'"></td>'+
+      '<td class="r" style="font-family:\'JetBrains Mono\';color:var(--ink);font-size:13px">'+(hrs?hrs+'h':'-')+'</td>'+
       '<td class="r" style="font-family:\'JetBrains Mono\';color:var(--ink-faint);font-size:13px">'+(s.rate?('$'+s.rate):'-')+'</td>'+
       '<td class="pl" style="text-align:right;font-family:\'JetBrains Mono\';color:var(--gold)">$'+pay.toLocaleString()+'</td>'+
       '<td><button class="delrow" data-sdel="'+i+'" type="button">&times;</button></td>'+
@@ -367,17 +545,16 @@
         renderStaff();
       });
     });
-    tb.querySelectorAll('input[data-sf="hours"]').forEach(el=>{
-      el.addEventListener('input',()=>{ staff[+el.dataset.si].hours=el.value; recalcStaff(); });
+    tb.querySelectorAll('input[data-sf="start"],input[data-sf="finish"]').forEach(el=>{
+      el.addEventListener('input',()=>{ const i=+el.dataset.si, f=el.dataset.sf; staff[i][f]=el.value; staff[i].hours=calcHours(staff[i].start,staff[i].finish); renderStaff(); });
     });
     tb.querySelectorAll('.delrow').forEach(b=>b.addEventListener('click',()=>{ staff.splice(+b.dataset.sdel,1); renderStaff(); }));
     recalcStaff();
   }
   function recalcStaff(){
-    let tot=0; staff.forEach(s=>tot+=(Number(s.hours)||0)*(Number(s.rate)||0));
+    let tot=0; staff.forEach(s=>tot+=calcHours(s.start,s.finish)*(Number(s.rate)||0));
     $('wagesTot').textContent='$'+tot.toLocaleString();
-    const rows=$('staffBody').querySelectorAll('tr');
-    staff.forEach((s,i)=>{ if(rows[i]){ const pay=rows[i].querySelectorAll('td')[4]; if(pay) pay.textContent='$'+(((Number(s.hours)||0)*(Number(s.rate)||0))||0).toLocaleString(); } });
+    if(typeof updateFinaliseGate==='function' && LOCKED_ID) updateFinaliseGate();
   }
   function addStaff(){ staff.push({staff_id:null,name:'',role:'',hours:'',rate:''}); renderStaff(); }
 
@@ -396,82 +573,226 @@
 
   function validate(){
     const ok = $('venueSel').value && currentGame && $('totent').value && $('confirmEntries').checked;
-    const btn=$('submitBtn');
-    if(ok){ btn.className='submit ready'; $('blockWhy').textContent=''; }
-    else {
-      btn.className='submit block';
-      let why=[];
-      if(!$('venueSel').value) why.push('pick a venue');
-      if(!currentGame) why.push('pick the tournament');
-      if(!$('totent').value) why.push('enter total entries');
-      if(!$('confirmEntries').checked) why.push('confirm the numbers');
-      $('blockWhy').textContent = why.length ? ('To submit: '+why.join(', ')+'.') : '';
+    const btn=$('lockBtn');
+    if(btn){
+      if(ok){ btn.className='submit ready block'; btn.style.opacity=''; $('lockWhy').textContent=''; }
+      else {
+        btn.className='submit block';
+        let why=[];
+        if(!$('venueSel').value) why.push('pick a venue');
+        if(!currentGame) why.push('pick the tournament');
+        if(!$('totent').value) why.push('enter total entries');
+        if(!$('confirmEntries').checked) why.push('confirm the numbers');
+        $('lockWhy').textContent = why.length ? ('To lock: '+why.join(', ')+'.') : '';
+      }
     }
     return ok;
   }
 
-  async function submit(){
-    if(!validate()) return;
-    $('submitBtn').disabled=true; setStatus('Saving to the cloud...','ok');
+  // ===== Stage 1: lock prize pool & save close-out + placings =====
+  async function lockPlacings(){
+    if(!validate()){
+      const why=$('lockWhy').textContent||'Complete the entries section first (venue, game, entries, confirm tick).';
+      setStatus('Can\'t lock yet — '+why,'err');
+      $('lockWhy').scrollIntoView({behavior:'smooth',block:'center'});
+      alert('Can\'t lock yet — '+why);
+      return;
+    }
+    const validPlaces = places.filter(p => Number(p.amount)>0);
+    if(!validPlaces.length){ setStatus('Add at least one placing (with a prize amount) before locking.','err'); alert('Add at least one placing with a prize amount before locking.'); return; }
+    $('lockBtn').disabled=true; setStatus('Locking prize pool & saving...','ok');
     try{
+      const cashIn=Number($('cashIn').value)||0, tfrIn=Number($('transferIn').value)||0, tktIn=Number($('ticketIn').value)||0, othIn=Number($('otherIn').value)||0;
+      const moneyInTotal=cashIn+tfrIn+tktIn+othIn;
+      let cashPrizes=0; places.forEach(p=>{const a=Number(p.amount)||0; if(p.paid!=='transfer'&&p.paid!=='ticket')cashPrizes+=a;});
+      const leftover=(cashIn+othIn)-cashPrizes;
       const row={
-        submitted_by:user.id,
-        venue_name:$('venueSel').value,
-        game_name:currentGame?currentGame.name:'',
+        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame?currentGame.name:'',
         game_date:$('gameDate').value||null,
         entries:$('totent').value?Number($('totent').value):null,
         unique_players:$('uniq').value?Number($('uniq').value):null,
         re_entries:$('reent').value?Number($('reent').value):null,
         addons:$('addon').value?Number($('addon').value):null,
         new_players:$('newp').value?Number($('newp').value):null,
-        money_in:$('moneyIn').value?Number($('moneyIn').value):null,
-        leftover_cash:$('leftover').value?Number($('leftover').value):null
+        cash_in:cashIn||null, transfer_in:tfrIn||null, ticket_in:tktIn||null,
+        other_in:othIn||null, other_in_note:$('otherInNote').value.trim()||null,
+        money_in:moneyInTotal||null, cash_leftover_calc:Math.round(leftover), leftover_cash:Math.round(leftover),
+        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null
       };
-      const { data, error } = await supabase.from('closeouts').insert(row).select();
+      let co=null;
+      const ins = await supabase.from('closeouts').insert(row).select();
+      if(ins.error){
+        if(/ges_players/.test(ins.error.message||'')){
+          delete row.ges_players;
+          const retry = await supabase.from('closeouts').insert(row).select();
+          if(retry.error) throw retry.error;
+          co = retry.data && retry.data[0] ? retry.data[0] : null;
+        } else { throw ins.error; }
+      } else {
+        co = ins.data && ins.data[0] ? ins.data[0] : null;
+      }
+      lastId = co ? co.id : null; LOCKED_ID = lastId;
+      const placeRows = validPlaces.map((p,idx)=>{
+        const t = p.ticket_id ? TICKETS.find(x=>String(x.id)===String(p.ticket_id)) : null;
+        return { closeout_id: co.id, place: idx+1, amount: Number(p.amount), paid_by: p.paid||'cash',
+          ticket_id: p.ticket_id?Number(p.ticket_id):null, ticket_value: t?Number(t.value):null, paid:false };
+      });
+      const { data: pdata, error: pErr } = await supabase.from('placings').insert(placeRows).select();
+      if(pErr) throw new Error('Saved close-out, but placings failed: '+pErr.message);
+      RECON = pdata||[];
+      clearStatus();
+      // lock the form: disable placing edits + lock button, reveal reconciliation + phase 2
+      $('lockBtn').textContent='🔒 Prize pool locked & saved';
+      $('addPlace').style.display='none';
+      $('placeBody').querySelectorAll('input,select,button').forEach(el=>el.disabled=true);
+      ['totent','addon','otherIn','otherInNote','gesFile','cashIn','transferIn','ticketIn'].forEach(id=>{ if($(id)) $(id).disabled=true; });
+      $('reconCard').style.display='block';
+      $('phase2').style.display='block';
+      renderRecon();
+      $('reconCard').scrollIntoView({behavior:'smooth'});
+    }catch(e){ const msg=(e.message||e); setStatus('&#10007; Could not lock: '+msg,'err'); $('lockBtn').disabled=false; $('status').scrollIntoView({behavior:'smooth',block:'center'}); alert('Could not lock prize pool:\n\n'+msg); }
+  }
+
+  // ===== Stage 2: reconciliation — one form per player, name from GES =====
+  function nameOpts(sel){
+    return '<option value="">- select player -</option>'+GES_NAMES.map(n=>'<option'+(n===sel?' selected':'')+'>'+n+'</option>').join('');
+  }
+  function renderRecon(){
+    const total=RECON.reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const paid=RECON.filter(p=>p.paid).reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const done=RECON.filter(p=> p.paid || (p.paid_by==='transfer' && p.player_name && p.player_name.trim())).length;
+    $('rFill').style.width=(RECON.length?Math.round(done/RECON.length*100):0)+'%';
+    $('rTxt').textContent=done+' of '+RECON.length+' done';
+    $('rPaid').textContent='$'+Math.round(paid).toLocaleString();
+    $('rOut').textContent='$'+Math.round(total-paid).toLocaleString();
+    $('reconList').innerHTML=RECON.map(p=>{
+      const t=p.ticket_id?TICKETS.find(x=>String(x.id)===String(p.ticket_id)):null;
+      const suf=p.place===1?'st':p.place===2?'nd':p.place===3?'rd':'th';
+      const isTransfer=p.paid_by==='transfer';
+      const meta=p.paid_by==='ticket'?('Ticket'+(t?' · '+t.name:'')):p.paid_by;
+      if(p.paid){
+        return '<div class="rrow paid"><div class="rpl">'+p.place+suf+'</div>'+
+          '<div class="rmid"><div class="ramt">'+(p.player_name||'(player)')+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">'+meta+'</div></div>'+
+          '<span class="paidtag">&#10003; paid</span></div>';
+      }
+      if(isTransfer && p.player_name){
+        // transfer with a name assigned but not yet paid → pending (admin pays later)
+        return '<div class="rrow pendingtfr"><div class="rpl">'+p.place+suf+'</div>'+
+          '<div class="rmid"><div class="ramt">'+p.player_name+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">transfer</div></div>'+
+          '<span class="pendtag">⏳ pending transfer (admin)</span></div>';
+      }
+      const action = isTransfer
+        ? '<button class="paybtn tfr" data-tfr="'+p.id+'">Save as pending transfer</button>'
+        : '<button class="paybtn" data-pay="'+p.id+'">Confirm payment</button>';
+      return '<div class="reconform"><div class="rfh"><span class="rpl">'+p.place+suf+'</span><span class="rfamt">$'+Math.round(p.amount).toLocaleString()+'</span><span class="rfmeta">'+meta+'</span></div>'+
+        '<select class="rfsel" data-name="'+p.id+'">'+nameOpts(p.player_name)+'</select>'+
+        action+'</div>';
+    }).join('');
+    $('reconList').querySelectorAll('[data-pay]').forEach(b=>b.addEventListener('click',()=>confirmPay(b.dataset.pay)));
+    $('reconList').querySelectorAll('[data-tfr]').forEach(b=>b.addEventListener('click',()=>savePendingTransfer(b.dataset.tfr)));
+    updateFinaliseGate();
+  }
+  async function confirmPay(id){
+    const sel=$('reconList').querySelector('[data-name="'+id+'"]');
+    const name=sel?sel.value:'';
+    if(!name){ setStatus('Select the player for this place first.','err'); return; }
+    clearStatus();
+    try{
+      const { error } = await supabase.from('placings').update({player_name:name, paid:true, paid_at:new Date().toISOString()}).eq('id',id);
       if(error) throw error;
-      const newCloseout = data && data[0] ? data[0] : null;
-      lastId = newCloseout ? newCloseout.id : null;
+      const r=RECON.find(x=>String(x.id)===String(id)); if(r){ r.paid=true; r.player_name=name; }
+      renderRecon();
+    }catch(e){ setStatus('Could not confirm: '+(e.message||e),'err'); }
+  }
+  async function savePendingTransfer(id){
+    const sel=$('reconList').querySelector('[data-name="'+id+'"]');
+    const name=sel?sel.value:'';
+    if(!name){ setStatus('Select the player for this transfer first.','err'); return; }
+    clearStatus();
+    try{
+      // assign the name, leave paid=false → admin pays the transfer later
+      const { error } = await supabase.from('placings').update({player_name:name, paid:false}).eq('id',id);
+      if(error) throw error;
+      const r=RECON.find(x=>String(x.id)===String(id)); if(r){ r.player_name=name; }
+      renderRecon();
+    }catch(e){ setStatus('Could not save: '+(e.message||e),'err'); }
+  }
+  // gate: every CASH/TICKET payout confirmed, every TRANSFER has a name assigned
+  function allReconciled(){
+    if(!RECON.length) return false;
+    return RECON.every(p=> p.paid_by==='transfer' ? !!(p.player_name&&p.player_name.trim()) : p.paid );
+  }
+  function staffEntered(){ return staff.some(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0); }
+  function updateFinaliseGate(){
+    const btn=$('submitBtn'); if(!btn) return;
+    const ok=allReconciled() && staffEntered();
+    if(ok){ btn.className='submit ready'; $('blockWhy').textContent=''; }
+    else{
+      btn.className='submit block';
+      const why=[];
+      if(!allReconciled()) why.push('confirm cash/ticket payouts & assign transfer winners');
+      if(!staffEntered()) why.push('enter staff timesheet');
+      $('blockWhy').textContent = why.length ? ('To finalise: '+why.join(' and ')+'.') : '';
+    }
+  }
 
-      // save placings (child rows) linked to this close-out's id
-      const validPlaces = places.filter(p => (p.player && p.player.trim()) || Number(p.amount)>0);
-      if(newCloseout && validPlaces.length){
-        const placeRows = validPlaces.map((p,idx)=>({
-          closeout_id: newCloseout.id,
-          place: idx+1,
-          player_name: p.player ? p.player.trim() : null,
-          amount: p.amount ? Number(p.amount) : null,
-          paid_by: p.paid || 'cash'
-        }));
-        const { error: pErr } = await supabase.from('placings').insert(placeRows);
-        if(pErr) throw new Error('Close-out saved, but placings failed: '+pErr.message);
-      }
-
-      // save staff shifts (child rows) linked to this close-out
+  // ===== Stage 3: finalise — save staff, show summary =====
+  async function submit(){
+    if(!LOCKED_ID){ setStatus('Lock the prize pool first.','err'); return; }
+    if(!allReconciled()){ setStatus('Confirm cash/ticket payouts and assign transfer winners before finalising.','err'); return; }
+    if(!staffEntered()){ setStatus('Enter the staff timesheet before finalising.','err'); return; }
+    $('submitBtn').disabled=true; setStatus('Finalising...','ok');
+    try{
       const validStaff = staff.filter(s => (s.name && s.name.trim()) || Number(s.hours)>0);
-      if(newCloseout && validStaff.length){
-        const staffRows = validStaff.map(s=>({
-          closeout_id: newCloseout.id,
-          staff_name: s.name ? s.name.trim() : null,
-          role: s.role ? s.role.trim() : null,
-          hours: s.hours ? Number(s.hours) : null,
-          rate: s.rate ? Number(s.rate) : null
-        }));
+      if(validStaff.length){
+        const staffRows = validStaff.map(s=>({ closeout_id: LOCKED_ID, staff_name:s.name?s.name.trim():null, role:s.role?s.role.trim():null, hours:calcHours(s.start,s.finish)||null, rate:s.rate?Number(s.rate):null }));
         const { error: sErr } = await supabase.from('staff_shifts').insert(staffRows);
-        if(sErr) throw new Error('Close-out saved, but staff failed: '+sErr.message);
+        if(sErr) throw new Error('Staff save failed: '+sErr.message);
       }
+      clearStatus();
+      showSummary(validStaff);
+      loadMine();
+    }catch(e){ setStatus('&#10007; Could not finalise: '+(e.message||e),'err'); $('submitBtn').disabled=false; }
+  }
 
-      const bits=[];
-      if(validPlaces.length) bits.push(validPlaces.length+' placing'+(validPlaces.length>1?'s':''));
-      if(validStaff.length) bits.push(validStaff.length+' staff');
-      setStatus('&#10003; Close-out submitted to the cloud'+(bits.length?(' with '+bits.join(' and ')):'')+', stamped as you!','ok');
-      ['totent','uniq','reent','addon','newp','moneyIn','leftover'].forEach(id=>$(id).value='');
-      $('confirmEntries').checked=false; $('gameSel').value=''; currentGame=null;
-      places=[]; addPlace(); addPlace(); addPlace();
-      staff=[]; addStaff(); addStaff();
-      validate(); syncChips(); loadMine();
-      window.scrollTo({top:0,behavior:'smooth'});
-    }catch(e){ setStatus('&#10007; Could not submit: '+(e.message||e),'err'); }
-    finally{ $('submitBtn').disabled=false; }
+  function showSummary(validStaff){
+    const g=currentGame||{};
+    const entries=Number($('totent').value)||0, addons=Number($('addon').value)||0;
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+    const pool=(buyin-rake)*entries + addonPrice*addons;
+    const overlay=Math.max(0, gtee-pool);
+    const rakeCollected=rake*entries;
+    const margin=rakeCollected-overlay;
+    const wages=(validStaff||[]).reduce((s,x)=>s+(calcHours(x.start,x.finish)*(Number(x.rate)||0)),0);
+    const profit=margin-wages;
+    const leftover=Number($('lfTotal').textContent.replace(/[^0-9.-]/g,''))||0;
+    const money=n=>(n<0?'−$':'$')+Math.abs(Math.round(n)).toLocaleString();
+    const winners=RECON.slice().sort((a,b)=>a.place-b.place).map(p=>{
+      const suf=p.place===1?'st':p.place===2?'nd':p.place===3?'rd':'th';
+      return '<div class="sumrow"><span><b>'+p.place+suf+'</b> &nbsp; '+(p.player_name||'(player)')+'</span><span>$'+Math.round(p.amount).toLocaleString()+'</span></div>';
+    }).join('');
+    $('summaryPage').innerHTML=
+      '<div class="sumwrap"><div class="sh">'+(g.name||'Close-out')+'</div>'+
+      '<div class="ssub">'+($('venueSel').value||'')+' · '+($('gameDate').value||'')+'</div>'+
+
+      '<div class="sumbox"><div class="sumsec">🏆 Winners</div>'+(winners||'<div class="sumrow"><span>No prizes</span><span>$0</span></div>')+'</div>'+
+
+      '<div class="sumbox"><div class="sumsec">📊 Profit</div>'+
+      '<div class="sumrow"><span>Rake collected</span><span>'+money(rakeCollected)+'</span></div>'+
+      '<div class="sumrow"><span>Less: overlay</span><span>'+money(-overlay)+'</span></div>'+
+      '<div class="sumrow"><span>Gaming margin</span><span>'+money(margin)+'</span></div>'+
+      '<div class="sumrow"><span>Less: staff wages</span><span>'+money(-wages)+'</span></div>'+
+      '<div class="sumrow profitrow"><span><b>Final profit</b></span><span style="color:'+(profit>=0?'var(--good)':'var(--red)')+'"><b>'+money(profit)+'</b></span></div></div>'+
+
+      '<div class="cashbig"><div class="cbl">💵 Cash leftover in till</div><div class="cbv">'+money(leftover)+'</div></div>'+
+
+      '<div class="sumbtns"><button class="new" id="newCloseoutBtn" type="button">New close-out</button></div>'+
+      '</div>';
+    // hide the working form, show summary
+    document.querySelectorAll('.card,.phasebar,#reconCard,#phase2,#lockBtn').forEach(el=>{ if(el.closest('#summaryPage'))return; el.style.display='none'; });
+    $('summaryPage').style.display='block';
+    $('newCloseoutBtn').addEventListener('click',()=>location.reload());
+    window.scrollTo({top:0,behavior:'smooth'});
   }
 
   async function signIn(){
@@ -490,13 +811,127 @@
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
   $('signoutBtn').addEventListener('click', signOut);
   $('submitBtn').addEventListener('click', submit);
+  $('lockBtn').addEventListener('click', lockPlacings);
   $('addPlace').addEventListener('click', addPlace);
   $('addStaff').addEventListener('click', addStaff);
   $('venueSel').addEventListener('change', onVenueChange);
-  $('gameSel').addEventListener('change', onGameChange);
+  $('gameSel').addEventListener('change', ()=>{ onGameChange(); refreshCashIn(); updatePrizePool(); recalcMoneyIn(); recalcPlaces(); });
   $('gameDate').addEventListener('input', syncChips);
   ['totent','confirmEntries'].forEach(id=>$(id).addEventListener('input', validate));
   $('confirmEntries').addEventListener('change', validate);
+  ['totent','addon'].forEach(id=>$(id).addEventListener('input', ()=>{ refreshCashIn(); updatePrizePool(); recalcMoneyIn(); recalcPlaces(); }));
+  $('otherIn').addEventListener('input', ()=>{ recalcMoneyIn(); recalcPlaces(); });
+  $('gesBtn').addEventListener('click', ()=>parseGES($('gesPaste').value));
+  $('gesFile').addEventListener('change', (e)=>{
+    const file=e.target.files&&e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>parseGES(String(reader.result||''), file.name);
+    reader.onerror=()=>{ $('gesResult').style.color='var(--red)'; $('gesResult').textContent='Could not read that file.'; };
+    reader.readAsText(file);
+  });
+
+  // ---- GES entry report parser (works on raw CSV text from file or paste) ----
+  function parseGES(raw, fileName){
+    raw=(raw||'').trim();
+    if(!raw){ $('gesResult').style.color='var(--red)'; $('gesResult').textContent='No data — choose a file or paste the report.'; return; }
+    const lines=raw.split(/\r?\n/).filter(l=>l.trim());
+    let headerIdx=lines.findIndex(l=>/last name/i.test(l) && /first name/i.test(l));
+    if(headerIdx===-1) headerIdx=0;
+    const headerCells=(lines[headerIdx]||'').split(',').map(h=>h.trim().toLowerCase());
+    let pmIdx=headerCells.findIndex(h=>/payment/.test(h)); if(pmIdx===-1) pmIdx=6;
+    const dataLines=lines.slice(headerIdx+1);
+    const splitCSV=(line)=>{ const out=[]; let cur='',q=false; for(const ch of line){ if(ch==='"'){q=!q;} else if(ch===','&&!q){out.push(cur);cur='';} else cur+=ch; } out.push(cur); return out.map(s=>s.trim()); };
+    const players=new Map(); let entries=0; const playerNames=new Set();
+    const pmCount={cash:0,transfer:0,ticket:0,other:0}; const unknownLabels=new Set();
+    dataLines.forEach(l=>{
+      const c=splitCSV(l);
+      const last=(c[0]||'').replace(/^'/,'').trim(), first=(c[1]||'').replace(/^'/,'').trim();
+      if(!last && !first) return;
+      entries++;
+      const key=(last+'|'+first).toLowerCase();
+      players.set(key,(players.get(key)||0)+1);
+      const disp=(first+' '+last).trim(); if(disp) playerNames.add(disp);
+      // classify payment method
+      const pm=((c[pmIdx]||'').replace(/^'/,'').trim()).toLowerCase();
+      if(/cash/.test(pm)) pmCount.cash++;
+      else if(/transfer|eft|bank|card|online|direct/.test(pm)) pmCount.transfer++;
+      else if(/ticket|satellite|sat|comp|seat|voucher/.test(pm)) pmCount.ticket++;
+      else { pmCount.other++; if(pm) unknownLabels.add(pm); }
+    });
+    if(!entries){ $('gesResult').style.color='var(--red)'; $('gesResult').textContent='No entry rows found — is this the GES entry report?'; return; }
+    const unique=players.size, reentries=entries-unique;
+    // store the unique player display names for reconciliation
+    GES_NAMES = [...playerNames].sort();
+    $('totent').value=entries; $('uniq').value=unique; $('reent').value=reentries;
+    // money in by method = count × buy-in (from game setup)
+    const buyin=currentGame?Number(currentGame.buy_in)||0:0;
+    GES_CASH = pmCount.cash*buyin;
+    $('transferIn').value = pmCount.transfer*buyin;
+    $('ticketIn').value = pmCount.ticket*buyin;
+    GES_PM=pmCount;
+    let msg='✓ '+(fileName?fileName+': ':'')+entries+' entries · '+unique+' unique · '+reentries+' re-entries';
+    if(!buyin) msg+=' — set the game first to split money in';
+    if(unknownLabels.size){ msg+=' · ⚠ unrecognised payment label(s): '+[...unknownLabels].join(', ')+' (counted as Other — tell Claude these labels)'; $('gesResult').style.color='var(--amber)'; }
+    else { $('gesResult').style.color='var(--good)'; }
+    $('gesResult').textContent=msg;
+    refreshCashIn();
+    validate(); updatePrizePool(); recalcMoneyIn(); recalcPlaces();
+  }
+  let GES_PM={cash:0,transfer:0,ticket:0,other:0};
+  let GES_CASH=0;
+
+  // cash in = GES cash entries + add-on money (add-ons always cash)
+  function addonCash(){
+    const g=currentGame; if(!g) return 0;
+    const addons=Number($('addon').value)||0;
+    return addons*(Number(g.addon_price)||0);
+  }
+  function refreshCashIn(){
+    $('cashIn').value = Math.round(GES_CASH + addonCash());
+  }
+
+  function recalcMoneyIn(){
+    const cash=Number($('cashIn').value)||0, tfr=Number($('transferIn').value)||0, tkt=Number($('ticketIn').value)||0, oth=Number($('otherIn').value)||0;
+    const total=cash+tfr+tkt+oth;
+    $('moneyInTot').textContent='$'+total.toLocaleString();
+    // reconcile vs prize pool generated
+    const g=currentGame;
+    if(g){
+      const entries=Number($('totent').value)||0, addons=Number($('addon').value)||0;
+      const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0;
+      const expected=buyin*entries + addonPrice*addons; // total expected takings
+      const diff=total-expected;
+      const box=$('reconBox');
+      if(Math.abs(diff)<0.5){ box.className='s ok'; $('reconMsg').textContent='✓ matches'; }
+      else { box.className='s bad'; $('reconMsg').textContent=(diff>0?'+':'−')+'$'+Math.abs(Math.round(diff)).toLocaleString()+(diff>0?' over':' short'); }
+    } else { $('reconMsg').textContent='—'; }
+  }
+
+  // ---- live prize pool ----
+  function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString(); }
+  function updatePrizePool(){
+    const g=currentGame;
+    const entries=Number($('totent').value)||0;
+    const addons=Number($('addon').value)||0;
+    if(!g || !entries){ $('ppoolBox').style.display='none'; return; }
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+    const fromBuyins=(buyin-rake)*entries;
+    const fromAddons=addonPrice*addons;
+    const total=fromBuyins+fromAddons;
+    $('ppoolBox').style.display='block';
+    $('ppBuyins').textContent=money(fromBuyins);
+    $('ppAddons').textContent=money(fromAddons);
+    $('ppTotal').textContent=money(total);
+    if(gtee>0){
+      $('ppGteeRow').style.display='flex';
+      $('ppGtee').textContent=money(gtee);
+      const overlay=gtee-total;
+      const flag=$('ppOverlay'); flag.style.display='block';
+      if(overlay>0){ flag.className='ppflag over'; flag.textContent='⚠ Overlay '+money(overlay)+' — prize pool is under the '+money(gtee)+' guarantee, you top up the difference.'; }
+      else { flag.className='ppflag ok'; flag.textContent='✓ Guarantee met — '+money(total-gtee)+' over the '+money(gtee)+' guarantee.'; }
+    } else { $('ppGteeRow').style.display='none'; $('ppOverlay').style.display='none'; }
+  }
 
   (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
 </script>
