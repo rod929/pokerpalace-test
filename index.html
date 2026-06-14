@@ -191,9 +191,9 @@
         </div>
         <!-- new players -->
         <div class="pcard">
-          <h2><span class="ico">✨</span> New players <span class="pchip">this week</span></h2>
+          <h2><span class="ico">✨</span> New players <span class="pchip">registered</span></h2>
           <div class="trend"><span class="num" id="tdNew">0</span><span class="delta flat" id="tdNewDelta">—</span></div>
-          <div class="tlabel" id="tdNewSub">first-timers this week</div>
+          <div class="tlabel" id="tdNewSub">registered this week</div>
         </div>
         <!-- most active -->
         <div class="pcard wide">
@@ -259,7 +259,7 @@
   }
 
   // ===== TD dashboard =====
-  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], earnPeriod='7';
+  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], earnPeriod='7';
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function periodStart(p){
     const d=new Date();
@@ -283,6 +283,7 @@
       // placings for biggest winners (my close-outs)
       TD_PLACINGS = coIds.length ? ((await supabase.from('placings').select('*').in('closeout_id',coIds)).data||[]) : [];
       TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
+      TD_PLAYERS = (await supabase.from('players').select('created_at,registered_by')).data||[];
       renderEarn(); renderCash(); renderPlayers(); renderActive();
     }catch(e){ /* silent */ }
   }
@@ -344,17 +345,16 @@
     $('tdUniq').textContent=thisWk.size;
     setDelta('tdUniqDelta', thisWk.size-prevWk.size);
     $('tdUniqSub').textContent='vs last week · 4-week average '+avg4;
-    // new players this week = names not seen earlier
-    const seenBefore=new Set(); const wkStart=weekKeyAgo(1);
-    TD_CO.forEach(c=>{ const d=c.game_date?new Date(c.game_date):null; if(d&&d<wkStart) namesFrom(c).forEach(n=>seenBefore.add(n.toLowerCase())); });
-    let newCount=0; thisWk.forEach(n=>{ if(!seenBefore.has(n)) newCount++; });
-    // prev week new count for delta
-    const prevSeen=new Set(); const pwkStart=weekKeyAgo(2);
-    TD_CO.forEach(c=>{ const d=c.game_date?new Date(c.game_date):null; if(d&&d<pwkStart) namesFrom(c).forEach(n=>prevSeen.add(n.toLowerCase())); });
-    let prevNew=0; prevWk.forEach(n=>{ if(!prevSeen.has(n)) prevNew++; });
+    // new players = player registrations (created_at) this week vs last week
+    const wkStart=weekKeyAgo(1), pwkStart=weekKeyAgo(2);
+    let newCount=0, prevNew=0;
+    (TD_PLAYERS||[]).forEach(p=>{ if(!p.created_at) return; const d=new Date(p.created_at);
+      if(d>=wkStart) newCount++;
+      else if(d>=pwkStart && d<wkStart) prevNew++;
+    });
     $('tdNew').textContent=newCount;
     setDelta('tdNewDelta', newCount-prevNew);
-    $('tdNewSub').textContent='first-timers this week';
+    $('tdNewSub').textContent='registered this week';
   }
   function setDelta(id,diff){
     const el=$(id); if(!el) return;

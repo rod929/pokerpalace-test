@@ -113,6 +113,7 @@
         <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
         <div class="metric" data-d="venues"><div class="ml">🏛 All venues</div><div class="mv" id="mVenN">0</div><div class="md">tap for breakdown</div><span class="arrow">›</span></div>
         <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
       </div>
     </div>
     <div id="notAdmin" class="notadmin" style="display:none">This dashboard is for admins.</div>
@@ -160,7 +161,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],period='month',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],period='month',computed={};
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -181,6 +182,7 @@
       const co=await supabase.from('closeouts').select('*');if(co.error)throw co.error;CLOSEOUTS=co.data||[];
       PLACINGS=(await supabase.from('placings').select('*')).data||[];
       TICKETS=(await supabase.from('tickets').select('*')).data||[];
+      PLAYERS=(await supabase.from('players').select('created_at')).data||[];
       STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];
       GAMES=(await supabase.from('games').select('*')).data||[];
@@ -381,6 +383,9 @@
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
+    // new players registered in the period
+    const newP=PLAYERS.filter(inPeriod).length;
+    if($('mNewP')){ $('mNewP').textContent=newP; $('mNewPSub').textContent = period==='month'?'registered this month':(period==='week'?'registered this week':'registered this period'); }
     $('mCash').textContent=money(cashHeld);
     $('mCashSub').textContent=money(computed.cashClear||0)+' clear after tickets';
   }
