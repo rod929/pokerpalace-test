@@ -55,6 +55,7 @@
   .shiftrow.ispaid{opacity:.6}
   .shiftrow.isackd{background:rgba(127,160,196,.06)}
   .paytag.ackd{background:rgba(127,160,196,.18);color:var(--blue)}
+  .rowundo{background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;width:30px;height:30px;font-size:15px;cursor:pointer;flex:0 0 auto;margin-left:4px} .rowundo:hover{border-color:var(--amber);color:var(--amber)}
   .paytag{font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(92,184,138,.15);color:var(--good);margin-left:6px}
   .paybar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
   .paybar select{flex:0 0 130px} .paybar .sp{flex:1}
@@ -228,13 +229,26 @@
       const canSelect = st!=='paid'; // can act on outstanding or acknowledged
       const tag = st==='paid' ? '<span class="paytag">✓ paid '+(s.paid_method||'')+'</span>'
                 : st==='acknowledged' ? '<span class="paytag ackd">⏳ '+(s.paid_method||'')+' pending</span>' : '';
+      const undo = st!=='outstanding' ? '<button class="rowundo" data-undo="'+s.id+'" title="Undo — revert to outstanding">↺</button>' : '';
       return '<div class="shiftrow'+(st==='paid'?' ispaid':'')+(st==='acknowledged'?' isackd':'')+'">'+
         '<div class="ck"><input type="checkbox" data-sid="'+s.id+'"'+(canSelect?'':' checked disabled')+'></div>'+
         '<div class="info"><div class="gm">'+(s._game||'(game)')+(s.role?(' · '+s.role):'')+tag+'</div>'+
         '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div></div>'+
-        '<div class="pay">'+money(pay)+'</div></div>';
+        '<div class="pay">'+money(pay)+'</div>'+undo+'</div>';
     }).join('') || '<div class="empty">No shifts in this period.</div>';
+    $('shiftList').querySelectorAll('[data-undo]').forEach(b=>b.addEventListener('click',()=>undoShift(b.dataset.undo)));
     $('unpayBtn').style.display = mine.some(s=>shiftState(s)!=='outstanding') ? 'inline-block' : 'none';
+  }
+
+  async function undoShift(id){
+    if(!confirm('Undo this payment and set the shift back to outstanding?')) return;
+    clearStatus();
+    try{
+      const{error}=await supabase.from('staff_shifts').update({paid:false,pay_status:'outstanding',paid_method:null,paid_date:null,paid_by:null}).eq('id',id);
+      if(error)throw error;
+      setStatus('↺ Shift reverted to outstanding.','ok');
+      await load();
+    }catch(e){ setStatus('Could not undo: '+(e.message||e),'err'); }
   }
 
   function selectedIds(){ return [...$('shiftList').querySelectorAll('input[data-sid]:checked:not(:disabled)')].map(c=>c.dataset.sid); }
