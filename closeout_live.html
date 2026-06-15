@@ -429,7 +429,8 @@
     try{
       const { data, error } = await supabase.from('games').select('*').order('name');
       if(error) throw error;
-      ALL_GAMES = data || [];
+      // only active games selectable for new close-outs (inactive/retired hidden)
+      ALL_GAMES = (data || []).filter(g=>g.active!==false);
     }catch(e){ ALL_GAMES=[]; }
   }
 

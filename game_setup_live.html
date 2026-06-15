@@ -60,8 +60,13 @@
   .addrow{margin-top:9px;background:var(--chip);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;padding:9px;width:100%;cursor:pointer;font-size:13.5px}
   .addrow:hover{border-color:var(--blue);color:var(--ink)}
   .ptot{font-family:'JetBrains Mono';font-size:13px;color:var(--ink-dim);margin-top:9px;text-align:right}
-  .saveline{display:flex;gap:9px;margin-top:14px}
+  .saveline{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
   .savebtn{flex:1;background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:10px;padding:12px;font-weight:600;cursor:pointer}
+  .actbtn{background:var(--chip);border:1px solid var(--line);color:var(--amber);border-radius:10px;padding:12px 14px;font-weight:600;cursor:pointer;font-size:13px}
+  .actbtn:hover{border-color:var(--amber)} .actbtn.reactivate{color:var(--good)} .actbtn.reactivate:hover{border-color:var(--good)}
+  .game.retired{opacity:.7} .rtag{font-size:10px;background:rgba(224,173,85,.15);color:var(--amber);border-radius:5px;padding:2px 7px;margin-left:6px;vertical-align:middle;font-weight:600}
+  .retiredhead{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-dim);font-size:13.5px;font-weight:600;margin:16px 0 8px;padding:10px;background:var(--chip);border:1px solid var(--line);border-radius:10px}
+  .retiredhead .rcount{background:var(--line);color:var(--ink);border-radius:10px;padding:1px 8px;font-size:11px} .retiredhead .rchev{margin-left:auto;transition:transform .2s} .retiredhead.open .rchev{transform:rotate(90deg)}
   .savebtn:hover{filter:brightness(1.08)}
   .savedmsg{font-size:12.5px;color:var(--good);font-family:'JetBrains Mono';display:none;align-self:center}
 
@@ -152,13 +157,20 @@
   function renderGames(){
     const list=$('gameList');
     if(!GAMES.length){ list.innerHTML='<div class="card" style="color:var(--ink-faint);text-align:center">No games yet. Click "Add new game".</div>'; return; }
-    list.innerHTML=GAMES.map(g=>{
-      return '<div class="game" data-g="'+g.id+'">'+
-        '<div class="gtop" data-toggle="'+g.id+'"><div><div class="gname">'+(g.name||'(unnamed)')+'</div>'+
+    const active=GAMES.filter(g=>g.active!==false);
+    const retired=GAMES.filter(g=>g.active===false);
+    const cardHtml=g=>'<div class="game'+(g.active===false?' retired':'')+'" data-g="'+g.id+'">'+
+        '<div class="gtop" data-toggle="'+g.id+'"><div><div class="gname">'+(g.name||'(unnamed)')+(g.active===false?' <span class="rtag">retired</span>':'')+'</div>'+
         '<div class="gsub">'+(g.venue_name||'no venue')+' &middot; '+(g.game_day||'-')+' &middot; buy-in '+money(g.buy_in)+'</div></div><div class="gchev">&rsaquo;</div></div>'+
         '<div class="gbody">'+gameForm(g)+'</div></div>';
-    }).join('');
+    let html = active.length ? active.map(cardHtml).join('') : '<div class="card" style="color:var(--ink-faint);text-align:center">No active games.</div>';
+    if(retired.length){
+      html += '<div class="retiredhead" id="retiredHead">🗄 Retired games <span class="rcount">'+retired.length+'</span> <span class="rchev">›</span></div>'+
+        '<div class="retiredwrap" id="retiredWrap" style="display:none">'+retired.map(cardHtml).join('')+'</div>';
+    }
+    list.innerHTML=html;
     bindGames();
+    const rh=$('retiredHead'); if(rh) rh.addEventListener('click',()=>{ const w=$('retiredWrap'); const open=w.style.display==='none'; w.style.display=open?'block':'none'; rh.classList.toggle('open',open); });
   }
 
   function gameForm(g){
@@ -175,7 +187,9 @@
       '<div><label>Add-on price $</label><input data-f="addon_price" type="number" value="'+(g.addon_price??'')+'"></div>'+
       '<div><label>Guarantee $</label><input data-f="guarantee" type="number" value="'+(g.guarantee??'')+'"></div>'+
       '</div>'+
-      '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button><span class="savedmsg">&#10003; saved</span></div>';
+      '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
+      '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
+      '<span class="savedmsg">&#10003; saved</span></div>';
   }
 
   function bindGames(){
@@ -185,7 +199,19 @@
     document.querySelectorAll('.game').forEach(card=>{
       const gid=card.dataset.g;
       card.querySelector('[data-save]').addEventListener('click',()=>saveGame(card,gid));
+      const ab=card.querySelector('[data-active]'); if(ab) ab.addEventListener('click',()=>toggleActive(gid));
     });
+  }
+  async function toggleActive(gid){
+    const g=GAMES.find(x=>String(x.id)===String(gid)); if(!g) return;
+    const makeInactive = g.active!==false;
+    if(makeInactive && !confirm('Retire "'+(g.name||'this game')+'"? It will be hidden from new close-outs, but all its history stays intact. You can reactivate it anytime.')) return;
+    clearStatus();
+    try{
+      const { error } = await supabase.from('games').update({active: !makeInactive}).eq('id',gid);
+      if(error) throw error;
+      await loadGames();
+    }catch(e){ setStatus('Could not update: '+(e.message||e),'err'); }
   }
 
   async function saveGame(card,gid){
