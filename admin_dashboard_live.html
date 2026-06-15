@@ -45,6 +45,8 @@
   .metric.inv .mv{color:var(--amber)} .metric.flags .mv{color:var(--amber)} .metric.venwin .mv{color:var(--good)} .metric.venloss .mv{color:var(--red)}
   .metric.flags.active{background:linear-gradient(135deg,rgba(224,173,85,.16),rgba(224,122,85,.10));border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
   .metric.flags.active .ml{color:var(--amber)}
+  .gesclocks{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1c1c22,#262630);border:1px solid var(--pp);color:var(--ink);text-decoration:none;border-radius:12px;padding:14px;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(208,14,38,.2) inset}
+  .gesclocks:hover{filter:brightness(1.1)} .gesclocks .gx{color:var(--pp);font-size:13px;font-weight:600}
   .metric.coming{opacity:.6;border-style:dashed}
   .metric.coming .mv{color:var(--ink-faint);font-size:13px}
   .ctag{font-size:9px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:4px;padding:2px 6px;margin-left:auto}
@@ -106,6 +108,7 @@
         <button data-p="month" class="on">This month</button><button data-p="7">Last 7 days</button>
         <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
       </div>
+      <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
       <div class="metrics">
         <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
         <div class="metric cash" data-d="cash"><div class="ml">🪙 Cash held by Admin</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">handed up − banked</div><span class="arrow">›</span></div>
