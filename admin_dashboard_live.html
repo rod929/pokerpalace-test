@@ -281,9 +281,13 @@
   function outstandingTicketMoneyAll(){
     const coById={}; CLOSEOUTS.forEach(c=>coById[c.id]=c);
     const tkById={}; TICKETS.forEach(t=>tkById[t.id]=t);
-    const won=PLACINGS.filter(p=>p.paid_by==='ticket'&&p.player_name).map(p=>{
-      const co=coById[p.closeout_id]||{}; const t=p.ticket_id?tkById[p.ticket_id]:null;
-      return {player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(p.ticket_value||p.amount||0), wonDate:co.game_date||''};
+    const won=[];
+    PLACINGS.filter(p=>p.player_name).forEach(p=>{
+      const co=coById[p.closeout_id]||{};
+      [[p.ticket_id,p.ticket_value],[p.ticket_id_2,p.ticket_value_2],[p.ticket_id_3,p.ticket_value_3]].forEach(([tid,tv])=>{
+        if(!tid) return; const t=tkById[tid];
+        won.push({player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(tv||0), wonDate:co.game_date||''});
+      });
     });
     const redemptions=[];
     CLOSEOUTS.forEach(c=>{ (c.ges_ticket_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(n=>{

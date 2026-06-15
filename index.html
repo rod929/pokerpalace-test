@@ -326,10 +326,13 @@
   }
   // outstanding ticket money = value of won tickets not yet redeemed (same logic as ticket register)
   function outstandingTicketMoney(){
-    const won=(TD_PLACINGS||[]).filter(p=>p.paid_by==='ticket'&&p.player_name).map(p=>{
+    const won=[];
+    (TD_PLACINGS||[]).filter(p=>p.player_name).forEach(p=>{
       const co=(TD_CO.find(c=>c.id===p.closeout_id))||{};
-      const t=p.ticket_id?(TD_TICKETS.find(x=>String(x.id)===String(p.ticket_id))):null;
-      return {player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(p.ticket_value||p.amount||0), wonDate:co.game_date||''};
+      [[p.ticket_id,p.ticket_value],[p.ticket_id_2,p.ticket_value_2],[p.ticket_id_3,p.ticket_value_3]].forEach(([tid,tv])=>{
+        if(!tid) return; const t=TD_TICKETS.find(x=>String(x.id)===String(tid));
+        won.push({player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(tv||0), wonDate:co.game_date||''});
+      });
     });
     // redemptions: ticket-entry players per close-out (game name + date)
     const redemptions=[];

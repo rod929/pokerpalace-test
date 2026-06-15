@@ -44,6 +44,23 @@
   .leftbox .lrow.total{border-top:1px solid var(--line);margin-top:5px;padding-top:9px;font-weight:700;color:var(--ink)}
   .leftbox .lrow.total span:last-child{color:var(--gold);font-size:17px;font-weight:700}
   .leftbox .lnote{font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic}
+  .placecard{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin-bottom:10px}
+  .pc-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .pc-head .pc-place{font-family:'Archivo',sans-serif;font-weight:700;font-size:15px}
+  .pc-head .pc-tot{margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--gold)}
+  .pc-head .delrow{background:none;border:none;color:var(--ink-faint);font-size:19px;cursor:pointer;padding:0 4px;line-height:1}
+  .pc-head .delrow:hover{color:var(--red)}
+  .splitrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .splitrow .sp-method{flex:0 0 110px;background:var(--chip);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:14px;padding:9px;font-family:inherit}
+  .splitrow .sp-ticket{flex:1;background:var(--chip);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:13px;padding:9px;font-family:inherit}
+  .splitrow .sp-amt-wrap{flex:1;display:flex;align-items:center;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:0 10px}
+  .splitrow .sp-amt-wrap .pre{color:var(--ink-faint);font-size:13px}
+  .splitrow .sp-amt-wrap input{flex:1;background:none;border:none;color:var(--ink);font-size:14px;padding:9px 4px;outline:none;font-family:inherit}
+  .splitrow .sp-amt-wrap.ro{flex:0 0 90px;opacity:.7} .splitrow .sp-amt-wrap.ro input{cursor:default}
+  .splitrow .sp-del{background:none;border:none;color:var(--ink-faint);font-size:17px;cursor:pointer;padding:0 4px;flex:0 0 auto}
+  .splitrow .sp-del:hover{color:var(--red)} .splitrow .sp-spacer{flex:0 0 17px}
+  .addsplit{background:none;border:1px dashed var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:2px}
+  .addsplit:hover{border-color:var(--blue);color:var(--blue)}
   .reconprog{display:flex;align-items:center;gap:12px;margin-bottom:14px}
   .reconprog .rbar{flex:1;height:9px;background:var(--chip);border-radius:5px;overflow:hidden}
   .reconprog .rfill{height:100%;width:0;background:linear-gradient(90deg,var(--good-deep),var(--good));transition:width .3s}
@@ -285,11 +302,8 @@
     <!-- 3. placings -->
     <div class="card">
       <h2><span class="n">3</span> Placing Schedule</h2>
-      <p class="lead">One row per paid place — the placing number, prize amount, and how it's paid. For tickets, pick which ticket. No player names needed.</p>
-      <table class="wtbl" id="placeTbl">
-        <thead><tr><th class="pl">Place</th><th class="r">Prize $</th><th>Paid by</th><th>Ticket</th><th></th></tr></thead>
-        <tbody id="placeBody"></tbody>
-      </table>
+      <p class="lead">One card per paid place. Enter the prize and how it's paid — tap "+ split payment" to pay one prize across cash, transfer and/or ticket. For tickets, pick from the list. No player names needed.</p>
+      <div id="placeBody"></div>
       <button class="addrow" id="addPlace" type="button">+ add placing</button>
       <div class="splitline">
         <div class="s cash"><small>Cash paid</small><b id="cashOut">$0</b></div>
@@ -453,43 +467,77 @@
   let places=[];
   let TICKETS=[];
   function ticketOpts(selId){
-    return '<option value="">- ticket -</option>'+TICKETS.map(t=>'<option value="'+t.id+'"'+(String(selId)===String(t.id)?' selected':'')+'>'+t.name+' ($'+Math.round(t.value)+')</option>').join('');
+    return '<option value="">- pick ticket -</option>'+TICKETS.map(t=>'<option value="'+t.id+'"'+(String(selId)===String(t.id)?' selected':'')+'>'+t.name+' ($'+Math.round(t.value)+')</option>').join('');
+  }
+  function splitLine(p,i,si){
+    const sp=p.splits[si];
+    const isTicket=sp.method==='ticket';
+    return '<div class="splitrow">'+
+      '<select class="tinput sp-method" data-i="'+i+'" data-si="'+si+'">'+
+        ['cash','transfer','ticket'].map(o=>'<option value="'+o+'"'+(sp.method===o?' selected':'')+'>'+o.charAt(0).toUpperCase()+o.slice(1)+'</option>').join('')+
+      '</select>'+
+      (isTicket
+        ? '<select class="tinput sp-ticket" data-i="'+i+'" data-si="'+si+'">'+ticketOpts(sp.ticket_id)+'</select>'
+        : '<div class="inrow sp-amt-wrap"><span class="pre">$</span><input class="tinput sp-amt" data-i="'+i+'" data-si="'+si+'" type="number" min="0" placeholder="0" value="'+(sp.amount||'')+'"></div>')+
+      (isTicket?'<div class="inrow sp-amt-wrap ro"><span class="pre">$</span><input class="tinput" type="number" value="'+(sp.amount||'')+'" readonly></div>':'')+
+      (p.splits.length>1?'<button class="sp-del" data-i="'+i+'" data-si="'+si+'" type="button" title="remove">&times;</button>':'<span class="sp-spacer"></span>')+
+    '</div>';
   }
   function renderPlaces(){
-    const tb=$('placeBody');
-    tb.innerHTML=places.map((p,i)=>
-      '<tr>'+
-      '<td class="pl">'+(i+1)+'</td>'+
-      '<td><input class="tinput r" data-f="amount" data-i="'+i+'" type="number" min="0" placeholder="0" value="'+(p.amount||'')+'"'+(p.paid==='ticket'?' readonly':'')+'></td>'+
-      '<td><select class="tinput" data-f="paid" data-i="'+i+'">'+
-        ['cash','transfer','ticket'].map(o=>'<option value="'+o+'"'+(p.paid===o?' selected':'')+'>'+o.charAt(0).toUpperCase()+o.slice(1)+'</option>').join('')+
-      '</select></td>'+
-      '<td>'+(p.paid==='ticket'?('<select class="tinput" data-f="ticket" data-i="'+i+'">'+ticketOpts(p.ticket_id)+'</select>'):'<span style="color:var(--ink-faint);font-size:12px">—</span>')+'</td>'+
-      '<td><button class="delrow" data-del="'+i+'" type="button">&times;</button></td>'+
-      '</tr>'
-    ).join('');
-    tb.querySelectorAll('.tinput').forEach(el=>{
-      el.addEventListener('input',()=>{ const i=+el.dataset.i, f=el.dataset.f; places[i][f]=el.value; recalcPlaces(); });
-      el.addEventListener('change',()=>{ const i=+el.dataset.i, f=el.dataset.f;
-        places[i][f]=el.value;
-        if(f==='paid'){ if(el.value!=='ticket'){ places[i].ticket_id=null; } renderPlaces(); }
-        if(f==='ticket'){ const t=TICKETS.find(x=>String(x.id)===String(el.value)); places[i].ticket_id=el.value||null; places[i].amount = t?t.value:places[i].amount; renderPlaces(); }
-        recalcPlaces();
-      });
-    });
-    tb.querySelectorAll('.delrow').forEach(b=>b.addEventListener('click',()=>{ places.splice(+b.dataset.del,1); renderPlaces(); recalcPlaces(); }));
+    const wrap=$('placeBody');
+    wrap.innerHTML=places.map((p,i)=>{
+      const ptot=p.splits.reduce((s,x)=>s+(Number(x.amount)||0),0);
+      return '<div class="placecard">'+
+        '<div class="pc-head"><span class="pc-place">'+(i+1)+ordinal(i+1)+'</span>'+
+          '<span class="pc-tot">$'+ptot.toLocaleString()+'</span>'+
+          '<button class="delrow" data-del="'+i+'" type="button">&times;</button></div>'+
+        '<div class="pc-splits">'+p.splits.map((sp,si)=>splitLine(p,i,si)).join('')+'</div>'+
+        (p.splits.length<3?'<button class="addsplit" data-addsplit="'+i+'" type="button">+ split payment</button>':'')+
+      '</div>';
+    }).join('');
+    // method change
+    wrap.querySelectorAll('.sp-method').forEach(el=>el.addEventListener('change',()=>{
+      const i=+el.dataset.i, si=+el.dataset.si; const sp=places[i].splits[si];
+      sp.method=el.value; if(el.value!=='ticket'){ sp.ticket_id=null; } else { sp.amount=''; }
+      renderPlaces(); recalcPlaces();
+    }));
+    // ticket pick
+    wrap.querySelectorAll('.sp-ticket').forEach(el=>el.addEventListener('change',()=>{
+      const i=+el.dataset.i, si=+el.dataset.si; const sp=places[i].splits[si];
+      const t=TICKETS.find(x=>String(x.id)===String(el.value));
+      sp.ticket_id=el.value||null; sp.amount=t?t.value:'';
+      renderPlaces(); recalcPlaces();
+    }));
+    // amount typing
+    wrap.querySelectorAll('.sp-amt').forEach(el=>el.addEventListener('input',()=>{
+      const i=+el.dataset.i, si=+el.dataset.si; places[i].splits[si].amount=el.value;
+      // update just the place total without full re-render (keep focus)
+      const card=el.closest('.placecard'); if(card){ const tot=places[i].splits.reduce((s,x)=>s+(Number(x.amount)||0),0); const te=card.querySelector('.pc-tot'); if(te) te.textContent='$'+tot.toLocaleString(); }
+      recalcPlaces();
+    }));
+    // add split
+    wrap.querySelectorAll('[data-addsplit]').forEach(b=>b.addEventListener('click',()=>{
+      const i=+b.dataset.addsplit; if(places[i].splits.length<3){ places[i].splits.push({method:'cash',amount:'',ticket_id:null}); renderPlaces(); recalcPlaces(); }
+    }));
+    // remove split
+    wrap.querySelectorAll('.sp-del').forEach(b=>b.addEventListener('click',()=>{
+      const i=+b.dataset.i, si=+b.dataset.si; places[i].splits.splice(si,1); renderPlaces(); recalcPlaces();
+    }));
+    // delete placing
+    wrap.querySelectorAll('.delrow').forEach(b=>b.addEventListener('click',()=>{ places.splice(+b.dataset.del,1); renderPlaces(); recalcPlaces(); }));
     recalcPlaces();
   }
+  function ordinal(n){ return n===1?'st':n===2?'nd':n===3?'rd':'th'; }
   function recalcPlaces(){
     let cash=0,tfr=0,sat=0,tot=0;
-    places.forEach(p=>{ const a=Number(p.amount)||0; tot+=a; if(p.paid==='transfer')tfr+=a; else if(p.paid==='ticket')sat+=a; else cash+=a; });
+    places.forEach(p=>p.splits.forEach(sp=>{ const a=Number(sp.amount)||0; tot+=a; if(sp.method==='transfer')tfr+=a; else if(sp.method==='ticket')sat+=a; else cash+=a; }));
     $('cashOut').textContent='$'+cash.toLocaleString();
     $('tfrOut').textContent='$'+tfr.toLocaleString();
     $('satOut').textContent='$'+sat.toLocaleString();
     $('prizeTot').textContent='$'+tot.toLocaleString();
     updateLeftover(cash);
   }
-  function addPlace(){ places.push({amount:'',paid:'cash',ticket_id:null}); renderPlaces(); }
+  function addPlace(){ places.push({splits:[{method:'cash',amount:'',ticket_id:null}]}); renderPlaces(); }
 
   // cash leftover = cash in − overlay − transfer prizes − ticket prizes
   function currentOverlay(){
@@ -598,13 +646,14 @@
       alert('Can\'t lock yet — '+why);
       return;
     }
-    const validPlaces = places.filter(p => Number(p.amount)>0);
+    const placeTotal=p=>p.splits.reduce((s,x)=>s+(Number(x.amount)||0),0);
+    const validPlaces = places.filter(p => placeTotal(p)>0);
     if(!validPlaces.length){ setStatus('Add at least one placing (with a prize amount) before locking.','err'); alert('Add at least one placing with a prize amount before locking.'); return; }
     $('lockBtn').disabled=true; setStatus('Locking prize pool & saving...','ok');
     try{
       const cashIn=Number($('cashIn').value)||0, tfrIn=Number($('transferIn').value)||0, tktIn=Number($('ticketIn').value)||0, othIn=Number($('otherIn').value)||0;
       const moneyInTotal=cashIn+tfrIn+tktIn+othIn;
-      let cashPrizes=0; places.forEach(p=>{const a=Number(p.amount)||0; if(p.paid!=='transfer'&&p.paid!=='ticket')cashPrizes+=a;});
+      let cashPrizes=0; places.forEach(p=>p.splits.forEach(sp=>{ if(sp.method!=='transfer'&&sp.method!=='ticket') cashPrizes+=Number(sp.amount)||0; }));
       const leftover=(cashIn+othIn)-cashPrizes;
       const row={
         submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame?currentGame.name:'',
@@ -634,9 +683,16 @@
       }
       lastId = co ? co.id : null; LOCKED_ID = lastId;
       const placeRows = validPlaces.map((p,idx)=>{
-        const t = p.ticket_id ? TICKETS.find(x=>String(x.id)===String(p.ticket_id)) : null;
-        return { closeout_id: co.id, place: idx+1, amount: Number(p.amount), paid_by: p.paid||'cash',
-          ticket_id: p.ticket_id?Number(p.ticket_id):null, ticket_value: t?Number(t.value):null, paid:false };
+        const tv=sp=>{ if(sp.method!=='ticket'||!sp.ticket_id) return null; const t=TICKETS.find(x=>String(x.id)===String(sp.ticket_id)); return t?Number(t.value):null; };
+        const s=p.splits; const ptot=s.reduce((a,x)=>a+(Number(x.amount)||0),0);
+        const row={ closeout_id: co.id, place: idx+1, amount: ptot, paid:false,
+          // slot 1 (primary)
+          paid_by: s[0].method||'cash',
+          ticket_id: s[0].method==='ticket'&&s[0].ticket_id?Number(s[0].ticket_id):null,
+          ticket_value: tv(s[0]) };
+        if(s[1]){ row.paid_by_2=s[1].method; row.amount_2=Number(s[1].amount)||0; row.ticket_id_2=s[1].method==='ticket'&&s[1].ticket_id?Number(s[1].ticket_id):null; row.ticket_value_2=tv(s[1]); }
+        if(s[2]){ row.paid_by_3=s[2].method; row.amount_3=Number(s[2].amount)||0; row.ticket_id_3=s[2].method==='ticket'&&s[2].ticket_id?Number(s[2].ticket_id):null; row.ticket_value_3=tv(s[2]); }
+        return row;
       });
       const { data: pdata, error: pErr } = await supabase.from('placings').insert(placeRows).select();
       if(pErr) throw new Error('Saved close-out, but placings failed: '+pErr.message);
@@ -658,70 +714,77 @@
   function nameOpts(sel){
     return '<option value="">- select player -</option>'+GES_NAMES.map(n=>'<option'+(n===sel?' selected':'')+'>'+n+'</option>').join('');
   }
+  // expand a saved placing into its payment components (slot 1 = total − slot2 − slot3)
+  function placingSplits(p){
+    const out=[];
+    const a2=Number(p.amount_2)||0, a3=Number(p.amount_3)||0;
+    const a1=(Number(p.amount)||0)-a2-a3;
+    out.push({method:p.paid_by||'cash', amount:a1, ticket_id:p.ticket_id, ticket_value:p.ticket_value});
+    if(p.paid_by_2) out.push({method:p.paid_by_2, amount:a2, ticket_id:p.ticket_id_2, ticket_value:p.ticket_value_2});
+    if(p.paid_by_3) out.push({method:p.paid_by_3, amount:a3, ticket_id:p.ticket_id_3, ticket_value:p.ticket_value_3});
+    return out.filter(s=>s.amount>0 || s.method==='ticket');
+  }
+  function hasTransfer(p){ return placingSplits(p).some(s=>s.method==='transfer'); }
+  function nonTransferAmount(p){ return placingSplits(p).filter(s=>s.method!=='transfer').reduce((s,x)=>s+(x.amount||0),0); }
+  function transferAmount(p){ return placingSplits(p).filter(s=>s.method==='transfer').reduce((s,x)=>s+(x.amount||0),0); }
+  function splitLabel(p){ return placingSplits(p).map(s=>{ const t=s.method==='ticket'?(TICKETS.find(x=>String(x.id)===String(s.ticket_id))||{}).name:''; return (s.method==='ticket'?('🎟 '+(t||'ticket')):(s.method.charAt(0).toUpperCase()+s.method.slice(1)))+' $'+Math.round(s.amount).toLocaleString(); }).join(' + '); }
+
   function renderRecon(){
     const total=RECON.reduce((s,p)=>s+(Number(p.amount)||0),0);
-    const paid=RECON.filter(p=>p.paid).reduce((s,p)=>s+(Number(p.amount)||0),0);
-    const done=RECON.filter(p=> p.paid || (p.paid_by==='transfer' && p.player_name && p.player_name.trim())).length;
+    const paid=RECON.filter(p=>p.paid).reduce((s,p)=>s+nonTransferAmount(p),0);
+    const done=RECON.filter(p=>reconDone(p)).length;
     $('rFill').style.width=(RECON.length?Math.round(done/RECON.length*100):0)+'%';
     $('rTxt').textContent=done+' of '+RECON.length+' done';
     $('rPaid').textContent='$'+Math.round(paid).toLocaleString();
     $('rOut').textContent='$'+Math.round(total-paid).toLocaleString();
     $('reconList').innerHTML=RECON.map(p=>{
-      const t=p.ticket_id?TICKETS.find(x=>String(x.id)===String(p.ticket_id)):null;
       const suf=p.place===1?'st':p.place===2?'nd':p.place===3?'rd':'th';
-      const isTransfer=p.paid_by==='transfer';
-      const meta=p.paid_by==='ticket'?('Ticket'+(t?' · '+t.name:'')):p.paid_by;
-      if(p.paid){
-        return '<div class="rrow paid"><div class="rpl">'+p.place+suf+'</div>'+
-          '<div class="rmid"><div class="ramt">'+(p.player_name||'(player)')+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">'+meta+'</div></div>'+
-          '<span class="paidtag">&#10003; paid</span></div>';
+      const tfr=hasTransfer(p), nonT=nonTransferAmount(p)>0;
+      const label=splitLabel(p);
+      // fully done states
+      if(reconDone(p)){
+        const tag = tfr ? (p.paid?'<span class="paidtag">&#10003; done</span>':'<span class="pendtag">⏳ transfer pending</span>') : '<span class="paidtag">&#10003; paid</span>';
+        return '<div class="rrow '+(tfr&&!p.paid?'pendingtfr':'paid')+'"><div class="rpl">'+p.place+suf+'</div>'+
+          '<div class="rmid"><div class="ramt">'+(p.player_name||'(player)')+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">'+label+'</div></div>'+
+          tag+'</div>';
       }
-      if(isTransfer && p.player_name){
-        // transfer with a name assigned but not yet paid → pending (admin pays later)
-        return '<div class="rrow pendingtfr"><div class="rpl">'+p.place+suf+'</div>'+
-          '<div class="rmid"><div class="ramt">'+p.player_name+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">transfer</div></div>'+
-          '<span class="pendtag">⏳ pending transfer (admin)</span></div>';
-      }
-      const action = isTransfer
-        ? '<button class="paybtn tfr" data-tfr="'+p.id+'">Save as pending transfer</button>'
-        : '<button class="paybtn" data-pay="'+p.id+'">Confirm payment</button>';
-      return '<div class="reconform"><div class="rfh"><span class="rpl">'+p.place+suf+'</span><span class="rfamt">$'+Math.round(p.amount).toLocaleString()+'</span><span class="rfmeta">'+meta+'</span></div>'+
+      // action: needs name + (confirm non-transfer if any) ; transfer portion auto-pending
+      const btnLabel = nonT ? (tfr?'Confirm cash/ticket · transfer pending':'Confirm payment') : 'Save (transfer pending)';
+      const btnClass = nonT ? 'paybtn' : 'paybtn tfr';
+      return '<div class="reconform"><div class="rfh"><span class="rpl">'+p.place+suf+'</span><span class="rfamt">$'+Math.round(p.amount).toLocaleString()+'</span><span class="rfmeta">'+label+'</span></div>'+
         '<select class="rfsel" data-name="'+p.id+'">'+nameOpts(p.player_name)+'</select>'+
-        action+'</div>';
+        '<button class="'+btnClass+'" data-rec="'+p.id+'">'+btnLabel+'</button></div>';
     }).join('');
-    $('reconList').querySelectorAll('[data-pay]').forEach(b=>b.addEventListener('click',()=>confirmPay(b.dataset.pay)));
-    $('reconList').querySelectorAll('[data-tfr]').forEach(b=>b.addEventListener('click',()=>savePendingTransfer(b.dataset.tfr)));
+    $('reconList').querySelectorAll('[data-rec]').forEach(b=>b.addEventListener('click',()=>reconcilePlace(b.dataset.rec)));
     updateFinaliseGate();
   }
-  async function confirmPay(id){
+  // a placing is "done" when it has a winner name AND its non-transfer portion is confirmed paid
+  // (transfer portion can remain pending for admin — that doesn't block done)
+  function reconDone(p){
+    if(!(p.player_name&&p.player_name.trim())) return false;
+    if(nonTransferAmount(p)>0) return !!p.paid;     // needs the cash/ticket part confirmed
+    return true;                                     // transfer-only: name assigned is enough
+  }
+  async function reconcilePlace(id){
     const sel=$('reconList').querySelector('[data-name="'+id+'"]');
     const name=sel?sel.value:'';
     if(!name){ setStatus('Select the player for this place first.','err'); return; }
     clearStatus();
+    const r=RECON.find(x=>String(x.id)===String(id));
+    const markPaid = r ? nonTransferAmount(r)>0 : true; // confirm the cash/ticket portion; transfer-only just assigns name
     try{
-      const { error } = await supabase.from('placings').update({player_name:name, paid:true, paid_at:new Date().toISOString()}).eq('id',id);
+      const upd={player_name:name, paid:markPaid};
+      if(markPaid) upd.paid_at=new Date().toISOString();
+      const { error } = await supabase.from('placings').update(upd).eq('id',id);
       if(error) throw error;
-      const r=RECON.find(x=>String(x.id)===String(id)); if(r){ r.paid=true; r.player_name=name; }
-      renderRecon();
-    }catch(e){ setStatus('Could not confirm: '+(e.message||e),'err'); }
-  }
-  async function savePendingTransfer(id){
-    const sel=$('reconList').querySelector('[data-name="'+id+'"]');
-    const name=sel?sel.value:'';
-    if(!name){ setStatus('Select the player for this transfer first.','err'); return; }
-    clearStatus();
-    try{
-      // assign the name, leave paid=false → admin pays the transfer later
-      const { error } = await supabase.from('placings').update({player_name:name, paid:false}).eq('id',id);
-      if(error) throw error;
-      const r=RECON.find(x=>String(x.id)===String(id)); if(r){ r.player_name=name; }
+      if(r){ r.player_name=name; r.paid=markPaid; }
       renderRecon();
     }catch(e){ setStatus('Could not save: '+(e.message||e),'err'); }
   }
-  // gate: every CASH/TICKET payout confirmed, every TRANSFER has a name assigned
+  // gate: every placing must be reconDone (name assigned + non-transfer confirmed; transfers may stay pending)
   function allReconciled(){
     if(!RECON.length) return false;
-    return RECON.every(p=> p.paid_by==='transfer' ? !!(p.player_name&&p.player_name.trim()) : p.paid );
+    return RECON.every(reconDone);
   }
   function staffEntered(){ return staff.some(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0); }
   function updateFinaliseGate(){

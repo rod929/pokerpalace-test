@@ -89,13 +89,21 @@
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');}
 
+  function transferPortion(p){
+    const a2=Number(p.amount_2)||0, a3=Number(p.amount_3)||0;
+    const a1=(Number(p.amount)||0)-a2-a3;
+    let t=0;
+    if(p.paid_by==='transfer') t+=a1;
+    if(p.paid_by_2==='transfer') t+=a2;
+    if(p.paid_by_3==='transfer') t+=a3;
+    return t;
+  }
   async function load(){
     try{
-      // pending transfer placings: paid_by=transfer, not yet paid
-      const{data,error}=await supabase.from('placings').select('*').eq('paid_by','transfer').eq('paid',false).order('id',{ascending:false});
+      // any placing with a transfer portion (any slot), not yet paid, with a winner
+      const{data,error}=await supabase.from('placings').select('*').eq('paid',false).order('id',{ascending:false});
       if(error)throw error;
-      ROWS=(data||[]).filter(p=>p.player_name); // only ones with a winner assigned
-      // fetch close-out info for context
+      ROWS=(data||[]).filter(p=>p.player_name && transferPortion(p)>0);
       const ids=[...new Set(ROWS.map(p=>p.closeout_id))];
       if(ids.length){
         const{data:cos}=await supabase.from('closeouts').select('id,game_name,venue_name,game_date').in('id',ids);
@@ -105,15 +113,17 @@
     }catch(e){setStatus('Could not load: '+(e.message||e),'err');}
   }
   function render(){
-    const total=ROWS.reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const total=ROWS.reduce((s,p)=>s+transferPortion(p),0);
     $('ptTotal').textContent=money(total);
     if(!ROWS.length){ $('ptList').innerHTML='<div class="empty">✓ No pending transfers — all caught up.</div>'; return; }
     $('ptList').innerHTML=ROWS.map(p=>{
       const co=COMAP[p.closeout_id]||{};
       const suf=p.place===1?'st':p.place===2?'nd':p.place===3?'rd':'th';
+      const tp=transferPortion(p), whole=(Number(p.amount)||0);
+      const partial = tp<whole ? ' <span style="color:var(--ink-faint);font-size:11px">(transfer part of '+money(whole)+')</span>' : '';
       return '<div class="pt"><div class="mid"><div class="nm">'+(p.player_name||'(player)')+'</div>'+
-        '<div class="meta">'+p.place+suf+' · '+(co.game_name||'')+(co.venue_name?(' · '+co.venue_name):'')+(co.game_date?(' · '+co.game_date):'')+'</div></div>'+
-        '<div class="amt">'+money(p.amount)+'</div>'+
+        '<div class="meta">'+p.place+suf+' · '+(co.game_name||'')+(co.venue_name?(' · '+co.venue_name):'')+(co.game_date?(' · '+co.game_date):'')+partial+'</div></div>'+
+        '<div class="amt">'+money(tp)+'</div>'+
         '<button class="paybtn" data-pay="'+p.id+'">Mark paid</button></div>';
     }).join('');
     $('ptList').querySelectorAll('[data-pay]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.pay)));

@@ -115,22 +115,27 @@
 
   async function load(){
     try{
-      // won tickets = placings paid by ticket
-      const{data:pl}=await supabase.from('placings').select('*').eq('paid_by','ticket');
-      // close-outs (for dates, game names, and ticket-entry player names)
+      // any placing with a ticket in any slot (split-aware)
+      const{data:pl}=await supabase.from('placings').select('*');
       const{data:co}=await supabase.from('closeouts').select('id,game_name,venue_name,game_date,ges_ticket_players');
       CLOSEOUTS=co||[];
       const coById={}; CLOSEOUTS.forEach(c=>coById[c.id]=c);
-      // build won-ticket list with won-date from its close-out
-      TICKETS_WON=(pl||[]).filter(p=>p.player_name).map(p=>{
-        const c=coById[p.closeout_id]||{};
-        return {id:p.id, player:p.player_name, ticket:(p.ticket_id?ticketName(p):'(ticket)'), value:Number(p.ticket_value||p.amount||0),
-          wonDate:c.game_date||null, wonAt:(c.venue_name||''), raw:p};
-      });
-      // we need ticket names; fetch tickets table for id->name
       const{data:tk}=await supabase.from('tickets').select('*');
       const tkById={}; (tk||[]).forEach(t=>tkById[t.id]=t);
-      TICKETS_WON.forEach(w=>{ if(w.raw.ticket_id&&tkById[w.raw.ticket_id]) w.ticket=tkById[w.raw.ticket_id].name; });
+      // expand each placing's ticket slots into individual won-ticket entries
+      TICKETS_WON=[];
+      (pl||[]).filter(p=>p.player_name).forEach(p=>{
+        const c=coById[p.closeout_id]||{};
+        const slots=[
+          {tid:p.ticket_id, tv:p.ticket_value, key:p.id+'-1'},
+          {tid:p.ticket_id_2, tv:p.ticket_value_2, key:p.id+'-2'},
+          {tid:p.ticket_id_3, tv:p.ticket_value_3, key:p.id+'-3'}
+        ];
+        slots.forEach(s=>{ if(!s.tid) return;
+          const nm=tkById[s.tid]?tkById[s.tid].name:'(ticket)';
+          TICKETS_WON.push({id:s.key, player:p.player_name, ticket:nm, value:Number(s.tv||0), wonDate:c.game_date||null, wonAt:(c.venue_name||''), raw:p});
+        });
+      });
       computeUsed();
       render();
     }catch(e){ setStatus('Could not load: '+(e.message||e),'err'); }
