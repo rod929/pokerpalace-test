@@ -105,6 +105,12 @@
         <div id="balBreakdown"></div>
       </div>
 
+      <div class="card" id="tdHeldCard" style="display:none">
+        <h2>💵 Cash held by each TD <span style="float:right;font-family:'JetBrains Mono',monospace;color:var(--amber)" id="tdHeldTotal">$0</span></h2>
+        <div style="font-size:12px;color:var(--ink-faint);margin-bottom:8px">Each TD's leftover cash not yet handed up &amp; confirmed — what they're holding right now.</div>
+        <div id="tdHeldList"></div>
+      </div>
+
       <div class="sech">Recent movements</div>
       <div id="adminMoves"></div>
     </div>
@@ -120,7 +126,8 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,role='',CLOSEOUTS=[],MOVES=[],EXPENSES=[];
+  let user=null,role='',CLOSEOUTS=[],MOVES=[],EXPENSES=[],PROFILES=[],PROFMAP={};
+  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'Unknown TD'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -145,6 +152,8 @@
       if(role==='td') coq=coq.eq('submitted_by',user.id);
       CLOSEOUTS=(await coq).data||[];
       MOVES=(await supabase.from('cash_movements').select('*').order('move_date',{ascending:false})).data||[];
+      PROFILES=(await supabase.from('profiles').select('user_id,name,full_name,role')).data||[];
+      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
       if(role==='admin'){ EXPENSES=(await supabase.from('expenses').select('*')).data||[]; }
       render();
     }catch(e){setStatus('Could not load: '+(e.message||e),'err');}
@@ -218,6 +227,24 @@
       '<div class="balrow"><span>Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(cashExp)+'</span></div>'+
       '<div class="balrow"><span>Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(toOwners)+'</span></div>'+
       '<div class="balrow" style="border:none"><span><b>Cash you\'re holding</b></span><span class="r" style="color:var(--good)"><b>'+money(holding)+'</b></span></div>';
+
+    // per-TD cash held (each TD's close-out leftover − their approved hand-ups)
+    const byTd={};
+    CLOSEOUTS.forEach(c=>{ const uid=c.submitted_by; if(!uid) return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].leftover+=Number(c.leftover_cash)||0; });
+    MOVES.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
+    // also note pending (handed but not yet confirmed) per TD
+    const pendByTd={};
+    MOVES.filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; pendByTd[uid]=(pendByTd[uid]||0)+(Number(m.amount)||0); });
+    const tdRows=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, pending:pendByTd[uid]||0}))
+      .filter(r=>r.held>0.5 || r.pending>0.5).sort((a,b)=>b.held-a.held);
+    if($('tdHeldCard')){
+      if(tdRows.length){
+        $('tdHeldCard').style.display='block';
+        const totHeld=tdRows.reduce((s,r)=>s+r.held,0);
+        $('tdHeldTotal').textContent=money(totHeld);
+        $('tdHeldList').innerHTML=tdRows.map(r=>'<div class="balrow"><span>'+r.name+(r.pending>0?(' <span style="color:var(--amber);font-size:11px">· '+money(r.pending)+' pending confirm</span>'):'')+'</span><span class="r" style="color:var(--good)">'+money(r.held)+'</span></div>').join('');
+      } else { $('tdHeldCard').style.display='none'; }
+    }
 
     // recent movements
     const all=[...MOVES].sort((a,b)=>(b.move_date||'').localeCompare(a.move_date||''));

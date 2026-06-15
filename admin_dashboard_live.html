@@ -171,7 +171,8 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],period='month',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='month',computed={};
+  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -193,6 +194,8 @@
       PLACINGS=(await supabase.from('placings').select('*')).data||[];
       TICKETS=(await supabase.from('tickets').select('*')).data||[];
       SHIFTS=(await supabase.from('staff_shifts').select('*')).data||[];
+      PROFILES=(await supabase.from('profiles').select('user_id,name,full_name,role')).data||[];
+      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
       PLAYERS=(await supabase.from('players').select('created_at')).data||[];
       STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];
@@ -518,7 +521,7 @@
       const winNames=new Set(wins.map(w=>(w.player_name||'').toLowerCase()).filter(Boolean));
       const players=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).sort();
       const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
-      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">‹ back to history</span></div>'+
+      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries · TD: '+tdName(c.submitted_by)+' &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">‹ back to history</span></div>'+
         '<div class="dsub" style="margin-top:6px">🏆 Winners</div>'+
         (wins.length?wins.map(w=>'<div class="drow"><span class="l"><b style="color:var(--gold)">'+w.place+suf(w.place)+'</b> &nbsp; '+(w.player_name||'(unassigned)')+'<span style="font-size:11px;color:var(--ink-faint)"> · '+(w.paid_by||'')+'</span></span><span class="r" style="color:var(--gold)">'+money(w.amount)+'</span></div>').join(''):'<div class="empty">No winners recorded.</div>')+
         '<div class="dsub" style="margin-top:14px">👥 All players ('+players.length+')</div>'+
