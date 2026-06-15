@@ -152,7 +152,7 @@
       if(role==='td') coq=coq.eq('submitted_by',user.id);
       CLOSEOUTS=(await coq).data||[];
       MOVES=(await supabase.from('cash_movements').select('*').order('move_date',{ascending:false})).data||[];
-      PROFILES=(await supabase.from('profiles').select('user_id,name,full_name,role')).data||[];
+      PROFILES=(await supabase.from('profiles').select('*')).data||[];
       PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
       if(role==='admin'){ EXPENSES=(await supabase.from('expenses').select('*')).data||[]; }
       render();
