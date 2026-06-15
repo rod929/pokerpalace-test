@@ -113,6 +113,7 @@
         <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
         <div class="metric" data-d="venues"><div class="ml">🏛 All venues</div><div class="mv" id="mVenN">0</div><div class="md">tap for breakdown</div><span class="arrow">›</span></div>
         <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="history"><div class="ml">🗂 Tournament history</div><div class="mv" id="mHist">0</div><div class="md">tap for players &amp; winners</div><span class="arrow">›</span></div>
         <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
       </div>
     </div>
@@ -347,6 +348,7 @@
     $('mOut').textContent=money(outstanding);
     $('mOutTrend').innerHTML=trendHtml(outstanding,prev.outstanding);
     $('mVenN').textContent=vlist.length;
+    if($('mHist')) $('mHist').textContent=(computed.cos||[]).length;
     // most/least profitable venue
     if(vlist.length){
       const w=vlist[0], l=vlist[vlist.length-1];
@@ -468,9 +470,25 @@
           const invMark = inv ? ('<span style="font-size:10px;color:'+(inv.status==='paid'?'var(--good)':inv.status==='sent'?'var(--blue)':'var(--amber)')+';border:1px solid currentColor;border-radius:5px;padding:2px 7px;margin-left:6px">'+inv.status+'</span>') : '<span style="font-size:10px;color:var(--ink-faint);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-left:6px">not invoiced</span>';
           return '<div class="drow"><span class="l">'+n+invMark+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.basis==='fixed_monthly'?'fixed monthly':money(e.rate)+' × '+e.games+' games')+'</span></span><span class="r" style="color:var(--good)">'+money(e.earned)+'</span></div>';
         }).join(''):'<div class="empty">No club money earned this period.</div>');
+    } else if(key==='history'){
+      const cos=[...(computed.cos||[])].sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
+      b.innerHTML='<div class="dtitle">🗂 Tournament History</div><div class="dsub">Games this period — tap one for its players &amp; winners.</div>'+
+        (cos.length?cos.map(c=>'<div class="drow" data-d="game:'+c.id+'" style="cursor:pointer"><span class="l">'+(c.game_name||'(game)')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="r" style="color:var(--blue)">'+(c.entries||0)+' entries ›</span></div>').join(''):'<div class="empty">No tournaments in this period.</div>');
+    } else if(key.indexOf('game:')===0){
+      const id=key.slice(5);
+      const c=(CLOSEOUTS||[]).find(x=>String(x.id)===String(id))||{};
+      const wins=PLACINGS.filter(p=>String(p.closeout_id)===String(id)&&Number(p.amount)>0).sort((a,b)=>a.place-b.place);
+      const winNames=new Set(wins.map(w=>(w.player_name||'').toLowerCase()).filter(Boolean));
+      const players=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).sort();
+      const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
+      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">‹ back to history</span></div>'+
+        '<div class="dsub" style="margin-top:6px">🏆 Winners</div>'+
+        (wins.length?wins.map(w=>'<div class="drow"><span class="l"><b style="color:var(--gold)">'+w.place+suf(w.place)+'</b> &nbsp; '+(w.player_name||'(unassigned)')+'<span style="font-size:11px;color:var(--ink-faint)"> · '+(w.paid_by||'')+'</span></span><span class="r" style="color:var(--gold)">'+money(w.amount)+'</span></div>').join(''):'<div class="empty">No winners recorded.</div>')+
+        '<div class="dsub" style="margin-top:14px">👥 All players ('+players.length+')</div>'+
+        (players.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">'+players.map(n=>{const w=winNames.has(n.toLowerCase());return '<span style="background:'+(w?'rgba(201,184,150,.13)':'var(--chip)')+';border:1px solid '+(w?'var(--gold)':'var(--line)')+';border-radius:14px;padding:5px 11px;font-size:12.5px;color:'+(w?'var(--gold)':'var(--ink-dim)')+';'+(w?'font-weight:600':'')+'">'+(w?'🏆 ':'')+n+'</span>';}).join('')+'</div>':'<div class="empty">No GES player list for this game (was it imported?).</div>');
     }
     $('detail').classList.add('open');
-    // wire any nested clickable rows (e.g. club money inside the P&L detail)
+    // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
     b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
   }
 
