@@ -387,6 +387,10 @@
     const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
     if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
       flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen'}); }
+    // 7. incoming cash hand-ups from TDs awaiting confirmation
+    const incoming=(CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
+    if(incoming.length){ const amt=incoming.reduce((s,m)=>s+(Number(m.amount)||0),0);
+      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held'}); }
     computed.flags=flags;
     $('mFlags').textContent=flags.length;
     const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', flags.length>0);
@@ -429,6 +433,15 @@
   const COMING={
     bank:{ic:'🏦',t:'Money in bank',p:'A rolling bank balance: opening balance + transfers in (at games) − player payments − overhead costs and expenses. It needs a starting bank figure plus the overheads/expenses feeders and a record of transfers, none of which are in the system yet.',need:'Build: Bank balance + Overheads/Expenses + Transfers'}
   };
+  async function confirmCash(id){
+    try{
+      const { error } = await supabase.from('cash_movements').update({status:'approved', approved_at:new Date().toISOString()}).eq('id',id);
+      if(error) throw error;
+      // refresh and re-open cash detail
+      CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      compute(); openDetail('cash');
+    }catch(e){ alert('Could not confirm: '+(e.message||e)); }
+  }
   function openDetail(key){
     const b=$('detailBody');
     if(COMING[key]){const c=COMING[key];b.innerHTML='<div class="comingbox"><div class="ic">'+c.ic+'</div><h3>'+c.t+'</h3><p>'+c.p+'</p><div class="need">'+c.need+'</div></div>';$('detail').classList.add('open');return;}
@@ -443,7 +456,13 @@
         '<div class="drow"><span class="l">Outstanding ticket/seat money owed</span><span class="r" style="color:var(--amber)">−'+money(computed.ticketOwed||0)+'</span></div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>Clear balance (cash − tickets)</b></span><span class="r" style="color:'+((computed.cashClear||0)<0?'var(--red)':'var(--good)')+'"><b>'+money(computed.cashClear||0)+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
-        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>');
+        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
+        (function(){
+          const pend=(CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
+          if(!pend.length) return '';
+          return '<div class="dsub" style="margin-top:16px;color:var(--amber)">⏳ Awaiting your confirmation</div>'+
+            pend.map(m=>'<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l">'+money(m.amount)+' from a TD'+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><button class="confirmcash" data-confirm="'+m.id+'" style="background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:8px;padding:8px 13px;font-size:12.5px;cursor:pointer;font-weight:600">✓ Confirm receipt</button></div>').join('');
+        })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
       b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub">Things worth a look this period — drawn from your live data.</div>'+(fl.length?fl.map(f=>'<div class="drow"><span class="l"><span style="font-size:16px;margin-right:8px">'+f.ic+'</span>'+f.t+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+f.d+'</span></span></div>').join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
@@ -505,6 +524,7 @@
     $('detail').classList.add('open');
     // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
     b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
+    b.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',()=>confirmCash(el.dataset.confirm)));
   }
 
   document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));

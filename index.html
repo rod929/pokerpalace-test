@@ -71,6 +71,11 @@
   .sgrid .sk{color:var(--ink-faint);font-size:12px} .sgrid .sv{font-family:'JetBrains Mono',monospace;text-align:right}
   .ssec{font-family:'Archivo',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-dim);margin:10px 0 6px}
   .sline{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px} .sline:last-child{border-bottom:none}
+  .bigflag{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:var(--good);margin:6px 0 12px}
+  .handbox{background:var(--chip);border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:6px}
+  .handbox .hbtitle{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;margin-bottom:8px}
+  .handbtn{width:100%;background:var(--pp);border:none;color:#fff;font-weight:700;font-size:14px;border-radius:9px;padding:12px;cursor:pointer}
+  .handbtn:hover{filter:brightness(1.08)} .handbtn:disabled{opacity:.6}
   .trend{display:flex;align-items:center;gap:14px}
   .trend .num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:30px}
   .delta{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;padding:4px 10px;border-radius:20px}
@@ -291,7 +296,7 @@
   }
 
   // ===== TD dashboard =====
-  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], earnPeriod='7';
+  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], TD_ADMINS=[], earnPeriod='7';
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function periodStart(p){
     const d=new Date();
@@ -316,6 +321,7 @@
       TD_PLACINGS = coIds.length ? ((await supabase.from('placings').select('*').in('closeout_id',coIds)).data||[]) : [];
       TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
       TD_PLAYERS = (await supabase.from('players').select('created_at,registered_by')).data||[];
+      TD_ADMINS = ((await supabase.from('profiles').select('user_id,name,role').eq('role','admin')).data)||[];
       renderEarn(); renderCash(); renderPlayers(); renderActive();
     }catch(e){ /* silent */ }
   }
@@ -341,6 +347,10 @@
     $('tdCashTix').textContent='−'+money(tixOwed);
     $('tdCashBal').textContent=money(bal);
     const balEl=$('tdCashBal'); if(balEl) balEl.style.color = bal<0 ? 'var(--red)' : 'var(--good)';
+    // pending hand-ups indicator
+    const pend=(TD_CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
+    const hint=document.querySelector('#cashCard .taphint');
+    if(hint){ hint.textContent = pend.length ? ('⏳ '+pend.length+' hand-up'+(pend.length>1?'s':'')+' pending · tap to manage') : 'tap to hand to admin / day-by-day'; }
   }
   // outstanding ticket money = value of won tickets not yet redeemed (same logic as ticket register)
   function outstandingTicketMoney(){
@@ -427,6 +437,59 @@
     $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">💰</span> Your earnings — day by day <span class="pchip">'+lbl+'</span></h2><div class="daylist">'+rows+
       (days.length?'<div class="dayrow bal"><span class="dl">Total</span><span class="dr gold">'+money(tot)+'</span></div>':'')+'</div></div>';
     $('tdPanel').scrollIntoView({behavior:'smooth'});
+  }
+  function showCashPanel(){
+    const cashRaw = currentCashRaw();
+    const pend = (TD_CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
+    const adminOpts = TD_ADMINS.length ? TD_ADMINS.map(a=>'<option value="'+(a.name||a.user_id)+'">'+(a.name||'(admin)')+'</option>').join('') : '<option value="">(no admins found)</option>';
+    let pendHtml='';
+    if(pend.length){
+      pendHtml='<div class="ssec" style="margin-top:14px">⏳ Pending hand-ups (awaiting admin confirmation)</div>'+
+        pend.map(m=>'<div class="sline"><span>'+money(m.amount)+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+'</span></span><span style="color:var(--amber)">pending</span></div>').join('');
+    }
+    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">🪙</span> Cash you\'re holding</h2>'+
+      '<div class="bigflag">'+money(cashRaw)+' <span style="font-size:12px;color:var(--ink-faint)">in hand</span></div>'+
+      '<div class="handbox">'+
+        '<div class="hbtitle">Hand cash to Admin</div>'+
+        '<label style="font-size:12px;color:var(--ink-dim)">Amount $</label>'+
+        '<input id="handAmt" type="number" min="0" placeholder="'+Math.round(cashRaw)+'" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;margin:4px 0 8px">'+
+        '<label style="font-size:12px;color:var(--ink-dim)">Hand to</label>'+
+        '<select id="handAdmin" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;margin:4px 0 8px">'+adminOpts+'</select>'+
+        '<label style="font-size:12px;color:var(--ink-dim)">Note (optional)</label>'+
+        '<input id="handNote" placeholder="e.g. Friday takings" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;margin:4px 0 10px">'+
+        '<button class="handbtn" id="handBtn" type="button">Hand to Admin →</button>'+
+        '<div id="handMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
+      '</div>'+
+      pendHtml+
+      '<button class="histbtn" id="cashDaysBtn" type="button" style="margin-top:12px">📅 View day-by-day movements</button>'+
+    '</div>';
+    $('tdPanel').scrollIntoView({behavior:'smooth'});
+    $('handBtn').addEventListener('click',handToAdmin);
+    $('cashDaysBtn').addEventListener('click',showCashDays);
+  }
+  function currentCashRaw(){
+    const leftover=TD_CO.reduce((s,c)=>s+(Number(c.leftover_cash)||0),0);
+    const handedApproved=TD_CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
+    return Math.max(0,leftover-handedApproved);
+  }
+  async function handToAdmin(){
+    const amt=Number($('handAmt').value)|| currentCashRaw();
+    const admin=$('handAdmin').value;
+    const note=$('handNote').value.trim();
+    const msg=$('handMsg');
+    function show(m,ok){ msg.style.display='block'; msg.textContent=m; msg.style.color=ok?'var(--good)':'var(--red)'; }
+    if(!amt||amt<=0){ show('Enter an amount.',false); return; }
+    if(!admin){ show('Pick an admin to hand to.',false); return; }
+    $('handBtn').disabled=true; show('Sending…',true);
+    try{
+      const row={ movement_type:'td_to_admin', amount:amt, move_date:new Date().toISOString().slice(0,10),
+        from_user:user.id, to_admin:admin, note:note||null, status:'pending', recorded_by:user.id };
+      const { error } = await supabase.from('cash_movements').insert(row);
+      if(error) throw error;
+      show('✓ Handed '+money(amt)+' to '+admin+' — pending their confirmation.',true);
+      // refresh data then re-open panel
+      await loadTD(); showCashPanel();
+    }catch(e){ show('Could not send: '+(e.message||e),false); $('handBtn').disabled=false; }
   }
   function showCashDays(){
     // per-day movements: leftover added (+), handed to admin (−). Ticket money owed shown as a note.
@@ -554,7 +617,7 @@
   $('histBtn')&&$('histBtn').addEventListener('click',showHistory);
   $('winBtn')&&$('winBtn').addEventListener('click',showWinners);
   $('earnCard')&&$('earnCard').addEventListener('click',showEarnDays);
-  $('cashCard')&&$('cashCard').addEventListener('click',showCashDays);
+  $('cashCard')&&$('cashCard').addEventListener('click',showCashPanel);
   $('sheetsBtn')&&$('sheetsBtn').addEventListener('click',showSheets);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
