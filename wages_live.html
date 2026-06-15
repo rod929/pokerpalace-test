@@ -29,6 +29,7 @@
   .presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px}
   .presets button{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:20px;padding:8px 15px;font-size:13px;cursor:pointer;font-family:inherit}
   .presets button.on{background:var(--gold);color:#1a1508;border-color:var(--gold);font-weight:700}
+  .daterow{display:flex} .daterow input{font-size:14px}
   .totrow{display:flex;gap:10px;margin:14px 0}
   .totbox{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
   .totbox .l{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em} .totbox .v{font-family:'JetBrains Mono';font-weight:700;font-size:22px;margin-top:4px}
@@ -40,6 +41,7 @@
   .strow td.r{text-align:right;font-family:'JetBrains Mono'} .strow:hover td{background:rgba(127,160,196,.05)}
   .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
   .pill.paid{background:rgba(92,184,138,.15);color:var(--good)} .pill.part{background:rgba(224,173,85,.15);color:var(--amber)} .pill.owed{background:rgba(224,122,95,.15);color:var(--red)}
+  .pill.ackd{background:rgba(127,160,196,.18);color:var(--blue)}
   .chev{color:var(--ink-faint);font-size:13px}
   .empty{color:var(--ink-faint);text-align:center;padding:24px;font-size:13.5px}
   /* detail */
@@ -51,6 +53,8 @@
   .shiftrow .info{flex:1;min-width:0} .shiftrow .gm{font-weight:600} .shiftrow .mt{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono';margin-top:2px}
   .shiftrow .pay{font-family:'JetBrains Mono';font-weight:700;color:var(--gold);white-space:nowrap}
   .shiftrow.ispaid{opacity:.6}
+  .shiftrow.isackd{background:rgba(127,160,196,.06)}
+  .paytag.ackd{background:rgba(127,160,196,.18);color:var(--blue)}
   .paytag{font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(92,184,138,.15);color:var(--good);margin-left:6px}
   .paybar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
   .paybar select{flex:0 0 130px} .paybar .sp{flex:1}
@@ -85,7 +89,12 @@
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
     <div id="adminArea">
       <div class="presets" id="presets">
-        <button data-r="7" class="on">Last 7 days</button><button data-r="month">This month</button><button data-r="ytd">Year to date</button>
+        <button data-r="7" class="on">Last 7 days</button><button data-r="month">This month</button><button data-r="ytd">Year to date</button><button data-r="custom">Custom</button>
+      </div>
+      <div class="daterow" id="customRow" style="display:none;gap:10px;margin-bottom:12px">
+        <div style="flex:1"><label style="margin-top:0">From</label><input id="from" type="date"></div>
+        <div style="flex:1"><label style="margin-top:0">To</label><input id="to" type="date"></div>
+        <div style="display:flex;align-items:flex-end"><button class="paysel" id="applyCustom" style="margin:0">Apply</button></div>
       </div>
 
       <!-- summary view -->
@@ -115,7 +124,9 @@
             <button class="paysel" id="paySelBtn">Pay selected</button>
             <button class="payall" id="payAllBtn">Pay all outstanding</button>
           </div>
-          <button class="unpay" id="unpayBtn" style="display:none">↺ Unmark selected as paid</button>
+          <div style="margin-top:10px;font-size:12px;color:var(--ink-faint)">Cash pays immediately. Transfer/Invoice marks <b style="color:var(--blue)">acknowledged</b> — still outstanding until you confirm it's gone through.</div>
+          <button class="payall" id="confirmPaidBtn" style="margin-top:10px;background:var(--blue);border-color:var(--blue);color:#0e1a26">✓ Confirm all acknowledged as paid</button>
+          <button class="unpay" id="unpayBtn" style="display:none">↺ Revert selected to outstanding</button>
         </div>
       </div>
 
@@ -143,9 +154,11 @@
     if(period==='7'){ const x=new Date(); x.setDate(x.getDate()-7); return x; }
     if(period==='month'){ return new Date(d.getFullYear(),d.getMonth(),1); }
     if(period==='ytd'){ return new Date(d.getFullYear(),0,1); }
+    if(period==='custom'){ const f=$('from').value; return f?new Date(f):new Date(0); }
     return new Date(0);
   }
-  function inRange(dateStr){ if(!dateStr) return true; const t=new Date(dateStr); return t>=rangeStart(); }
+  function rangeEnd(){ if(period==='custom'){ const t=$('to').value; if(t){ const x=new Date(t); x.setDate(x.getDate()+1); return x; } } return null; }
+  function inRange(dateStr){ if(!dateStr) return true; const t=new Date(dateStr); const e=rangeEnd(); return t>=rangeStart() && (!e||t<e); }
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
@@ -171,10 +184,12 @@
 
   function shiftPay(s){ return (Number(s.hours)||0)*(Number(s.rate)||0); }
 
+  function shiftState(s){ if(s.paid) return 'paid'; if(s.pay_status==='acknowledged') return 'acknowledged'; return 'outstanding'; }
   function staffSummary(){
     const by={};
-    SHIFTS.forEach(s=>{ const n=s.staff_name||'(unnamed)'; if(!by[n]) by[n]={name:n,shifts:0,hours:0,wages:0,paid:0}; 
-      by[n].shifts++; by[n].hours+=Number(s.hours)||0; const p=shiftPay(s); by[n].wages+=p; if(s.paid) by[n].paid+=p; });
+    SHIFTS.forEach(s=>{ const n=s.staff_name||'(unnamed)'; if(!by[n]) by[n]={name:n,shifts:0,hours:0,wages:0,paid:0,ackd:0};
+      by[n].shifts++; by[n].hours+=Number(s.hours)||0; const p=shiftPay(s); by[n].wages+=p;
+      const st=shiftState(s); if(st==='paid') by[n].paid+=p; else if(st==='acknowledged') by[n].ackd+=p; });
     return Object.values(by).sort((a,b)=>b.wages-a.wages);
   }
 
@@ -188,8 +203,12 @@
     if(!list.length){ tb.innerHTML=''; $('staffEmpty').style.display='block'; return; }
     $('staffEmpty').style.display='none';
     tb.innerHTML=list.map(x=>{
-      const owed=x.wages-x.paid;
-      const status= owed<=0 ? '<span class="pill paid">paid</span>' : (x.paid>0?'<span class="pill part">part</span>':'<span class="pill owed">owed</span>');
+      const owed=x.wages-x.paid-x.ackd;
+      let status;
+      if(x.paid>=x.wages-0.5) status='<span class="pill paid">paid</span>';
+      else if(x.ackd>0 && owed<=0.5) status='<span class="pill ackd">acknowledged</span>';
+      else if(x.paid>0||x.ackd>0) status='<span class="pill part">part</span>';
+      else status='<span class="pill owed">owed</span>';
       return '<tr class="strow" data-staff="'+encodeURIComponent(x.name)+'"><td>'+x.name+' <span class="chev">›</span></td><td class="r">'+x.shifts+'</td><td class="r">'+(Math.round(x.hours*10)/10)+'</td><td class="r">'+money(x.wages)+'</td><td class="r">'+status+'</td></tr>';
     }).join('');
     tb.querySelectorAll('.strow').forEach(r=>r.addEventListener('click',()=>{ curStaff=decodeURIComponent(r.dataset.staff); renderDetail(); }));
@@ -198,48 +217,76 @@
   function renderDetail(){
     $('summaryView').style.display='none'; $('detailView').style.display='block';
     const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff).sort((a,b)=>(a._date||'').localeCompare(b._date||''));
-    const tot=mine.reduce((s,x)=>s+shiftPay(x),0), paid=mine.reduce((s,x)=>s+(x.paid?shiftPay(x):0),0);
+    const tot=mine.reduce((s,x)=>s+shiftPay(x),0);
+    const paid=mine.reduce((s,x)=>s+(shiftState(x)==='paid'?shiftPay(x):0),0);
+    const ackd=mine.reduce((s,x)=>s+(shiftState(x)==='acknowledged'?shiftPay(x):0),0);
     $('dName').textContent=curStaff;
     $('dTot').textContent=money(tot);
-    $('dSub').textContent=mine.length+' shifts · '+money(paid)+' paid · '+money(tot-paid)+' outstanding';
+    $('dSub').textContent=mine.length+' shifts · '+money(paid)+' paid · '+money(ackd)+' acknowledged · '+money(tot-paid-ackd)+' outstanding';
     $('shiftList').innerHTML=mine.map(s=>{
-      const pay=shiftPay(s);
-      return '<div class="shiftrow'+(s.paid?' ispaid':'')+'">'+
-        '<div class="ck"><input type="checkbox" data-sid="'+s.id+'"'+(s.paid?' checked disabled':'')+'></div>'+
-        '<div class="info"><div class="gm">'+(s._game||'(game)')+(s.role?(' · '+s.role):'')+(s.paid?('<span class="paytag">paid '+(s.paid_method||'')+'</span>'):'')+'</div>'+
+      const pay=shiftPay(s), st=shiftState(s);
+      const canSelect = st!=='paid'; // can act on outstanding or acknowledged
+      const tag = st==='paid' ? '<span class="paytag">✓ paid '+(s.paid_method||'')+'</span>'
+                : st==='acknowledged' ? '<span class="paytag ackd">⏳ '+(s.paid_method||'')+' pending</span>' : '';
+      return '<div class="shiftrow'+(st==='paid'?' ispaid':'')+(st==='acknowledged'?' isackd':'')+'">'+
+        '<div class="ck"><input type="checkbox" data-sid="'+s.id+'"'+(canSelect?'':' checked disabled')+'></div>'+
+        '<div class="info"><div class="gm">'+(s._game||'(game)')+(s.role?(' · '+s.role):'')+tag+'</div>'+
         '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div></div>'+
         '<div class="pay">'+money(pay)+'</div></div>';
     }).join('') || '<div class="empty">No shifts in this period.</div>';
-    // unpay button shows if any paid shifts exist
-    $('unpayBtn').style.display = mine.some(s=>s.paid) ? 'inline-block' : 'none';
+    $('unpayBtn').style.display = mine.some(s=>shiftState(s)!=='outstanding') ? 'inline-block' : 'none';
   }
 
   function selectedIds(){ return [...$('shiftList').querySelectorAll('input[data-sid]:checked:not(:disabled)')].map(c=>c.dataset.sid); }
 
   async function payShifts(ids){
-    if(!ids.length){ setStatus('No outstanding shifts selected.','err'); return; }
+    if(!ids.length){ setStatus('No shifts selected.','err'); return; }
     const method=$('payMethod').value;
     clearStatus();
     try{
-      const upd={ paid:true, paid_method:method, paid_date:new Date().toISOString().slice(0,10), paid_by:user.id };
+      let upd;
+      if(method==='cash'){
+        upd={ paid:true, pay_status:'paid', paid_method:'cash', paid_date:new Date().toISOString().slice(0,10), paid_by:user.id };
+      } else {
+        // transfer/invoice → acknowledge (outstanding until confirmed)
+        upd={ paid:false, pay_status:'acknowledged', paid_method:method, paid_by:user.id };
+      }
       const{error}=await supabase.from('staff_shifts').update(upd).in('id',ids);
       if(error)throw error;
-      setStatus('✓ Marked '+ids.length+' shift(s) paid by '+method+'.','ok');
+      setStatus(method==='cash'?('✓ Marked '+ids.length+' shift(s) paid in cash.'):('✓ '+ids.length+' shift(s) acknowledged for '+method+' — outstanding until confirmed.'),'ok');
       await load();
-    }catch(e){ setStatus('Could not record payment: '+(e.message||e),'err'); }
+    }catch(e){ setStatus('Could not record: '+(e.message||e),'err'); }
+  }
+  // confirm an acknowledged transfer/invoice as actually paid
+  async function confirmPaid(ids){
+    if(!ids.length){ setStatus('Select acknowledged shifts to confirm.','err'); return; }
+    clearStatus();
+    try{
+      const{error}=await supabase.from('staff_shifts').update({paid:true, pay_status:'paid', paid_date:new Date().toISOString().slice(0,10), paid_by:user.id}).in('id',ids);
+      if(error)throw error;
+      setStatus('✓ Confirmed '+ids.length+' shift(s) as paid.','ok');
+      await load();
+    }catch(e){ setStatus('Could not confirm: '+(e.message||e),'err'); }
+  }
+  function selectedAcknowledged(){
+    const sel=selectedIds();
+    return sel.filter(id=>{ const s=SHIFTS.find(x=>String(x.id)===String(id)); return s && shiftState(s)==='acknowledged'; });
   }
   $('paySelBtn').addEventListener('click',()=>payShifts(selectedIds()));
   $('payAllBtn').addEventListener('click',()=>{
-    const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && !s.paid).map(s=>s.id);
+    const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && shiftState(s)==='outstanding').map(s=>s.id);
     payShifts(mine);
   });
+  $('confirmPaidBtn').addEventListener('click',()=>{
+    const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && shiftState(s)==='acknowledged').map(s=>s.id);
+    confirmPaid(mine);
+  });
   $('unpayBtn').addEventListener('click',async()=>{
-    // unmark: re-check the boxes that are paid? simpler: unmark all paid for this staff in range
-    const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && s.paid).map(s=>s.id);
+    const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && shiftState(s)!=='outstanding').map(s=>s.id);
     if(!mine.length) return;
-    if(!confirm('Unmark all paid shifts for '+curStaff+' in this period as unpaid?')) return;
+    if(!confirm('Revert all paid/acknowledged shifts for '+curStaff+' in this period back to outstanding?')) return;
     try{
-      const{error}=await supabase.from('staff_shifts').update({paid:false,paid_method:null,paid_date:null,paid_by:null}).in('id',mine);
+      const{error}=await supabase.from('staff_shifts').update({paid:false,pay_status:'outstanding',paid_method:null,paid_date:null,paid_by:null}).in('id',mine);
       if(error)throw error;
       setStatus('Reverted '+mine.length+' shift(s) to outstanding.','ok'); await load();
     }catch(e){ setStatus('Could not revert: '+(e.message||e),'err'); }
@@ -248,8 +295,11 @@
   $('backBtn').addEventListener('click',renderSummary);
   $('search').addEventListener('input',e=>{ q=e.target.value.trim().toLowerCase(); renderSummary(); });
   document.querySelectorAll('#presets button').forEach(b=>b.addEventListener('click',()=>{
-    document.querySelectorAll('#presets button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); period=b.dataset.r; load();
+    document.querySelectorAll('#presets button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); period=b.dataset.r;
+    $('customRow').style.display = period==='custom' ? 'flex' : 'none';
+    if(period!=='custom') load();
   }));
+  $('applyCustom').addEventListener('click',()=>{ if(!$('from').value||!$('to').value){ setStatus('Pick both a from and to date.','err'); return; } load(); });
 
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
   async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}

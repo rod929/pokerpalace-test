@@ -56,6 +56,21 @@
   .cashbd .cbrow span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink)}
   .cashbd .cbrow.bal{border-top:1px solid var(--line-soft);margin-top:5px;padding-top:8px;font-weight:700;color:var(--ink)}
   .cashbd .cbrow.bal span:last-child{color:var(--good);font-size:15px}
+  .pcard.clickable{cursor:pointer;transition:border-color .15s} .pcard.clickable:hover{border-color:var(--pp)}
+  .taphint{color:var(--pp);font-size:11px;font-weight:600}
+  .daylist{margin-top:4px} .dayrow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+  .dayrow:last-child{border-bottom:none} .dayrow .dl{color:var(--ink-dim)} .dayrow .dl small{display:block;color:var(--ink-faint);font-size:11px;font-family:'JetBrains Mono',monospace}
+  .dayrow .dr{font-family:'JetBrains Mono',monospace;font-weight:600}
+  .dayrow.pos .dr{color:var(--good)} .dayrow.neg .dr{color:var(--red)} .dayrow.bal{border-top:2px solid var(--line);font-weight:700}
+  .sheetcard{border:1px solid var(--line-soft);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .sheethead{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;cursor:pointer;background:var(--card)}
+  .sheethead .sn{font-weight:600;font-size:14px} .sheethead .sc{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace}
+  .sheethead .schev{color:var(--ink-faint);transition:transform .2s} .sheetcard.open .schev{transform:rotate(90deg)}
+  .sheetbody{display:none;padding:12px 13px;border-top:1px solid var(--line-soft);font-size:13px} .sheetcard.open .sheetbody{display:block}
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:10px}
+  .sgrid .sk{color:var(--ink-faint);font-size:12px} .sgrid .sv{font-family:'JetBrains Mono',monospace;text-align:right}
+  .ssec{font-family:'Archivo',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-dim);margin:10px 0 6px}
+  .sline{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px} .sline:last-child{border-bottom:none}
   .trend{display:flex;align-items:center;gap:14px}
   .trend .num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:30px}
   .delta{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;padding:4px 10px;border-radius:20px}
@@ -183,13 +198,13 @@
 
       <div class="tdgrid">
         <!-- earnings -->
-        <div class="pcard">
+        <div class="pcard clickable" id="earnCard">
           <h2><span class="ico">💰</span> Your earnings <span class="pchip" id="tdEarnChip">7 days</span></h2>
           <div class="big gold" id="tdEarn">$0</div>
-          <div class="psub" id="tdEarnSub">your wages this period</div>
+          <div class="psub" id="tdEarnSub">your wages this period <span class="taphint">· tap for day-by-day</span></div>
         </div>
         <!-- cash held -->
-        <div class="pcard">
+        <div class="pcard clickable" id="cashCard">
           <h2><span class="ico">🪙</span> Cash you're holding</h2>
           <div class="big" id="tdCash">$0</div>
           <div class="cashbd">
@@ -197,6 +212,7 @@
             <div class="cbrow"><span>Less: ticket money owed</span><span id="tdCashTix">$0</span></div>
             <div class="cbrow bal"><span>Clear balance</span><span id="tdCashBal">$0</span></div>
           </div>
+          <div class="psub"><span class="taphint">tap for day-by-day movements</span></div>
         </div>
         <!-- unique players -->
         <div class="pcard">
@@ -233,6 +249,7 @@
       <button class="histbtn" id="winBtn" type="button">🏆 Biggest winners — who's won the most</button>
       <a class="histbtn" href="tickets_live.html">🎟 Tickets — satellite/seat prizes</a>
       <a class="histbtn" href="player_tickets_live.html">🎫 Player Ticket Register — who's won what, used or not</a>
+      <button class="histbtn" id="sheetsBtn" type="button">📋 Past close-out sheets — full detail of every completed night</button>
 
       <div id="tdPanel"></div>
     </div>
@@ -389,6 +406,80 @@
       ? top.map(([n,c],i)=>'<tr><td class="rank">'+(i<3?'<span class="medal">'+medals[i]+'</span>':(i+1))+'</td><td class="pl">'+n+'</td><td class="r g">'+c+'</td></tr>').join('')
       : '<tr><td colspan="3"><div class="muted">No player data yet — import GES reports on close-out to populate this.</div></td></tr>';
   }
+  function showEarnDays(){
+    const start=periodStart(earnPeriod);
+    const coById={}; TD_CO.forEach(c=>coById[c.id]=c);
+    // group shifts by date
+    const byDay={};
+    TD_SHIFTS.forEach(s=>{ const co=coById[s.closeout_id]; if(!co)return; const d=co.game_date; if(!d) return; if(new Date(d)<start) return;
+      const pay=(Number(s.hours)||0)*(Number(s.rate)||0);
+      if(!byDay[d]) byDay[d]={total:0,items:[]};
+      byDay[d].total+=pay; byDay[d].items.push({game:co.game_name||'', role:s.role||'', hours:Number(s.hours)||0, rate:Number(s.rate)||0, pay});
+    });
+    const days=Object.keys(byDay).sort((a,b)=>b.localeCompare(a));
+    const lbl = earnPeriod==='7'?'last 7 days':earnPeriod==='month'?'this month':'year to date';
+    const rows = days.length ? days.map(d=>{
+      const day=byDay[d];
+      const detail=day.items.map(it=>it.game+(it.role?(' · '+it.role):'')+' — '+it.hours+'h × $'+it.rate).join('<br>');
+      return '<div class="dayrow pos"><span class="dl">'+fmtD(d)+'<small>'+detail+'</small></span><span class="dr">'+money(day.total)+'</span></div>';
+    }).join('') : '<div class="muted">No shifts in this period.</div>';
+    const tot=days.reduce((s,d)=>s+byDay[d].total,0);
+    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">💰</span> Your earnings — day by day <span class="pchip">'+lbl+'</span></h2><div class="daylist">'+rows+
+      (days.length?'<div class="dayrow bal"><span class="dl">Total</span><span class="dr gold">'+money(tot)+'</span></div>':'')+'</div></div>';
+    $('tdPanel').scrollIntoView({behavior:'smooth'});
+  }
+  function showCashDays(){
+    // per-day movements: leftover added (+), handed to admin (−). Ticket money owed shown as a note.
+    const byDay={};
+    TD_CO.forEach(c=>{ const d=c.game_date; if(!d) return; const lo=Number(c.leftover_cash)||0; if(!byDay[d])byDay[d]={add:0,handed:0}; byDay[d].add+=lo; });
+    TD_CASH.filter(m=>m.movement_type==='td_to_admin').forEach(m=>{ const d=(m.move_date||'').slice(0,10); if(!d)return; if(!byDay[d])byDay[d]={add:0,handed:0}; byDay[d].handed+=(Number(m.amount)||0)*(m.status==='approved'?1:0); });
+    const days=Object.keys(byDay).sort((a,b)=>a.localeCompare(b));
+    let running=0;
+    const rows = days.length ? days.map(d=>{
+      const day=byDay[d]; const net=day.add-day.handed; running+=net;
+      let parts=[]; if(day.add)parts.push('+'+money(day.add)+' leftover'); if(day.handed)parts.push('−'+money(day.handed)+' to admin');
+      return '<div class="dayrow '+(net>=0?'pos':'neg')+'"><span class="dl">'+fmtD(d)+'<small>'+(parts.join(' · ')||'—')+'</small></span><span class="dr">'+money(running)+'</span></div>';
+    }).join('') : '<div class="muted">No cash movements yet.</div>';
+    const tix=outstandingTicketMoney();
+    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">🪙</span> Cash you\'re holding — day by day</h2>'+
+      '<div class="daylist">'+rows+'</div>'+
+      (tix>0?'<div class="psub" style="margin-top:10px">Of your current balance, <b style="color:var(--amber)">'+money(tix)+'</b> is ticket money owed (set aside for unredeemed seats).</div>':'')+
+      '<div class="psub" style="font-size:11px">Running balance = leftover cash added each night, less cash handed up to admin (approved).</div></div>';
+    $('tdPanel').scrollIntoView({behavior:'smooth'});
+  }
+  function fmtD(d){ if(!d) return ''; const x=new Date(d); if(isNaN(x))return d; return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][x.getDay()]+' '+('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear(); }
+
+  let TD_CO_SORTED=[];
+  function showSheets(){
+    const cos=[...TD_CO].sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
+    TD_CO_SORTED=cos;
+    if(!cos.length){ $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><div class="muted">No completed close-outs yet.</div></div>'; $('tdPanel').scrollIntoView({behavior:'smooth'}); return; }
+    const cards=cos.map((c,i)=>'<div class="sheetcard" data-sheet="'+i+'"><div class="sheethead"><span><span class="sn">'+(c.game_name||'(game)')+'</span><br><span class="sc">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="schev">›</span></div><div class="sheetbody" id="sheet'+i+'"></div></div>').join('');
+    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">📋</span> Past close-out sheets</h2><div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px">Tap a night to see the full sheet</div>'+cards+'</div>';
+    $('tdPanel').querySelectorAll('.sheetcard').forEach(el=>{
+      el.querySelector('.sheethead').addEventListener('click',()=>{ const open=el.classList.toggle('open'); const i=+el.dataset.sheet; if(open) $('sheet'+i).innerHTML=sheetDetail(TD_CO_SORTED[i]); });
+    });
+  }
+  function sheetDetail(c){
+    if(!c) return '';
+    const plc=(TD_PLACINGS||[]).filter(p=>String(p.closeout_id)===String(c.id)).sort((a,b)=>a.place-b.place);
+    const sh=(TD_SHIFTS||[]).filter(s=>String(s.closeout_id)===String(c.id));
+    const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
+    const g=(k,v)=>'<div class="sk">'+k+'</div><div class="sv">'+v+'</div>';
+    let html='<div class="sgrid">'+
+      g('Entries',c.entries||0)+g('Unique',c.unique_players||0)+
+      g('Re-entries',c.re_entries||0)+g('Add-ons',c.addons||0)+
+      g('Cash in',money(c.cash_in||0))+g('Transfer in',money(c.transfer_in||0))+
+      g('Ticket in',money(c.ticket_in||0))+g('Other in',money(c.other_in||0))+
+      g('Money in',money(c.money_in||0))+g('Leftover cash',money(c.leftover_cash||0))+
+    '</div>';
+    html+='<div class="ssec">🏆 Placings &amp; winners</div>';
+    html+= plc.length ? plc.map(p=>'<div class="sline"><span>'+p.place+suf(p.place)+' · '+(p.player_name||'(unassigned)')+'</span><span>'+money(p.amount)+'</span></div>').join('') : '<div class="muted" style="padding:4px">No placings.</div>';
+    html+='<div class="ssec">👷 Staff</div>';
+    html+= sh.length ? sh.map(s=>'<div class="sline"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+'</span><span>'+money((Number(s.hours)||0)*(Number(s.rate)||0))+'</span></div>').join('') : '<div class="muted" style="padding:4px">No staff recorded.</div>';
+    return html;
+  }
+
   function showHistory(){
     const rows=TD_CO.slice(0,20).map((c,i)=>
       '<div class="histrow" data-h="'+i+'"><div class="hh"><span class="pn">'+(c.game_name||'(game)')+'<br><span class="pc" style="font-size:11px">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="pc">'+(c.entries||0)+' entries <span class="hchev">›</span></span></div><div class="hd" id="hd'+i+'"></div></div>'
@@ -462,5 +553,8 @@
   }));
   $('histBtn')&&$('histBtn').addEventListener('click',showHistory);
   $('winBtn')&&$('winBtn').addEventListener('click',showWinners);
+  $('earnCard')&&$('earnCard').addEventListener('click',showEarnDays);
+  $('cashCard')&&$('cashCard').addEventListener('click',showCashDays);
+  $('sheetsBtn')&&$('sheetsBtn').addEventListener('click',showSheets);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>

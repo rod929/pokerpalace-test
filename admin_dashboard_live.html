@@ -43,6 +43,8 @@
   .metric .arrow{position:absolute;right:13px;bottom:11px;color:var(--ink-faint);font-size:13px}
   .metric.pnl .mv{color:var(--good)} .metric.cash .mv{color:var(--gold)} .metric.prize .mv{color:var(--blue)}
   .metric.inv .mv{color:var(--amber)} .metric.flags .mv{color:var(--amber)} .metric.venwin .mv{color:var(--good)} .metric.venloss .mv{color:var(--red)}
+  .metric.flags.active{background:linear-gradient(135deg,rgba(224,173,85,.16),rgba(224,122,85,.10));border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+  .metric.flags.active .ml{color:var(--amber)}
   .metric.coming{opacity:.6;border-style:dashed}
   .metric.coming .mv{color:var(--ink-faint);font-size:13px}
   .ctag{font-size:9px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:4px;padding:2px 6px;margin-left:auto}
@@ -164,7 +166,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],period='month',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],period='month',computed={};
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -185,6 +187,7 @@
       const co=await supabase.from('closeouts').select('*');if(co.error)throw co.error;CLOSEOUTS=co.data||[];
       PLACINGS=(await supabase.from('placings').select('*')).data||[];
       TICKETS=(await supabase.from('tickets').select('*')).data||[];
+      SHIFTS=(await supabase.from('staff_shifts').select('*')).data||[];
       PLAYERS=(await supabase.from('players').select('created_at')).data||[];
       STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];
@@ -378,8 +381,13 @@
     // 5. overlay games (lost on the guarantee)
     const overlays=cos.filter(c=>gamingMargin(c).overlay>0);
     if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0); flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — under guarantee'}); }
+    // 6. acknowledged-but-unpaid wages (transfer/invoice committed, not yet confirmed paid)
+    const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
+    if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
+      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen'}); }
     computed.flags=flags;
     $('mFlags').textContent=flags.length;
+    const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', flags.length>0);
     $('mFlags').style.color = flags.length ? 'var(--amber)' : 'var(--good)';
     $('mFlagsSub').textContent = flags.length ? 'items to review' : 'all clear';
 

@@ -89,14 +89,14 @@
           <button class="go" id="runBtn">Run</button>
         </div>
         <div class="daterow" id="filterRow" style="display:none;margin-top:10px">
-          <div><label>Venue (P&amp;L)</label><select id="venueFilter"><option value="">All venues</option></select></div>
-          <div><label>Game (P&amp;L)</label><select id="gameFilter"><option value="">All games</option></select></div>
+          <div><label>Venue</label><select id="venueFilter"><option value="">All venues</option></select></div>
+          <div><label>Game</label><select id="gameFilter"><option value="">All games</option></select></div>
           <div></div>
         </div>
       </div>
 
       <div class="tabs" id="tabs">
-        <button data-t="pnl" class="on">P&amp;L</button><button data-t="cash">Cash held</button><button data-t="inv">Invoicing</button><button data-t="exp">Expenses</button>
+        <button data-t="pnl" class="on">P&amp;L</button><button data-t="cash">Cash held</button><button data-t="inv">Invoicing</button><button data-t="exp">Expenses</button><button data-t="sms">SMS</button>
       </div>
 
       <div class="card">
@@ -182,11 +182,12 @@
   function run(){
     const f=$('from').value,t=$('to').value;
     $('rngNote').textContent = (f&&t)?('Range: '+f+'  →  '+t):'Pick a from and to date.';
-    const fr=$('filterRow'); if(fr) fr.style.display = tab==='pnl' ? 'grid' : 'none';
+    const fr=$('filterRow'); if(fr) fr.style.display = (tab==='pnl'||tab==='inv'||tab==='sms') ? 'grid' : 'none';
     if(tab==='pnl') reportPnl();
     else if(tab==='cash') reportCash();
     else if(tab==='inv') reportInv();
     else if(tab==='exp') reportExp();
+    else if(tab==='sms') reportSms();
   }
 
   // ===== P&L =====
@@ -261,17 +262,47 @@
   // ===== Invoicing =====
   function reportInv(){
     $('repTitle').textContent='Invoicing';
-    const inv=INV.filter(i=>{ // period is YYYY-MM; include if its month overlaps range
-      if(!i.period) return false; const pStart=i.period+'-01';
-      return inRange(pStart) || (i.period>=($('from').value||'').slice(0,7) && i.period<=($('to').value||'').slice(0,7));
+    const vFil=$('venueFilter')?$('venueFilter').value:'';
+    const gFil=$('gameFilter')?$('gameFilter').value:'';
+    // game filter narrows to that game's venue (invoices are venue/month, not game)
+    let gameVenue=''; if(gFil){ const g=GAMES.find(x=>x.name===gFil); gameVenue=g?g.venue_name:''; }
+    let inv=INV.filter(i=>{
+      if(!i.period) return false;
+      const pStart=i.period+'-01';
+      const inR = inRange(pStart) || (i.period>=($('from').value||'').slice(0,7) && i.period<=($('to').value||'').slice(0,7));
+      if(!inR) return false;
+      if(vFil && i.venue_name!==vFil) return false;
+      if(gameVenue && i.venue_name!==gameVenue) return false;
+      return true;
     });
-    if(!inv.length){ $('repBody').innerHTML='<div class="muted">No invoices in this range.</div>'; lastReport={title:'Invoicing',rows:[]}; return; }
+    const scope=(vFil?vFil:(gameVenue?gameVenue+' (via '+gFil+')':'All venues'));
+    if(!inv.length){ $('repBody').innerHTML='<div class="rngnote">'+scope+'</div><div class="muted">No invoices in this range.</div>'; lastReport={title:'Invoicing',rows:[]}; return; }
     const rows=inv.map(i=>[i.venue_name||'',i.period||'',i.status||'draft', Math.round(Number(i.override_amount!=null?i.override_amount:i.calculated_amount)||0)]);
     const total=rows.reduce((s,r)=>s+r[3],0);
-    lastReport={title:'Invoicing '+$('from').value+' to '+$('to').value, rows:[['Venue','Period','Status','Amount']].concat(rows).concat([['','','TOTAL',total]])};
-    $('repBody').innerHTML='<table class="rt"><thead><tr><th>Venue</th><th>Period</th><th>Status</th><th class="r">Amount</th></tr></thead><tbody>'+
+    lastReport={title:'Invoicing '+scope+' '+$('from').value+' to '+$('to').value, rows:[['Venue','Period','Status','Amount']].concat(rows).concat([['','','TOTAL',total]])};
+    $('repBody').innerHTML='<div class="rngnote">'+scope+'</div><table class="rt"><thead><tr><th>Venue</th><th>Period</th><th>Status</th><th class="r">Amount</th></tr></thead><tbody>'+
       rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="r">'+money(r[3])+'</td></tr>').join('')+
       '<tr><td colspan="3" style="text-align:right;font-weight:700">TOTAL</td><td class="r gold" style="font-weight:700">'+money(total)+'</td></tr></tbody></table>';
+  }
+
+  function reportSms(){
+    $('repTitle').textContent='SMS Charges';
+    const vFil=$('venueFilter')?$('venueFilter').value:'';
+    const gFil=$('gameFilter')?$('gameFilter').value:'';
+    let list=SMS.filter(x=>inRange(x.charge_date));
+    if(vFil) list=list.filter(x=>x.venue_name===vFil);
+    if(gFil) list=list.filter(x=>x.game_name===gFil);
+    const scope=(vFil?vFil:'All venues')+(gFil?(' · '+gFil):'');
+    if(!list.length){ $('repBody').innerHTML='<div class="rngnote">'+scope+'</div><div class="muted">No SMS charges in this range.</div>'; lastReport={title:'SMS',rows:[]}; return; }
+    list.sort((a,b)=>(a.charge_date||'').localeCompare(b.charge_date||''));
+    const total=list.reduce((s,x)=>s+(Number(x.amount)||0),0);
+    const totRcp=list.reduce((s,x)=>s+(Number(x.recipients)||0),0);
+    const rows=list.map(x=>[x.charge_date||'',x.game_name||'',x.venue_name||'',Number(x.recipients)||0,Math.round(Number(x.amount)||0)]);
+    lastReport={title:'SMS '+scope+' '+$('from').value+' to '+$('to').value, rows:[['Date','Game','Venue','Recipients','Amount']].concat(rows).concat([['','','','TOTAL',Math.round(total)]])};
+    $('repBody').innerHTML='<div class="rngnote">'+scope+' · '+list.length+' charges · '+totRcp.toLocaleString()+' messages</div>'+
+      '<table class="rt"><thead><tr><th>Date</th><th>Game</th><th>Venue</th><th class="r">Sent</th><th class="r">Amount</th></tr></thead><tbody>'+
+      rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="r">'+(r[3]||'').toLocaleString()+'</td><td class="r">'+money(r[4])+'</td></tr>').join('')+
+      '<tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td class="r gold" style="font-weight:700">'+money(total)+'</td></tr></tbody></table>';
   }
 
   // ===== Expenses =====

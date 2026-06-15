@@ -373,7 +373,7 @@
   const SUPABASE_KEY = 'sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
-  let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[];
+  let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[], ALL_STAFF_RATES=[];
   let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[];
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
@@ -436,8 +436,11 @@
       const { data, error } = await supabase.from('staff').select('*').eq('active', true).order('name');
       if(error) throw error;
       ALL_STAFF = data || [];
-    }catch(e){ ALL_STAFF=[]; }
+      const { data:rdata } = await supabase.from('staff_rates').select('*');
+      ALL_STAFF_RATES = rdata || [];
+    }catch(e){ ALL_STAFF=[]; ALL_STAFF_RATES=[]; }
   }
+  function staffRoleRates(staffId){ return ALL_STAFF_RATES.filter(r=>String(r.staff_id)===String(staffId)); }
 
   function onVenueChange(){
     const venue=$('venueSel').value;
@@ -571,10 +574,16 @@
     const tb=$('staffBody');
     tb.innerHTML=staff.map((s,i)=>{
       const opts='<option value="">- pick staff -</option>'+ALL_STAFF.map(p=>'<option value="'+p.id+'"'+(String(s.staff_id)===String(p.id)?' selected':'')+'>'+p.name+'</option>').join('');
+      const roles = s.staff_id ? staffRoleRates(s.staff_id) : [];
+      const roleSel = s.staff_id
+        ? ('<select class="tinput" data-sf="rolepick" data-si="'+i+'" style="margin-top:4px;font-size:12px">'+
+            '<option value="">- role -</option>'+roles.map(r=>'<option value="'+r.id+'"'+(String(s.rate_id)===String(r.id)?' selected':'')+'>'+r.role+' ($'+Math.round(r.rate)+')</option>').join('')+
+           '</select>'+(roles.length?'':'<div style="font-size:10px;color:var(--amber);margin-top:2px">no rates set for this person</div>'))
+        : '';
       const hrs=calcHours(s.start,s.finish);
       const pay=(hrs*(Number(s.rate)||0))||0;
       return '<tr>'+
-      '<td><select class="tinput" data-sf="staff_id" data-si="'+i+'">'+opts+'</select>'+(s.role?'<div style="font-size:11px;color:var(--ink-faint);margin-top:3px">'+s.role+'</div>':'')+'</td>'+
+      '<td><select class="tinput" data-sf="staff_id" data-si="'+i+'">'+opts+'</select>'+roleSel+'</td>'+
       '<td><input class="tinput r" data-sf="start" data-si="'+i+'" type="time" value="'+(s.start||'')+'"></td>'+
       '<td><input class="tinput r" data-sf="finish" data-si="'+i+'" type="time" value="'+(s.finish||'')+'"></td>'+
       '<td class="r" style="font-family:\'JetBrains Mono\';color:var(--ink);font-size:13px">'+(hrs?hrs+'h':'-')+'</td>'+
@@ -588,8 +597,19 @@
         const i=+el.dataset.si; const picked=ALL_STAFF.find(p=>String(p.id)===el.value);
         staff[i].staff_id = el.value || null;
         staff[i].name = picked ? picked.name : '';
-        staff[i].role = picked ? picked.role : '';
-        staff[i].rate = picked ? picked.rate : '';
+        // auto-select the role if the person has exactly one rate
+        const rr = el.value ? staffRoleRates(el.value) : [];
+        if(rr.length===1){ staff[i].rate_id=rr[0].id; staff[i].role=rr[0].role; staff[i].rate=rr[0].rate; }
+        else { staff[i].rate_id=null; staff[i].role=''; staff[i].rate=''; }
+        renderStaff();
+      });
+    });
+    tb.querySelectorAll('select[data-sf="rolepick"]').forEach(el=>{
+      el.addEventListener('change',()=>{
+        const i=+el.dataset.si; const rr=staffRoleRates(staff[i].staff_id).find(r=>String(r.id)===el.value);
+        staff[i].rate_id = el.value||null;
+        staff[i].role = rr?rr.role:'';
+        staff[i].rate = rr?rr.rate:'';
         renderStaff();
       });
     });
@@ -604,7 +624,7 @@
     $('wagesTot').textContent='$'+tot.toLocaleString();
     if(typeof updateFinaliseGate==='function' && LOCKED_ID) updateFinaliseGate();
   }
-  function addStaff(){ staff.push({staff_id:null,name:'',role:'',hours:'',rate:''}); renderStaff(); }
+  function addStaff(){ staff.push({staff_id:null,name:'',role:'',hours:'',rate:'',rate_id:null}); renderStaff(); }
 
   async function loadMine(){
     try{
@@ -786,7 +806,7 @@
     if(!RECON.length) return false;
     return RECON.every(reconDone);
   }
-  function staffEntered(){ return staff.some(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0); }
+  function staffEntered(){ return staff.some(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0&&(Number(s.rate)>0)); }
   function updateFinaliseGate(){
     const btn=$('submitBtn'); if(!btn) return;
     const ok=allReconciled() && staffEntered();

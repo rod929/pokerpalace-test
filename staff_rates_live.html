@@ -31,6 +31,25 @@
   .bar button{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer}
   .bar button:hover{border-color:var(--blue);color:var(--blue)}
   .addbtn{background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:10px;padding:11px 16px;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:14px}
+  .stcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:11px}
+  .stcard.inactive{opacity:.55}
+  .st-head{display:flex;align-items:center;gap:10px}
+  .st-head .st-name{flex:1;background:var(--chip);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:15px;font-weight:600;padding:10px;font-family:inherit}
+  .st-head .st-active{font-size:12px;color:var(--ink-dim);display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .st-head .delrow{background:none;border:none;color:var(--ink-faint);font-size:20px;cursor:pointer;padding:0 4px}
+  .st-head .delrow:hover{color:var(--red)}
+  .st-rates{margin-top:11px;padding-top:11px;border-top:1px solid var(--line-soft)}
+  .raterow{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:14px}
+  .raterow .rr-role{flex:1;font-weight:600} .raterow .rr-rate{font-family:'JetBrains Mono',monospace;color:var(--gold)}
+  .raterow .rr-del{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer} .raterow .rr-del:hover{color:var(--red)}
+  .rr-empty{font-size:12.5px;color:var(--ink-faint);padding:4px 0 8px}
+  .addrate{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .addrate .ar-role{flex:0 0 120px;background:var(--chip);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:13px;padding:9px;font-family:inherit}
+  .addrate .ar-amt{flex:1;display:flex;align-items:center;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:0 10px}
+  .addrate .ar-amt span{color:var(--ink-faint);font-size:13px} .addrate .ar-amt input{flex:1;background:none;border:none;color:var(--ink);padding:9px 4px;outline:none;font-family:inherit}
+  .addrate .ar-add{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:9px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .addrate .ar-add:hover{border-color:var(--blue);color:var(--blue)}
+  .st-savefirst{font-size:12.5px;color:var(--ink-faint);margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);font-style:italic}
   .addbtn:hover{filter:brightness(1.08)}
   .stbl{width:100%;border-collapse:collapse}
   .stbl th{text-align:left;font-size:10.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;padding:0 8px 9px}
@@ -78,12 +97,8 @@
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
     <div id="adminArea">
       <button class="addbtn" id="addBtn">+ Add staff member</button>
-      <div class="card">
-        <table class="stbl"><thead><tr><th>Name</th><th>Role</th><th class="r">Rate $/hr</th><th class="c">Active</th><th></th></tr></thead>
-        <tbody id="staffBody"></tbody></table>
-        <div class="saveline"><button class="savebtn" id="saveBtn">Save all changes</button><span class="savedmsg" id="savedMsg">&#10003; saved</span></div>
-        <div class="note"><b>Locked rates:</b> these rates feed the staff timesheet on TD close-outs. TDs select a person and enter hours; the rate comes from here and isn't visible or editable to them.</div>
-      </div>
+      <div id="staffList"></div>
+      <div class="note" style="margin-top:14px"><b>Per-role rates:</b> each person can have a rate for each role they work (TD, Dealer, Floor, etc.). On a close-out, the TD picks the person and the role they worked that night — the matching rate fills in automatically and isn't editable by them.</div>
     </div>
     <div id="notAdmin" class="notadmin" style="display:none">This screen is for admins only. Your account isn't set as an admin.</div>
   </div>
@@ -97,7 +112,7 @@
   const SUPABASE_KEY = 'sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
-  let user=null, isAdmin=false, STAFF=[], deleted=[];
+  let user=null, isAdmin=false, STAFF=[], RATES=[];
   const ROLES=['TD','Dealer','Cashier','Floor','Other'];
 
   const now=new Date(); const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -119,45 +134,77 @@
   async function loadStaff(){
     try{
       const { data, error } = await supabase.from('staff').select('*').order('name'); if(error) throw error;
-      STAFF=(data||[]).map(s=>({...s})); deleted=[]; render();
+      STAFF=(data||[]).map(s=>({...s}));
+      const { data:rdata } = await supabase.from('staff_rates').select('*');
+      RATES=rdata||[];
+      render();
     }catch(e){ setStatus('Could not load staff: '+(e.message||e),'err'); }
   }
 
+  function ratesFor(staffId){ return RATES.filter(r=>String(r.staff_id)===String(staffId)); }
+
   function render(){
-    const tb=$('staffBody');
-    if(!STAFF.length){ tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:20px">No staff yet. Click "Add staff member".</td></tr>'; return; }
-    tb.innerHTML=STAFF.map((s,i)=>'<tr class="'+(s.active===false?'inactive':'')+'">'+
-      '<td><input data-f="name" data-i="'+i+'" value="'+(s.name||'')+'" placeholder="Name"></td>'+
-      '<td><select data-f="role" data-i="'+i+'">'+ROLES.map(r=>'<option'+((s.role||'')===r?' selected':'')+'>'+r+'</option>').join('')+'</select></td>'+
-      '<td><input class="r" data-f="rate" data-i="'+i+'" type="number" value="'+(s.rate??'')+'" placeholder="0"></td>'+
-      '<td class="actv"><input type="checkbox" data-f="active" data-i="'+i+'"'+(s.active!==false?' checked':'')+'></td>'+
-      '<td><button class="delrow" data-del="'+i+'" type="button">&times;</button></td></tr>').join('');
-    tb.querySelectorAll('[data-f]').forEach(el=>{
-      const ev = el.type==='checkbox' ? 'change' : 'input';
-      el.addEventListener(ev,()=>{ const i=+el.dataset.i,f=el.dataset.f; STAFF[i][f]= f==='active'?el.checked : (f==='rate'? el.value : el.value); if(f==='active') render(); });
+    const wrap=$('staffList');
+    if(!STAFF.length){ wrap.innerHTML='<div class="card"><div style="text-align:center;color:var(--ink-faint);padding:20px">No staff yet. Click "Add staff member".</div></div>'; return; }
+    wrap.innerHTML=STAFF.map((s,i)=>{
+      const rates= s.id?ratesFor(s.id):[];
+      const rateRows = rates.length ? rates.map(r=>
+        '<div class="raterow"><span class="rr-role">'+(r.role||'')+'</span><span class="rr-rate">$'+(Number(r.rate)||0)+'/hr</span><button class="rr-del" data-delrate="'+r.id+'" type="button">&times;</button></div>'
+      ).join('') : '<div class="rr-empty">No rates yet — add the roles this person works.</div>';
+      return '<div class="stcard'+(s.active===false?' inactive':'')+'">'+
+        '<div class="st-head">'+
+          '<input class="st-name" data-f="name" data-i="'+i+'" value="'+(s.name||'')+'" placeholder="Staff name">'+
+          '<label class="st-active"><input type="checkbox" data-f="active" data-i="'+i+'"'+(s.active!==false?' checked':'')+'> active</label>'+
+          '<button class="delrow" data-del="'+i+'" type="button" title="remove person">&times;</button>'+
+        '</div>'+
+        (s.id?('<div class="st-rates">'+rateRows+
+          '<div class="addrate"><select class="ar-role" data-i="'+i+'">'+ROLES.map(r=>'<option>'+r+'</option>').join('')+'</select>'+
+          '<div class="ar-amt"><span>$</span><input class="ar-rate" data-i="'+i+'" type="number" placeholder="rate"></div>'+
+          '<button class="ar-add" data-addrate="'+s.id+'" data-i="'+i+'" type="button">+ add rate</button></div>'+
+        '</div>'):'<div class="st-savefirst">Save this person first, then add their role rates.</div>')+
+      '</div>';
+    }).join('');
+    // name + active
+    wrap.querySelectorAll('[data-f]').forEach(el=>{
+      const ev=el.type==='checkbox'?'change':'input';
+      el.addEventListener(ev,()=>{ const i=+el.dataset.i,f=el.dataset.f; STAFF[i][f]= f==='active'?el.checked:el.value; if(f==='active'||f==='name') saveStaffField(i,f); });
     });
-    tb.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{ const i=+b.dataset.del; const s=STAFF[i]; if(s.id) deleted.push(s.id); STAFF.splice(i,1); render(); }));
+    // delete person
+    wrap.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{ const i=+b.dataset.del; const s=STAFF[i]; if(s.id){ if(!confirm('Remove '+(s.name||'this person')+' and their rates?'))return; await supabase.from('staff_rates').delete().eq('staff_id',s.id); await supabase.from('staff').delete().eq('id',s.id); } STAFF.splice(i,1); render(); }));
+    // add rate
+    wrap.querySelectorAll('[data-addrate]').forEach(b=>b.addEventListener('click',()=>addRate(b.dataset.addrate, +b.dataset.i)));
+    // delete rate
+    wrap.querySelectorAll('[data-delrate]').forEach(b=>b.addEventListener('click',async()=>{ try{ await supabase.from('staff_rates').delete().eq('id',b.dataset.delrate); await loadStaff(); }catch(e){ setStatus('Could not remove rate: '+(e.message||e),'err'); } }));
   }
 
-  function addStaff(){ STAFF.push({name:'',role:'Dealer',rate:'',active:true}); render(); }
-
-  async function saveAll(){
-    $('saveBtn').disabled=true; clearStatus();
+  async function saveStaffField(i,f){
+    const s=STAFF[i]; if(!s.name||!s.name.trim()) return;
     try{
-      // deletes
-      for(const id of deleted){ await supabase.from('staff').delete().eq('id',id); }
-      deleted=[];
-      // upserts
-      for(const s of STAFF){
-        if(!s.name||!s.name.trim()) continue;
-        const row={ name:s.name.trim(), role:s.role||null, rate:(s.rate===''||s.rate==null)?null:Number(s.rate), active:s.active!==false };
-        if(s.id){ const { error } = await supabase.from('staff').update(row).eq('id',s.id); if(error) throw error; }
-        else { const { error } = await supabase.from('staff').insert(row); if(error) throw error; }
-      }
-      const m=$('savedMsg'); m.style.display='inline'; setTimeout(()=>m.style.display='none',2000);
-      loadStaff();
-    }catch(e){ setStatus('Could not save: '+(e.message||e),'err'); }
-    finally{ $('saveBtn').disabled=false; }
+      const row={ name:s.name.trim(), active:s.active!==false };
+      if(s.id){ await supabase.from('staff').update(row).eq('id',s.id); }
+    }catch(e){ /* silent autosave */ }
+  }
+
+  async function addRate(staffId, i){
+    const card=$('staffList').querySelectorAll('.stcard')[i]; if(!card) return;
+    const role=card.querySelector('.ar-role').value;
+    const rate=card.querySelector('.ar-rate').value;
+    if(!rate){ setStatus('Enter a rate for '+role+'.','err'); return; }
+    clearStatus();
+    try{
+      const { error } = await supabase.from('staff_rates').insert({staff_id:Number(staffId), role:role, rate:Number(rate), active:true});
+      if(error) throw error;
+      await loadStaff();
+    }catch(e){ setStatus('Could not add rate: '+(e.message||e),'err'); }
+  }
+
+  async function addStaff(){
+    const name=prompt('New staff member name:'); if(!name||!name.trim()) return;
+    try{
+      const { error } = await supabase.from('staff').insert({name:name.trim(), active:true});
+      if(error) throw error;
+      await loadStaff();
+    }catch(e){ setStatus('Could not add: '+(e.message||e),'err'); }
   }
 
   async function signIn(){
@@ -173,7 +220,6 @@
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
   $('signoutBtn').addEventListener('click', signOut);
   $('addBtn').addEventListener('click', addStaff);
-  $('saveBtn').addEventListener('click', saveAll);
 
   (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
 </script>
