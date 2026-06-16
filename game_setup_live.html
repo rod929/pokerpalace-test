@@ -202,15 +202,6 @@
         '<div><label>Default promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
         '<div><label>Promo description</label><input data-f="promo_desc" value="'+((g.promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand bonus"></div>'+
         '</div><div class="hint" style="margin-top:6px">These pre-fill (locked) on the TD\'s close-out for this game.</div></div>'):'')+
-      (rf?('<div class="rfpromo"><div class="rfpromohd">🎲 Rake-free promo defaults (pre-filled on close-outs)</div>'+
-        '<div class="gridtwo">'+
-        '<div><label>Default promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
-        '<div><label>Promo description</label><input data-f="promo_desc" value="'+((g.promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand $200"></div>'+
-        '</div></div>'):'')+
-      (rf?('<div class="rfpromo"><div class="rfpromohdr">🎁 Rake-free promotion (pre-set for TDs)</div><div class="gridtwo">'+
-        '<div><label>Default promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
-        '<div><label>Promo description</label><input data-f="promo_desc" value="'+(g.promo_desc||'').replace(/"/g,'&quot;')+'" placeholder="e.g. High hand bonus"></div>'+
-      '</div><div class="hint" style="margin-top:6px">These pre-fill (locked) on the TD\'s close-out so they don\'t re-enter them each night.</div></div>'):'')+
       '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
       '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
       '<button class="delbtn" data-delete type="button">🗑 Delete</button>'+
