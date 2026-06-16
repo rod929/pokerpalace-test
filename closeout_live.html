@@ -251,13 +251,6 @@
         <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">🎁 Tournament promotion (set by admin)</div>
         <div style="display:flex;justify-content:space-between;align-items:center"><span id="mainPromoDesc" style="color:var(--ink-dim);font-size:13px">—</span><b id="mainPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
       </div>
-      <div id="rfBanner" style="display:none;margin-top:12px;background:rgba(127,160,196,.1);border:1px solid var(--blue);border-radius:9px;padding:12px;font-size:13px;color:var(--ink-dim)">🎲 <b style="color:var(--ink)">Rake Free Cash Game</b> — light close-out. Just import the GES players and add any promotion cost. No rake, prizes, money-in or staff needed.</div>
-      <div id="promoField" style="display:none;margin-top:12px">
-        <label class="fld" style="font-size:14px;color:var(--ink-dim);margin-bottom:6px;display:block">Promotion cost (optional)</label>
-        <div class="inrow"><span class="pre">$</span><input id="promoCost" type="number" placeholder="0" min="0"></div>
-        <div class="hint">Any promo you ran to entice players (e.g. $200). This is a cost to the day/venue P&amp;L.</div>
-        <button class="submit block" id="rfSubmitBtn" style="margin-top:14px">Submit rake-free close-out</button>
-      </div>
     </div>
 
     <!-- 1. entries -->
@@ -380,9 +373,12 @@
         <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfVoid"><span class="t">⛔ Rake-free game did not run (void)<small>Tick if the cash game was set up but didn't run — no GES needed</small></span></label>
         <div id="rfLiveFields">
           <div class="gesbox" style="margin-bottom:12px">
-            <div class="gesh">📋 Import GES players (cash game)</div>
-            <textarea id="rfGesPaste" placeholder="Paste the GES report for the cash game here…" style="width:100%;box-sizing:border-box;min-height:90px;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12px"></textarea>
-            <div style="display:flex;gap:8px;margin-top:8px"><button class="addrow" id="rfGesBtn" type="button">Parse players</button><span id="rfGesCount" style="font-size:12.5px;color:var(--ink-dim);align-self:center"></span></div>
+            <div class="gesh">📋 Import GES entry report (cash game)</div>
+            <input type="file" id="rfGesFile" accept=".csv,text/csv" class="gesfile">
+            <details class="gesdet" style="margin-top:8px"><summary>or paste the report instead</summary>
+            <textarea id="rfGesPaste" placeholder="Paste the GES report for the cash game here…" style="width:100%;box-sizing:border-box;min-height:90px;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12px;margin-top:8px"></textarea>
+            <button class="addrow" id="rfGesBtn" type="button" style="margin-top:8px">Parse players</button></details>
+            <div id="rfGesCount" style="font-size:12.5px;color:var(--ink-dim);margin-top:8px"></div>
           </div>
         </div>
         <div id="rfPromoBox" style="background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;margin-top:4px">
@@ -539,20 +535,17 @@
     } else { box.style.display='none'; }
   }
   function applyRakeFreeMode(){
-    const rf = currentGame && currentGame.rake_free===true;
-    document.body.classList.toggle('rakefree-mode', !!rf);
-    const pf=$('promoField'); if(pf) pf.style.display = rf ? 'block':'none';
-    const banner=$('rfBanner'); if(banner) banner.style.display = rf ? 'block':'none';
-    const lb=$('lockBtn'); if(lb) lb.style.display = rf ? 'none':'';
-    // void toggle only for normal (non-rake-free) games, and only once a game is picked
-    const vt=$('voidToggle'); if(vt) vt.style.display = (currentGame && !rf) ? 'block':'none';
-    if(rf && $('voidChk')) $('voidChk').checked=false;
+    // rake_free is now a PARALLEL cash game on the tournament — the tournament itself closes out normally.
+    document.body.classList.remove('rakefree-mode');
+    const lb=$('lockBtn'); if(lb && !($('voidChk')&&$('voidChk').checked)) lb.style.display='';
+    // void toggle available for any selected game
+    const vt=$('voidToggle'); if(vt) vt.style.display = currentGame ? 'block':'none';
     applyVoidMode();
   }
   function applyVoidMode(){
     const isVoid = $('voidChk') && $('voidChk').checked;
     document.body.classList.toggle('void-mode', !!isVoid);
-    const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none' : (currentGame&&currentGame.rake_free===true?'none':'');
+    const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none':'';
     const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
     const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
     const gb=$('gesEntryBox'); if(gb) gb.style.display = isVoid ? 'none':'';
@@ -1054,7 +1047,6 @@
   $('signoutBtn').addEventListener('click', signOut);
   $('submitBtn').addEventListener('click', submit);
   $('lockBtn').addEventListener('click', lockPlacings);
-  $('rfSubmitBtn')&&$('rfSubmitBtn').addEventListener('click', submitRakeFree);
   $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
   $('rfRan')&&$('rfRan').addEventListener('change', ()=>{
@@ -1069,7 +1061,13 @@
   });
   $('rfGesBtn')&&$('rfGesBtn').addEventListener('click', ()=>{
     const raw=$('rfGesPaste').value; const names=parseGesNames(raw);
-    RF_GES_NAMES=names; $('rfGesCount').textContent = names.length ? ('✓ '+names.length+' players') : 'No players found — check the paste.';
+    RF_GES_NAMES=names; $('rfGesCount').textContent = names.length ? ('✓ '+names.length+' players imported') : 'No players found — check the paste.';
+  });
+  $('rfGesFile')&&$('rfGesFile').addEventListener('change', (e)=>{
+    const file=e.target.files&&e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ const names=parseGesNames(String(reader.result||'')); RF_GES_NAMES=names; $('rfGesCount').textContent = names.length ? ('✓ '+names.length+' players imported from '+file.name) : 'No players found in file — check the export.'; };
+    reader.readAsText(file);
   });
   // shared: save the parallel rake-free close-out if the TD marked it ran
   async function saveParallelRakeFree(){
