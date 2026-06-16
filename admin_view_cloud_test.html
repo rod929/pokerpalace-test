@@ -167,6 +167,8 @@
       club=rate2/gamesThatMonth; clubLbl=' (monthly '+money(rate2)+' ÷ '+gamesThatMonth+' games)';
     } else if(rate2){ club=rate2; clubLbl=' (per game)'; }
     const net=margin+club-wages-sms;
+    const promo=Number(c.promo_cost)||0;
+    const isRakeFree = g.rake_free===true;
 
     // --- prize payment breakdown (split-aware) ---
     let pcash=0,ptfr=0,ptkt=0;
@@ -184,6 +186,14 @@
 
     // P&L block
     h+='<div class="dsec">💵 Game P&amp;L</div>';
+    if(isRakeFree){
+      const rfNet=-promo;
+      h+='<div class="pnlbox">'+
+        '<div class="dl"><span>🎲 Rake Free Cash Game</span><span style="color:#7fa0c4">no rake / margin</span></div>'+
+        row('Promotion cost', promo>0?('-'+money(promo)):money(0), promo>0?'#e07a5f':'')+
+        '<div class="netprofit '+(rfNet>=0?'pos':'neg')+'"><span>NET COST TO DAY</span><span class="npval">'+money(rfNet)+'</span></div>'+
+        '</div>';
+    } else {
     h+= g.name ? ('<div class="pnlbox">'+
       row('Rake collected ('+money(rake)+' × '+entries+')',money(rakeColl))+
       row('Less: overlay',overlay>0?('-'+money(overlay)):money(0), overlay>0?'#e07a5f':'')+
@@ -191,9 +201,11 @@
       row('Club money'+clubLbl, club>0?('+'+money(club)):money(0), '#5cb88a')+
       row('Less: staff wages', wages>0?('-'+money(wages)):money(0), wages>0?'#e07a5f':'')+
       row('Less: SMS charges', sms>0?('-'+money(sms)):money(0), sms>0?'#e07a5f':'')+
-      '<div class="netprofit '+(net>=0?'pos':'neg')+'"><span>GAME NET PROFIT</span><span class="npval">'+money(net)+'</span></div>'+
+      (promo>0?row('Less: promotion cost','-'+money(promo),'#e07a5f'):'')+
+      '<div class="netprofit '+((net-promo)>=0?'pos':'neg')+'"><span>GAME NET PROFIT</span><span class="npval">'+money(net-promo)+'</span></div>'+
       '</div>'
     ) : '<div class="dmut">No game setup found for "'+(c.game_name||'')+'" — can\'t compute rake/overlay. (Game may be renamed or retired.)</div>';
+    }
 
     // staff (moved up — before prize sections)
     h+='<div class="dsec">👷 Staff</div><div class="secbox">';

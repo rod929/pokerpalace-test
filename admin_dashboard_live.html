@@ -267,8 +267,10 @@
     const club=earnedClubTotal(cos);
     // overheads/expenses for the period
     let exp=0; (useExpenses||[]).forEach(e=>{ exp+=Number(e.amount)||0; });
-    const net = margin + club - wages - exp;
-    return {net, margin, rakeTot, overlayTot, wages, club, exp};
+    // rake-free promo costs in these close-outs
+    let promo=0; cos.forEach(c=>{ promo+=Number(c.promo_cost)||0; });
+    const net = margin + club - wages - exp - promo;
+    return {net, margin, rakeTot, overlayTot, wages, club, exp, promo};
   }
   function expInPeriod(e){
     const r=periodRange('cur'); if(!r.start) return true;
@@ -326,15 +328,15 @@
     PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
     // per venue: gaming margin + club money − venue wages − venue-tagged expenses
     const byV={};
-    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0});
-      const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin;});
+    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0,promo:0});
+      const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin; byV[v].promo+=Number(c.promo_cost)||0;});
     // wages per venue (from staff shifts on that venue's close-outs)
     STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
     // club money per venue (invoiced this period)
     invsForVenues().forEach(i=>{ const v=i.venue_name||'(no venue)'; if(byV[v]) byV[v].club+=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; });
     // venue-tagged expenses this period
     EXPENSES.filter(expInPeriod).forEach(e=>{ if(e.venue_name && byV[e.venue_name]) byV[e.venue_name].exp+=Number(e.amount)||0; });
-    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp})).sort((a,b)=>b.profit-a.profit);
+    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo})).sort((a,b)=>b.profit-a.profit);
     computed={cos,prizes,outstanding,outN,vlist,byV};
 
     // invoices — outstanding club money (status not paid) for the relevant period

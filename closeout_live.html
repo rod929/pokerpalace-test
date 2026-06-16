@@ -193,6 +193,7 @@
   .splitline .s{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
   .splitline .s small{display:block;font-size:11px;color:var(--ink-faint)} .splitline .s b{font-family:'JetBrains Mono';font-size:17px;display:block;margin-top:3px}
   .splitline .cash b{color:var(--good)} .splitline .tfr b{color:var(--blue)} .splitline .sat b{color:var(--gold)} .splitline .tot b{color:var(--ink)}
+  body.rakefree-mode .rf-hide{display:none !important}
 </style>
 
 <div class="wrap">
@@ -244,6 +245,13 @@
       <label class="fld" style="font-size:14px;color:var(--ink-dim);margin:12px 0 6px;display:block">Game / tournament</label>
       <select class="inp" id="gameSel" disabled><option value="">Pick a venue first</option></select>
       <div class="hint" id="gameHint">Tournaments are filtered to the venue you choose.</div>
+      <div id="rfBanner" style="display:none;margin-top:12px;background:rgba(127,160,196,.1);border:1px solid var(--blue);border-radius:9px;padding:12px;font-size:13px;color:var(--ink-dim)">🎲 <b style="color:var(--ink)">Rake Free Cash Game</b> — light close-out. Just import the GES players and add any promotion cost. No rake, prizes, money-in or staff needed.</div>
+      <div id="promoField" style="display:none;margin-top:12px">
+        <label class="fld" style="font-size:14px;color:var(--ink-dim);margin-bottom:6px;display:block">Promotion cost (optional)</label>
+        <div class="inrow"><span class="pre">$</span><input id="promoCost" type="number" placeholder="0" min="0"></div>
+        <div class="hint">Any promo you ran to entice players (e.g. $200). This is a cost to the day/venue P&amp;L.</div>
+        <button class="submit block" id="rfSubmitBtn" style="margin-top:14px">Submit rake-free close-out</button>
+      </div>
     </div>
 
     <!-- 1. entries -->
@@ -285,7 +293,7 @@
     <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">✅ As soon as registration closes</span><span class="pb-line"></span></div>
 
     <!-- 2. money in -->
-    <div class="card">
+    <div class="card rf-hide" id="secMoney">
       <h2><span class="n">2</span> Money In</h2>
       <p class="lead">Cash, transfer and ticket totals come from the GES import. Add anything else under "Other in".</p>
       <div class="grid">
@@ -302,7 +310,7 @@
     </div>
 
     <!-- 3. placings -->
-    <div class="card">
+    <div class="card rf-hide" id="secPlace">
       <h2><span class="n">3</span> Placing Schedule</h2>
       <p class="lead">One card per paid place. Enter the prize and how it's paid — tap "+ split payment" to pay one prize across cash, transfer and/or ticket. For tickets, pick from the list. No player names needed.</p>
       <div id="placeBody"></div>
@@ -325,7 +333,7 @@
     </div>
 
     <!-- 3b. reconciliation (appears after lock) -->
-    <div class="card" id="reconCard" style="display:none">
+    <div class="card rf-hide" id="reconCard" style="display:none">
       <h2><span class="n">✓</span> Payment Reconciliation</h2>
       <p class="lead">Pick the winner for each place and confirm. Transfers are assigned a winner but paid later by Admin (they stay pending).</p>
       <div class="reconprog"><div class="rbar"><div class="rfill" id="rFill"></div></div><div class="rtxt" id="rTxt">0 of 0 paid</div></div>
@@ -340,7 +348,7 @@
     <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">⏱ At tournament completion</span><span class="pb-line"></span></div>
 
     <!-- 4. staff -->
-    <div class="card">
+    <div class="card rf-hide" id="secStaff">
       <h2><span class="n">4</span> Staff Timesheet</h2>
       <p class="lead">Pick who worked from the staff list and enter their hours — the rate comes from the locked staff setup. Add a row per person.</p>
       <table class="wtbl" id="staffTbl">
@@ -466,7 +474,44 @@
   function onGameChange(){
     const sel=$('gameSel'); const idx=sel.value;
     currentGame = (idx!=='' && sel._games) ? sel._games[Number(idx)] : null;
+    applyRakeFreeMode();
     syncChips();
+  }
+  function applyRakeFreeMode(){
+    const rf = currentGame && currentGame.rake_free===true;
+    document.body.classList.toggle('rakefree-mode', !!rf);
+    const pf=$('promoField'); if(pf) pf.style.display = rf ? 'block':'none';
+    const banner=$('rfBanner'); if(banner) banner.style.display = rf ? 'block':'none';
+    // hide the normal lock button in rake-free mode (handled by rf-hide on its card, but lockBtn is in entries area)
+    const lb=$('lockBtn'); if(lb) lb.style.display = rf ? 'none':'';
+  }
+  async function submitRakeFree(){
+    if(!currentGame){ setStatus('Pick a game first.','err'); return; }
+    if(!$('venueSel').value){ setStatus('Pick a venue.','err'); return; }
+    const btn=$('rfSubmitBtn'); btn.disabled=true; setStatus('Saving rake-free close-out...','ok');
+    try{
+      const promo=Number($('promoCost').value)||0;
+      const row={
+        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
+        game_date:$('gameDate').value||null,
+        entries:$('totent').value?Number($('totent').value):null,
+        unique_players:$('uniq').value?Number($('uniq').value):null,
+        re_entries:$('reent').value?Number($('reent').value):null,
+        money_in:null, leftover_cash:0, promo_cost:promo||0,
+        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null,
+        ges_ticket_players: GES_TICKET_NAMES.length ? GES_TICKET_NAMES.join('\n') : null
+      };
+      let ins = await supabase.from('closeouts').insert(row).select();
+      if(ins.error){
+        // graceful fallbacks if a column is missing
+        if(/promo_cost/.test(ins.error.message||'')){ delete row.promo_cost; ins=await supabase.from('closeouts').insert(row).select(); }
+      }
+      if(ins.error && /ges_players/.test(ins.error.message||'')){ delete row.ges_players; delete row.ges_ticket_players; ins=await supabase.from('closeouts').insert(row).select(); }
+      if(ins.error) throw ins.error;
+      setStatus('✓ Rake-free close-out saved'+(promo?(' with $'+promo+' promo cost'):'')+'.','ok');
+      btn.textContent='✓ Submitted';
+      setTimeout(()=>{ window.location.href='index.html'; }, 1400);
+    }catch(e){ setStatus('Could not save: '+(e.message||e),'err'); btn.disabled=false; }
   }
 
   // ---- placings (child rows) ----
@@ -899,6 +944,7 @@
   $('signoutBtn').addEventListener('click', signOut);
   $('submitBtn').addEventListener('click', submit);
   $('lockBtn').addEventListener('click', lockPlacings);
+  $('rfSubmitBtn')&&$('rfSubmitBtn').addEventListener('click', submitRakeFree);
   $('addPlace').addEventListener('click', addPlace);
   $('addStaff').addEventListener('click', addStaff);
   $('venueSel').addEventListener('change', onVenueChange);
