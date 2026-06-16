@@ -526,9 +526,8 @@
     const box=$('mainPromoBox'); if(!box) return;
     const pc = currentGame ? (Number(currentGame.promo_default)||0) : 0;
     const pd = currentGame ? (currentGame.promo_desc||'') : '';
-    const rf = currentGame && currentGame.rake_free===true;
-    // show for the main game when it has a promo set and it isn't the rake-free light flow (that has its own promo display)
-    if(currentGame && !rf && (pc>0 || pd)){
+    // always show the tournament promo when a game with a promo is selected
+    if(currentGame && (pc>0 || pd)){
       box.style.display='block';
       $('mainPromoAmt').textContent='$'+pc.toLocaleString();
       $('mainPromoDesc').textContent = pd || '(no description)';
