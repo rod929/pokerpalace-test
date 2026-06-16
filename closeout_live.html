@@ -194,6 +194,8 @@
   .splitline .s small{display:block;font-size:11px;color:var(--ink-faint)} .splitline .s b{font-family:'JetBrains Mono';font-size:17px;display:block;margin-top:3px}
   .splitline .cash b{color:var(--good)} .splitline .tfr b{color:var(--blue)} .splitline .sat b{color:var(--gold)} .splitline .tot b{color:var(--ink)}
   body.rakefree-mode .rf-hide{display:none !important}
+  body.void-mode .void-hide{display:none !important}
+  .voidtoggle{display:block;margin-top:12px;background:rgba(224,122,95,.08);border:1px solid var(--red);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink-dim);cursor:pointer;line-height:1.5} .voidtoggle input{accent-color:var(--red);margin-right:6px} .voidtoggle b{color:var(--ink)}
 </style>
 
 <div class="wrap">
@@ -246,6 +248,7 @@
       <select class="inp" id="gameSel" disabled><option value="">Pick a venue first</option></select>
       <div class="hint" id="gameHint">Tournaments are filtered to the venue you choose.</div>
       <div id="rfBanner" style="display:none;margin-top:12px;background:rgba(127,160,196,.1);border:1px solid var(--blue);border-radius:9px;padding:12px;font-size:13px;color:var(--ink-dim)">🎲 <b style="color:var(--ink)">Rake Free Cash Game</b> — light close-out. Just import the GES players and add any promotion cost. No rake, prizes, money-in or staff needed.</div>
+      <label class="voidtoggle" id="voidToggle" style="display:none"><input type="checkbox" id="voidChk"> <b>⛔ Game did not run (void)</b> — insufficient players. No prizes, guarantee or club money; staff still get paid. Club money only applies if a rake-free game ran tonight.</label>
       <div id="promoField" style="display:none;margin-top:12px">
         <label class="fld" style="font-size:14px;color:var(--ink-dim);margin-bottom:6px;display:block">Promotion cost (optional)</label>
         <div class="inrow"><span class="pre">$</span><input id="promoCost" type="number" placeholder="0" min="0"></div>
@@ -293,7 +296,7 @@
     <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">✅ As soon as registration closes</span><span class="pb-line"></span></div>
 
     <!-- 2. money in -->
-    <div class="card rf-hide" id="secMoney">
+    <div class="card rf-hide void-hide" id="secMoney">
       <h2><span class="n">2</span> Money In</h2>
       <p class="lead">Cash, transfer and ticket totals come from the GES import. Add anything else under "Other in".</p>
       <div class="grid">
@@ -310,7 +313,7 @@
     </div>
 
     <!-- 3. placings -->
-    <div class="card rf-hide" id="secPlace">
+    <div class="card rf-hide void-hide" id="secPlace">
       <h2><span class="n">3</span> Placing Schedule</h2>
       <p class="lead">One card per paid place. Enter the prize and how it's paid — tap "+ split payment" to pay one prize across cash, transfer and/or ticket. For tickets, pick from the list. No player names needed.</p>
       <div id="placeBody"></div>
@@ -333,7 +336,7 @@
     </div>
 
     <!-- 3b. reconciliation (appears after lock) -->
-    <div class="card rf-hide" id="reconCard" style="display:none">
+    <div class="card rf-hide void-hide" id="reconCard" style="display:none">
       <h2><span class="n">✓</span> Payment Reconciliation</h2>
       <p class="lead">Pick the winner for each place and confirm. Transfers are assigned a winner but paid later by Admin (they stay pending).</p>
       <div class="reconprog"><div class="rbar"><div class="rfill" id="rFill"></div></div><div class="rtxt" id="rTxt">0 of 0 paid</div></div>
@@ -362,6 +365,7 @@
     </div>
 
     <button class="submit block" id="submitBtn">Finalise close-out</button>
+    <button class="submit block" id="voidSubmitBtn" style="display:none;background:var(--red);border-color:var(--red)">⛔ Submit void game (staff only)</button>
     <div class="blockwhy" id="blockWhy"></div>
     </div>
 
@@ -482,8 +486,46 @@
     document.body.classList.toggle('rakefree-mode', !!rf);
     const pf=$('promoField'); if(pf) pf.style.display = rf ? 'block':'none';
     const banner=$('rfBanner'); if(banner) banner.style.display = rf ? 'block':'none';
-    // hide the normal lock button in rake-free mode (handled by rf-hide on its card, but lockBtn is in entries area)
     const lb=$('lockBtn'); if(lb) lb.style.display = rf ? 'none':'';
+    // void toggle only for normal (non-rake-free) games, and only once a game is picked
+    const vt=$('voidToggle'); if(vt) vt.style.display = (currentGame && !rf) ? 'block':'none';
+    if(rf && $('voidChk')) $('voidChk').checked=false;
+    applyVoidMode();
+  }
+  function applyVoidMode(){
+    const isVoid = $('voidChk') && $('voidChk').checked;
+    document.body.classList.toggle('void-mode', !!isVoid);
+    const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none' : (currentGame&&currentGame.rake_free===true?'none':'');
+    const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
+    const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
+  }
+  async function submitVoid(){
+    if(!currentGame){ setStatus('Pick a game first.','err'); return; }
+    if(!$('venueSel').value){ setStatus('Pick a venue.','err'); return; }
+    const btn=$('voidSubmitBtn'); btn.disabled=true; setStatus('Saving void game...','ok');
+    try{
+      // gather staff (so they get paid)
+      const shifts=staff.filter(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0&&(Number(s.rate)>0));
+      const row={
+        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
+        game_date:$('gameDate').value||null, void:true,
+        entries:0, money_in:null, leftover_cash:0,
+        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null
+      };
+      let ins = await supabase.from('closeouts').insert(row).select();
+      if(ins.error && /void/.test(ins.error.message||'')){ delete row.void; ins=await supabase.from('closeouts').insert(row).select(); }
+      if(ins.error && /ges_players/.test(ins.error.message||'')){ delete row.ges_players; ins=await supabase.from('closeouts').insert(row).select(); }
+      if(ins.error) throw ins.error;
+      const co = ins.data && ins.data[0] ? ins.data[0] : null;
+      // save staff shifts against this void close-out
+      if(co && shifts.length){
+        const rows=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, start:s.start||null, finish:s.finish||null, paid:false, pay_status:'outstanding'}));
+        await supabase.from('staff_shifts').insert(rows);
+      }
+      setStatus('⛔ Void game saved'+(shifts.length?(' with '+shifts.length+' staff shift(s)'):'')+'. Staff wages recorded.','ok');
+      btn.textContent='✓ Submitted';
+      setTimeout(()=>{ window.location.href='index.html'; }, 1500);
+    }catch(e){ setStatus('Could not save void: '+(e.message||e),'err'); btn.disabled=false; }
   }
   async function submitRakeFree(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
@@ -945,6 +987,8 @@
   $('submitBtn').addEventListener('click', submit);
   $('lockBtn').addEventListener('click', lockPlacings);
   $('rfSubmitBtn')&&$('rfSubmitBtn').addEventListener('click', submitRakeFree);
+  $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
+  $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
   $('addPlace').addEventListener('click', addPlace);
   $('addStaff').addEventListener('click', addStaff);
   $('venueSel').addEventListener('change', onVenueChange);

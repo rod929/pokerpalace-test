@@ -249,7 +249,9 @@
   }
   // per-close-out gaming margin = rake collected − overlay
   function gamingMargin(c){
+    if(c.void===true) return {rake:0,overlay:0,margin:0,known:true}; // void: no rake, no overlay liability
     const g=gameFor(c); if(!g) return {rake:0,overlay:0,margin:0,known:false};
+    if(g.rake_free===true) return {rake:0,overlay:0,margin:0,known:true}; // rake-free: no rake/margin
     const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, gtee=Number(g.guarantee)||0, addonPrice=Number(g.addon_price)||0;
     const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
     const rakeCollected=rake*entries;
@@ -278,19 +280,26 @@
     const t=new Date(ds); return t>=r.start && (!r.end||t<r.end);
   }
 
-  // earned club money per venue, from the venue's rate + basis (NOT from invoices)
+  // earned club money per venue — counts QUALIFYING NIGHTS, not raw games.
+  // A night (venue+date) qualifies if a non-void tournament ran, OR a rake-free game ran.
+  // A void tournament alone does NOT qualify. One club fee per qualifying night (per_game) or monthly (fixed).
+  function gameIsRakeFree(name){ const g=(GAMES||[]).find(x=>x.name===name); return g && g.rake_free===true; }
   function earnedClubByVenue(cos){
-    // count this period's games per venue from the close-outs
-    const gamesByVenue={};
-    cos.forEach(c=>{const v=c.venue_name||'(no venue)'; gamesByVenue[v]=(gamesByVenue[v]||0)+1;});
+    const nightsByVenue={}; // venue -> Set of qualifying dates
+    cos.forEach(c=>{
+      const v=c.venue_name||'(no venue)'; const d=c.game_date||''; if(!d) return;
+      const isVoid=c.void===true; const isRF=gameIsRakeFree(c.game_name);
+      const qualifies = isRF || !isVoid; // rake-free always qualifies; non-void tournament qualifies; void tournament alone does not
+      if(qualifies){ (nightsByVenue[v]=nightsByVenue[v]||new Set()).add(d); }
+    });
     const out={};
     VENUES.forEach(v=>{
       const basis=v.club_money_basis||'', rate=Number(v.club_money_rate)||0;
-      const games=gamesByVenue[v.name]||0;
+      const nights=(nightsByVenue[v.name]||new Set()).size;
       let earned=0;
-      if(basis==='fixed_monthly'){ earned = games>0 ? rate : 0; } // only earned if at least one game ran that period
-      else if(basis==='per_game'){ earned = rate*games; }
-      if(earned>0 || games>0) out[v.name]={earned, games, basis, rate};
+      if(basis==='fixed_monthly'){ earned = nights>0 ? rate : 0; }
+      else if(basis==='per_game'){ earned = rate*nights; }
+      if(earned>0 || nights>0) out[v.name]={earned, games:nights, basis, rate};
     });
     return out;
   }

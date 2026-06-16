@@ -161,7 +161,12 @@
     const v=VENUES_D.find(x=>x.name===c.venue_name)||{};
     const basis=v.club_money_basis||'', rate2=Number(v.club_money_rate)||0;
     let club=0, clubLbl='';
-    if(basis==='fixed_monthly'){
+    // for a void game, club only applies if a rake-free game ran same venue+date
+    const voidHere = c.void===true;
+    const rakeFreeRanTonight = (CO_DATA||[]).some(x=>x.venue_name===c.venue_name && x.game_date===c.game_date && (GAMES_D.find(gg=>gg.name===x.game_name)||{}).rake_free===true);
+    if(voidHere && !rakeFreeRanTonight){
+      club=0; clubLbl=' (void, no other game)';
+    } else if(basis==='fixed_monthly'){
       const ym=(c.game_date||'').slice(0,7);
       const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym).length || 1;
       club=rate2/gamesThatMonth; clubLbl=' (monthly '+money(rate2)+' ÷ '+gamesThatMonth+' games)';
@@ -169,6 +174,7 @@
     const net=margin+club-wages-sms;
     const promo=Number(c.promo_cost)||0;
     const isRakeFree = g.rake_free===true;
+    const isVoid = c.void===true;
 
     // --- prize payment breakdown (split-aware) ---
     let pcash=0,ptfr=0,ptkt=0;
@@ -186,7 +192,16 @@
 
     // P&L block
     h+='<div class="dsec">💵 Game P&amp;L</div>';
-    if(isRakeFree){
+    if(isVoid){
+      h+='<div class="pnlbox" style="border-color:#a14b39">'+
+        '<div class="dl"><span>⛔ Game void — did not run</span><span style="color:#e07a5f">insufficient players</span></div>'+
+        row('Rake / margin', money(0))+
+        row('Guarantee liability', money(0)+' (void)')+
+        row('Club money', club>0?('+'+money(club)+' (rake-free ran)'):money(0)+' (no other game)', club>0?'#5cb88a':'')+
+        row('Less: staff wages', wages>0?('-'+money(wages)):money(0), wages>0?'#e07a5f':'')+
+        '<div class="netprofit '+((club-wages)>=0?'pos':'neg')+'"><span>NET RESULT</span><span class="npval">'+money(club-wages)+'</span></div>'+
+        '</div>';
+    } else if(isRakeFree){
       const rfNet=-promo;
       h+='<div class="pnlbox">'+
         '<div class="dl"><span>🎲 Rake Free Cash Game</span><span style="color:#7fa0c4">no rake / margin</span></div>'+
