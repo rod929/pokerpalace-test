@@ -47,6 +47,9 @@
   .metric.flags.active .ml{color:var(--amber)}
   .gesclocks{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1c1c22,#262630);border:1px solid var(--pp);color:var(--ink);text-decoration:none;border-radius:12px;padding:14px;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(208,14,38,.2) inset}
   .gesclocks:hover{filter:brightness(1.1)} .gesclocks .gx{color:var(--pp);font-size:13px;font-weight:600}
+  .reportbtn{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1d2630,#243240);border:1px solid var(--blue);color:var(--ink);text-decoration:none;border-radius:12px;padding:16px;font-family:'Archivo',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(127,160,196,.2) inset}
+  .reportbtn:hover{filter:brightness(1.12)} .reportbtn .gx{color:var(--blue);font-size:13px;font-weight:600}
+  .metric.wages .mv{color:var(--amber)}
   .metric.coming{opacity:.6;border-style:dashed}
   .metric.coming .mv{color:var(--ink-faint);font-size:13px}
   .ctag{font-size:9px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:4px;padding:2px 6px;margin-left:auto}
@@ -105,23 +108,23 @@
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
     <div id="adminArea">
       <div class="toggle" id="periodToggle">
-        <button data-p="month" class="on">This month</button><button data-p="7">Last 7 days</button>
+        <button data-p="week" class="on">This week</button><button data-p="month">This month</button>
         <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
       </div>
       <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
+      <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ›</span></a>
       <div class="metrics">
-        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric cash" data-d="cash"><div class="ml">🪙 Cash held by Admin</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">handed up − banked</div><span class="arrow">›</span></div>
-        <div class="metric bank coming" data-d="bank"><div class="ml">🏦 Money in bank<span class="ctag">COMING</span></div><div class="mv">needs bank + overheads</div></div>
-        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">›</span></div>
         <div class="metric flags" data-d="flags"><div class="ml">⚑ Needs action</div><div class="mv" id="mFlags">0</div><div class="md" id="mFlagsSub">items to review</div><span class="arrow">›</span></div>
+        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric wages" data-d="wages"><div class="ml">💵 Wages — outstanding</div><div class="mv" id="mWages" style="color:var(--amber)">$0</div><div class="md" id="mWagesSub">cash · transfer · invoice</div><span class="arrow">›</span></div>
+        <div class="metric cash" data-d="cash"><div class="ml">🪙 Total cash held</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">all TDs + admin</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">›</span></div>
+        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
         <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">—</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">›</span></div>
         <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">—</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">›</span></div>
-        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric" data-d="venues"><div class="ml">🏛 All venues</div><div class="mv" id="mVenN">0</div><div class="md">tap for breakdown</div><span class="arrow">›</span></div>
-        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric" data-d="history"><div class="ml">🗂 Tournament history</div><div class="mv" id="mHist">0</div><div class="md">tap for players &amp; winners</div><span class="arrow">›</span></div>
         <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
+        <div class="metric bank coming" data-d="bank"><div class="ml">🏦 Money in bank<span class="ctag">COMING</span></div><div class="mv">needs bank + overheads</div></div>
       </div>
     </div>
     <div id="notAdmin" class="notadmin" style="display:none">This dashboard is for admins.</div>
@@ -171,7 +174,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='month',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='week',computed={};
   function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -207,15 +210,16 @@
       compute();
     }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
   }
+  function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; } // Monday 00:00 of d's week
   function periodRange(which){
     // returns {start,end} for current or previous period
     const d=new Date(); let start,end;
-    if(period==='7'){ end=new Date(d); start=new Date(d); start.setDate(start.getDate()-7); }
-    else if(period==='month'){ start=new Date(d.getFullYear(),d.getMonth(),1); end=new Date(d.getFullYear(),d.getMonth()+1,1); }
-    else if(period==='ytd'){ start=new Date(d.getFullYear(),0,1); end=new Date(d.getFullYear()+1,0,1); }
+    if(period==='week'){ start=mondayOf(d); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // Mon → end of today
+    else if(period==='month'){ start=new Date(d.getFullYear(),d.getMonth(),1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // 1st → end of today (MTD)
+    else if(period==='ytd'){ start=new Date(d.getFullYear(),0,1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); }
     else { return {start:null,end:null}; } // all time
     if(which==='prev'){
-      if(period==='7'){ const e=new Date(start); const s2=new Date(start); s2.setDate(s2.getDate()-7); return {start:s2,end:e}; }
+      if(period==='week'){ const s2=mondayOf(d); const ps=new Date(s2); ps.setDate(ps.getDate()-7); return {start:ps,end:s2}; }
       if(period==='month'){ return {start:new Date(d.getFullYear(),d.getMonth()-1,1), end:new Date(d.getFullYear(),d.getMonth(),1)}; }
       if(period==='ytd'){ return {start:new Date(d.getFullYear()-1,0,1), end:new Date(d.getFullYear(),0,1)}; }
     }
@@ -411,11 +415,29 @@
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
+    // cash held by each TD = their close-out leftovers − their approved hand-ups
+    const byTd={};
+    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].leftover+=Number(c.leftover_cash)||0; });
+    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
+    const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
+    computed.tdHeldTotal=tdHeldTotal;
+    computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
+    const totalCashHeld=cashHeld+tdHeldTotal;
+    computed.totalCashHeld=totalCashHeld;
     // new players registered in the period
     const newP=PLAYERS.filter(inPeriod).length;
     if($('mNewP')){ $('mNewP').textContent=newP; $('mNewPSub').textContent = period==='month'?'registered this month':(period==='week'?'registered this week':'registered this period'); }
-    $('mCash').textContent=money(cashHeld);
-    $('mCashSub').textContent=money(computed.cashClear||0)+' clear after tickets';
+    // wages owed = all unpaid staff shifts; broken down by payment-method state
+    let wagesOwed=0, wTransfer=0, wInvoice=0, wNone=0;
+    (SHIFTS||[]).filter(s=>!s.paid).forEach(s=>{ const amt=(Number(s.hours)||0)*(Number(s.rate)||0); wagesOwed+=amt;
+      if(s.pay_status==='acknowledged' && s.paid_method==='transfer') wTransfer+=amt;
+      else if(s.pay_status==='acknowledged' && s.paid_method==='invoice') wInvoice+=amt;
+      else wNone+=amt;
+    });
+    computed.wagesOwed=wagesOwed; computed.wTransfer=wTransfer; computed.wInvoice=wInvoice; computed.wNone=wNone;
+    if($('mWages')){ $('mWages').textContent=money(wagesOwed); }
+    $('mCash').textContent=money(totalCashHeld);
+    $('mCashSub').textContent=money(cashHeld)+' admin + '+money(tdHeldTotal)+' TDs';
   }
 
   // invoices for the current period (for per-venue club money attribution)
@@ -429,7 +451,7 @@
     const thisMonth=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
     if(period==='month') return i.period===thisMonth;
     if(period==='ytd') return i.period.startsWith(String(d.getFullYear()));
-    if(period==='7'){ // invoices are monthly; for a 7-day view show the current month's
+    if(period==='week'){ // invoices are monthly; for a weekly view show the current month's
       return i.period===thisMonth;
     }
     return true;
@@ -453,14 +475,18 @@
     if(COMING[key]){const c=COMING[key];b.innerHTML='<div class="comingbox"><div class="ic">'+c.ic+'</div><h3>'+c.t+'</h3><p>'+c.p+'</p><div class="need">'+c.need+'</div></div>';$('detail').classList.add('open');return;}
     if(key==='cash'){
       const recent=[...CASH].sort((a,b)=>(b.move_date||'').localeCompare(a.move_date||'')).slice(0,20);
-      b.innerHTML='<div class="dtitle">🪙 Cash held by Admin</div><div class="dsub">Running balance: approved cash received from TDs, minus cash expenses and cash given to owners. (A live balance, not period-bound.)</div>'+
+      const tdList=computed.tdHeldList||[];
+      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD.</div>'+
+        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
+        '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
+        '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
+        '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
+        (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+'</span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
+        '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
-        '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
-        '<div class="dsub" style="margin-top:14px">Ticket money set aside</div>'+
-        '<div class="drow"><span class="l">Outstanding ticket/seat money owed</span><span class="r" style="color:var(--amber)">−'+money(computed.ticketOwed||0)+'</span></div>'+
-        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>Clear balance (cash − tickets)</b></span><span class="r" style="color:'+((computed.cashClear||0)<0?'var(--red)':'var(--good)')+'"><b>'+money(computed.cashClear||0)+'</b></span></div>'+
+        '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
         (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
         (function(){
@@ -510,6 +536,14 @@
           const invMark = inv ? ('<span style="font-size:10px;color:'+(inv.status==='paid'?'var(--good)':inv.status==='sent'?'var(--blue)':'var(--amber)')+';border:1px solid currentColor;border-radius:5px;padding:2px 7px;margin-left:6px">'+inv.status+'</span>') : '<span style="font-size:10px;color:var(--ink-faint);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-left:6px">not invoiced</span>';
           return '<div class="drow"><span class="l">'+n+invMark+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.basis==='fixed_monthly'?'fixed monthly':money(e.rate)+' × '+e.games+' games')+'</span></span><span class="r" style="color:var(--good)">'+money(e.earned)+'</span></div>';
         }).join(''):'<div class="empty">No club money earned this period.</div>');
+    } else if(key==='wages'){
+      b.innerHTML='<div class="dtitle">💵 Wages — outstanding payments</div><div class="dsub">All staff pay not yet confirmed paid, by payment type.</div>'+
+        '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l"><b>Total outstanding</b></span><span class="r" style="color:var(--amber)"><b>'+money(computed.wagesOwed||0)+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Breakdown</div>'+
+        '<div class="drow"><span class="l">⏳ Transfer pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wTransfer||0)+'</span></div>'+
+        '<div class="drow"><span class="l">🧾 Invoice pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wInvoice||0)+'</span></div>'+
+        '<div class="drow"><span class="l">• Not yet actioned (no method)</span><span class="r">'+money(computed.wNone||0)+'</span></div>'+
+        '<div style="margin-top:12px"><a href="wages_live.html" style="display:block;text-align:center;background:var(--blue);color:#0e1a26;font-weight:700;border-radius:9px;padding:12px;text-decoration:none">Open Wages screen →</a></div>';
     } else if(key==='history'){
       const cos=[...(computed.cos||[])].sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
       b.innerHTML='<div class="dtitle">🗂 Tournament History</div><div class="dsub">Games this period — tap one for its players &amp; winners.</div>'+
