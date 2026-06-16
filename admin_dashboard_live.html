@@ -181,7 +181,7 @@
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
-    try{const{data}=await supabase.from('profiles').select('*').eq('user_id',u.id);if(Array.isArray(data)&&data.length){isAdmin=data.some(r=>r.role==='admin');const me=data[0];const nm=me.name||me.full_name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];}else isAdmin=false;}catch(e){isAdmin=false;}
+    try{const{data}=await supabase.from('profiles').select('*').eq('user_id',u.id);if(Array.isArray(data)&&data.length){isAdmin=data.some(r=>r.role==='admin');const me=data[0];const nm=me.full_name||me.name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];}else isAdmin=false;}catch(e){isAdmin=false;}
     $('roleLbl').textContent=isAdmin?'ADMIN':'TD';
     if(!isAdmin){$('adminArea').style.display='none';$('notAdmin').style.display='block';return;}
     $('allBtn').style.display='block';await loadAll();
@@ -195,7 +195,7 @@
       TICKETS=(await supabase.from('tickets').select('*')).data||[];
       SHIFTS=(await supabase.from('staff_shifts').select('*')).data||[];
       PROFILES=(await supabase.from('profiles').select('*')).data||[];
-      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
+      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.full_name||p.name||null; });
       PLAYERS=(await supabase.from('players').select('created_at')).data||[];
       STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];

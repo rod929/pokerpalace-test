@@ -153,7 +153,7 @@
       CLOSEOUTS=(await coq).data||[];
       MOVES=(await supabase.from('cash_movements').select('*').order('move_date',{ascending:false})).data||[];
       PROFILES=(await supabase.from('profiles').select('*')).data||[];
-      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
+      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.full_name||p.name||null; });
       if(role==='admin'){ EXPENSES=(await supabase.from('expenses').select('*')).data||[]; }
       render();
     }catch(e){setStatus('Could not load: '+(e.message||e),'err');}
@@ -235,15 +235,15 @@
     // also note pending (handed but not yet confirmed) per TD
     const pendByTd={};
     MOVES.filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; pendByTd[uid]=(pendByTd[uid]||0)+(Number(m.amount)||0); });
-    const tdRows=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, pending:pendByTd[uid]||0}))
-      .filter(r=>r.held>0.5 || r.pending>0.5).sort((a,b)=>b.held-a.held);
+    const tdRows=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, pending:pendByTd[uid]||0, leftover:byTd[uid].leftover, handed:byTd[uid].handed}))
+      .sort((a,b)=>b.held-a.held);
     if($('tdHeldCard')){
       if(tdRows.length){
         $('tdHeldCard').style.display='block';
         const totHeld=tdRows.reduce((s,r)=>s+r.held,0);
         $('tdHeldTotal').textContent=money(totHeld);
-        $('tdHeldList').innerHTML=tdRows.map(r=>'<div class="balrow"><span>'+r.name+(r.pending>0?(' <span style="color:var(--amber);font-size:11px">· '+money(r.pending)+' pending confirm</span>'):'')+'</span><span class="r" style="color:var(--good)">'+money(r.held)+'</span></div>').join('');
-      } else { $('tdHeldCard').style.display='none'; }
+        $('tdHeldList').innerHTML=tdRows.map(r=>'<div class="balrow"><span>'+r.name+(r.pending>0?(' <span style="color:var(--amber);font-size:11px">· '+money(r.pending)+' pending confirm</span>'):'')+'<br><span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">leftover '+money(r.leftover)+' − handed '+money(r.handed)+'</span></span><span class="r" style="color:'+(r.held>0?'var(--good)':'var(--ink-faint)')+'">'+money(r.held)+'</span></div>').join('');
+      } else { $('tdHeldCard').style.display='block'; $('tdHeldTotal').textContent='$0'; $('tdHeldList').innerHTML='<div style="color:var(--ink-faint);font-size:13px;padding:6px 0">No close-outs with leftover cash yet — nothing being held by TDs.</div>'; }
     }
 
     // recent movements

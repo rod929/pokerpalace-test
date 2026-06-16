@@ -111,7 +111,7 @@
       PLC_DATA=(await supabase.from('placings').select('*')).data||[];
       SHF_DATA=(await supabase.from('staff_shifts').select('*')).data||[];
       const profs=(await supabase.from('profiles').select('*')).data||[];
-      PROFMAP={}; profs.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
+      PROFMAP={}; profs.forEach(p=>{ PROFMAP[p.user_id]=p.full_name||p.name||null; });
       const tks=(await supabase.from('tickets').select('*')).data||[];
       TKMAP={}; tks.forEach(t=>TKMAP[t.id]=t.name);
       GAMES_D=(await supabase.from('games').select('*')).data||[];
