@@ -41,6 +41,13 @@
   .dl{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #26262b;font-size:12.5px} .dl:last-child{border-bottom:none} .dl span:last-child{font-family:'JetBrains Mono',monospace;color:#c9b896}
   .dmut{color:#76757a;font-size:12px;padding:4px 0}
   .dchips{display:flex;flex-wrap:wrap;gap:5px} .dchip{background:#1e1e23;border:1px solid #34343a;border-radius:13px;padding:4px 10px;font-size:12px;color:#a5a4a8} .dchip.w{background:rgba(201,184,150,.13);border-color:#c9b896;color:#c9b896;font-weight:600}
+  .cobox{background:#1b1b21;border:1px solid #3a3a44;border-radius:10px;padding:12px 13px;margin-bottom:4px}
+  .pnlbox{background:linear-gradient(160deg,#1d1f26,#202830);border:1px solid #3a4452;border-radius:10px;padding:12px 13px;margin-bottom:4px}
+  .netprofit{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:12px 13px;border-radius:9px;background:rgba(92,184,138,.1);border:1px solid #3f8c66}
+  .netprofit.neg{background:rgba(224,122,95,.1);border-color:#a14b39}
+  .netprofit span:first-child{font-family:'Archivo',sans-serif;font-weight:800;font-size:12px;letter-spacing:.05em;color:#d8d8d8}
+  .netprofit .npval{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:#5cb88a}
+  .netprofit.neg .npval{color:#e07a5f}
   #app.hidden,#loginCard.hidden{display:none}
 </style>
 
@@ -101,7 +108,7 @@
   function showLogin(){ $('app').classList.add('hidden'); $('loginCard').classList.remove('hidden'); }
 
   let CO_DATA=[], PLC_DATA=[], SHF_DATA=[], PROFMAP={}, TKMAP={}, GAMES_D=[], VENUES_D=[], SMS_D=[];
-  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'Unknown'); }
+  function tdName(uid){ return (uid&&PROFMAP[String(uid).toLowerCase().trim()]) || (uid?('TD '+String(uid).slice(0,6)):'Unknown'); }
   async function loadCloseouts(){
     try{
       const { data, error } = await supabase.from('closeouts').select('*').order('id',{ascending:false});
@@ -111,7 +118,7 @@
       PLC_DATA=(await supabase.from('placings').select('*')).data||[];
       SHF_DATA=(await supabase.from('staff_shifts').select('*')).data||[];
       const profs=(await supabase.from('profiles').select('*')).data||[];
-      PROFMAP={}; profs.forEach(p=>{ PROFMAP[p.user_id]=p.full_name||p.name||null; });
+      PROFMAP={}; profs.forEach(p=>{ if(p.user_id) PROFMAP[String(p.user_id).toLowerCase().trim()]=p.full_name||p.name||null; });
       const tks=(await supabase.from('tickets').select('*')).data||[];
       TKMAP={}; tks.forEach(t=>TKMAP[t.id]=t.name);
       GAMES_D=(await supabase.from('games').select('*')).data||[];
@@ -169,21 +176,22 @@
     const prizesPaid=plc.reduce((s,p)=>s+(Number(p.amount)||0),0);
 
     const row=(k,v,col)=>'<div class="dl"><span>'+k+'</span><span'+(col?(' style="color:'+col+'"'):'')+'>'+v+'</span></div>';
-    let h='<div class="dgrid">'+
+    let h='<div class="dsec">📋 Close-out sheet</div><div class="cobox"><div class="dgrid">'+
       ['Entries|'+entries,'Unique|'+(c.unique_players||0),'Re-entries|'+(c.re_entries||0),'Add-ons|'+addons,
        'Cash in|'+money(c.cash_in),'Transfer in|'+money(c.transfer_in),'Ticket in|'+money(c.ticket_in),'Other in|'+money(c.other_in),
-       'Money in|'+money(c.money_in),'Leftover|'+money(c.leftover_cash)].map(x=>{const[k,vv]=x.split('|');return '<div class="dk">'+k+'</div><div class="dv">'+vv+'</div>';}).join('')+'</div>';
+       'Money in|'+money(c.money_in),'Leftover|'+money(c.leftover_cash)].map(x=>{const[k,vv]=x.split('|');return '<div class="dk">'+k+'</div><div class="dv">'+vv+'</div>';}).join('')+'</div></div>';
 
     // P&L block
     h+='<div class="dsec">💵 Game P&amp;L</div>';
-    h+= g.name ? (
+    h+= g.name ? ('<div class="pnlbox">'+
       row('Rake collected ('+money(rake)+' × '+entries+')',money(rakeColl))+
       row('Less: overlay',overlay>0?('-'+money(overlay)):money(0), overlay>0?'#e07a5f':'')+
       '<div class="dl" style="border-top:1px solid #34343a"><span><b>Gaming margin</b></span><span style="font-family:JetBrains Mono">'+money(margin)+'</span></div>'+
       row('Club money'+clubLbl, club>0?('+'+money(club)):money(0), '#5cb88a')+
       row('Less: staff wages', wages>0?('-'+money(wages)):money(0), wages>0?'#e07a5f':'')+
       row('Less: SMS charges', sms>0?('-'+money(sms)):money(0), sms>0?'#e07a5f':'')+
-      '<div class="dl" style="border-top:2px solid #34343a"><span><b>GAME NET PROFIT</b></span><span style="font-family:JetBrains Mono;font-weight:700;color:'+(net>=0?'#5cb88a':'#e07a5f')+'">'+money(net)+'</span></div>'
+      '<div class="netprofit '+(net>=0?'pos':'neg')+'"><span>GAME NET PROFIT</span><span class="npval">'+money(net)+'</span></div>'+
+      '</div>'
     ) : '<div class="dmut">No game setup found for "'+(c.game_name||'')+'" — can\'t compute rake/overlay. (Game may be renamed or retired.)</div>';
 
     // staff (moved up — before prize sections)
