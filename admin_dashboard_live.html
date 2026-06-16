@@ -174,7 +174,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='week',computed={};
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='week',computed={},OPENING=null;
   function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -207,6 +207,7 @@
       EXPENSES=(await supabase.from('expenses').select('*')).data||[];
       OWNERPAY=(await supabase.from('owner_payments').select('*')).data||[];
       CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      try{ const od=(await supabase.from('cash_opening').select('*').eq('id',1)).data; OPENING=(od&&od[0])||null; }catch(e){ OPENING=null; }
       compute();
     }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
   }
@@ -412,28 +413,39 @@
     const incoming=(CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
     if(incoming.length){ const amt=incoming.reduce((s,m)=>s+(Number(m.amount)||0),0);
       flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held'}); }
+    // 8. opening cash balance not yet set
+    if(!(OPENING && OPENING.as_of)){
+      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)', d2:'cash'});
+    }
     computed.flags=flags;
     $('mFlags').textContent=flags.length;
     const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', flags.length>0);
     $('mFlags').style.color = flags.length ? 'var(--amber)' : 'var(--good)';
     $('mFlagsSub').textContent = flags.length ? 'items to review' : 'all clear';
 
-    // cash held by admin = approved received from TDs − cash expenses − given to owners
-    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
-    const cashExp=EXPENSES.filter(e=>e.paid_from_cash).reduce((s,e)=>s+(Number(e.amount)||0),0);
-    const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner').reduce((s,m)=>s+(Number(m.amount)||0),0);
+    // opening balance: a starting figure as of a date; only count movements AFTER that date
+    const openAmt = OPENING ? (Number(OPENING.amount)||0) : 0;
+    const openDate = OPENING && OPENING.as_of ? OPENING.as_of : null;
+    computed.openAmt=openAmt; computed.openDate=openDate;
+    const afterOpen = (d)=> !openDate || (d && String(d) > String(openDate)); // strictly after the opening date
+    // cash held by admin = approved received from TDs − cash expenses − given to owners (movements after opening date)
+    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashHeld=received-cashExp-toOwners;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
-    // cash held by each TD = their close-out leftovers − their approved hand-ups
+    // cash held by each TD = their close-out leftovers − their approved hand-ups (after opening date)
     const byTd={};
-    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].leftover+=Number(c.leftover_cash)||0; });
-    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
+    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].leftover+=Number(c.leftover_cash)||0; });
+    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
     const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
     computed.tdHeldTotal=tdHeldTotal;
     computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
-    const totalCashHeld=cashHeld+tdHeldTotal;
+    const movementsSince = cashHeld+tdHeldTotal;
+    computed.movementsSince=movementsSince;
+    const totalCashHeld=openAmt+movementsSince;
     computed.totalCashHeld=totalCashHeld;
     // new players registered in the period
     const newP=PLAYERS.filter(inPeriod).length;
@@ -487,8 +499,19 @@
     if(key==='cash'){
       const recent=[...CASH].sort((a,b)=>(b.move_date||'').localeCompare(a.move_date||'')).slice(0,20);
       const tdList=computed.tdHeldList||[];
-      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD.</div>'+
+      const hasOpening = !!(OPENING && OPENING.as_of);
+      const openingBlock = hasOpening
+        ? '<div class="drow"><span class="l">Opening balance <span style="color:var(--ink-faint);font-size:11px">(as of '+OPENING.as_of+', locked)</span></span><span class="r" style="color:var(--gold)">'+money(computed.openAmt||0)+'</span></div>'+
+          '<div class="drow"><span class="l">Movements since</span><span class="r">'+money(computed.movementsSince||0)+'</span></div>'
+        : '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.07);flex-direction:column;align-items:stretch;gap:8px">'+
+            '<div style="color:var(--amber);font-weight:600">⚑ Set opening cash balance</div>'+
+            '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash already held as of a date. This locks once saved — only the owner can change it later in Supabase.</div>'+
+            '<div style="display:flex;gap:8px"><input id="openAmtIn" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="openDateIn" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+            '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
+          '</div>';
+      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
+        openingBlock+
         '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
         '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
@@ -576,6 +599,20 @@
     // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
     b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
     b.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',()=>confirmCash(el.dataset.confirm)));
+    const sob=$('saveOpeningBtn'); if(sob) sob.addEventListener('click', saveOpening);
+  }
+  async function saveOpening(){
+    const amt=Number($('openAmtIn').value); const date=$('openDateIn').value;
+    if($('openAmtIn').value===''||isNaN(amt)){ alert('Enter an amount.'); return; }
+    if(!date){ alert('Pick an as-of date.'); return; }
+    if(!confirm('Set opening balance to '+money(amt)+' as of '+date+'?\n\nThis LOCKS — only the owner can change it later in Supabase.')) return;
+    const btn=$('saveOpeningBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { error } = await supabase.from('cash_opening').insert({ id:1, amount:amt, as_of:date, set_by:user.id });
+      if(error) throw error;
+      OPENING={ id:1, amount:amt, as_of:date, set_by:user.id };
+      compute(); openDetail('cash');
+    }catch(e){ alert('Could not save: '+(e.message||e)+'\n\n(If it says duplicate key, an opening balance already exists — only the owner can change it in Supabase.)'); btn.disabled=false; btn.textContent='Save opening balance (locks it)'; }
   }
 
   document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
