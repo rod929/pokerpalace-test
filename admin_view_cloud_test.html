@@ -134,7 +134,7 @@
         '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>'
       ).join('');
       document.querySelectorAll('.coclick').forEach(el=>{
-        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; } });
+        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; wireAck(d); } });
       });
     }catch(e){ setStatus('Could not load close-outs: '+(e.message||e),'err'); }
   }
@@ -222,6 +222,19 @@
     ) : '<div class="dmut">No game setup found for "'+(c.game_name||'')+'" — can\'t compute rake/overlay. (Game may be renamed or retired.)</div>';
     }
 
+    // overlay acknowledgement (informational — overlay already paid; ack to clear the dashboard flag)
+    if(overlay>0 && !isVoid && !isRakeFree){
+      if(c.overlay_ack===true){
+        h+='<div class="secbox" style="border-color:#5cb88a;background:rgba(92,184,138,.06)"><div class="dl"><span style="color:#5cb88a">✓ Overlay acknowledged</span><span style="color:#76757a;font-size:11px">'+money(overlay)+' shortfall — noted</span></div></div>';
+      } else {
+        h+='<div class="secbox" style="border-color:#a14b39;background:rgba(224,122,95,.06)">'+
+          '<div class="dl" style="margin-bottom:8px"><span style="color:#e07a5f">📉 Overlay of '+money(overlay)+'</span><span style="color:#76757a;font-size:11px">guarantee shortfall — for info</span></div>'+
+          '<div style="font-size:12px;color:#9a999e;margin-bottom:10px">The guarantee was topped up this much. Nothing to fix — acknowledge to clear it from the dashboard\'s Needs action.</div>'+
+          '<button class="ackoverlay" data-ack="'+c.id+'" style="width:100%;background:#a14b39;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer">✓ Acknowledge overlay</button>'+
+        '</div>';
+      }
+    }
+
     // staff (moved up — before prize sections)
     h+='<div class="dsec">👷 Staff</div><div class="secbox">';
     h+= shf.length? shf.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
@@ -267,6 +280,22 @@
   }
   async function signOut(){ await supabase.auth.signOut(); clearStatus(); showLogin(); }
 
+  function wireAck(container){
+    container.querySelectorAll('.ackoverlay').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id=btn.dataset.ack;
+        btn.disabled=true; btn.textContent='Saving…';
+        try{
+          const { error } = await supabase.from('closeouts').update({ overlay_ack:true }).eq('id', id);
+          if(error) throw error;
+          // update local copy + swap the block to the acknowledged state
+          const co=CO_DATA.find(x=>String(x.id)===String(id)); if(co) co.overlay_ack=true;
+          const box=btn.closest('.secbox');
+          if(box){ box.style.borderColor='#5cb88a'; box.style.background='rgba(92,184,138,.06)'; box.innerHTML='<div class="dl"><span style="color:#5cb88a">✓ Overlay acknowledged</span><span style="color:#76757a;font-size:11px">noted</span></div>'; }
+        }catch(e){ btn.disabled=false; btn.textContent='✓ Acknowledge overlay'; alert('Could not save: '+(e.message||e)); }
+      });
+    });
+  }
   $('signinBtn').addEventListener('click', signIn);
   $('signoutBtn').addEventListener('click', signOut);
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });

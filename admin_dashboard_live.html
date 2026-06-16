@@ -76,6 +76,7 @@
   .dtitle{font-family:'Archivo';font-weight:800;font-size:20px;margin:0 0 3px}
   .dsub{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
   .drow{display:flex;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin-bottom:8px;font-size:14px}
+  .flagrow:hover{border-color:var(--blue);background:rgba(127,160,196,.06)}
   .drow .l{color:var(--ink-dim)} .drow .r{font-family:'JetBrains Mono';font-weight:700}
   .comingbox{background:rgba(201,184,150,.07);border:1px solid rgba(201,184,150,.3);border-radius:13px;padding:22px;text-align:center}
   .comingbox .ic{font-size:38px}.comingbox h3{font-family:'Archivo';font-size:18px;margin:12px 0 6px}.comingbox p{font-size:14px;color:var(--ink-dim);max-width:480px;margin:0 auto;line-height:1.6}
@@ -392,30 +393,30 @@
     const flags=[];
     // 1. unpaid placings (across all close-outs in period)
     const unpaid=PLACINGS.filter(p=>!p.paid && cos.some(c=>c.id===p.closeout_id));
-    if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation'}); }
+    if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation',link:'payment_reconciliation_live.html',cta:'Open Payment Reconciliation'}); }
     // 2. owner payments pending approval
     const pend=OWNERPAY.filter(o=>o.status==='pending');
-    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); flags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' pending approval',d:money(amt)+' awaiting owner sign-off'}); }
+    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); flags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' pending approval',d:money(amt)+' awaiting owner sign-off',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
     // 3. invoices not yet sent/paid (this period)
     const draftInv=invsForVenues().filter(i=>i.status==='draft');
-    if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period'}); }
+    if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period',link:'venues_invoicing_live.html',cta:'Open Venues & Invoicing'}); }
     // 4. close-outs whose game has no setup (breaks P&L)
     const noSetup=cos.filter(c=>{const g=gameFor(c); return !g || (!(Number(g.buy_in))&&!(Number(g.rake))&&!(Number(g.guarantee)));});
-    if(noSetup.length){ flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these'}); }
-    // 5. overlay games (lost on the guarantee)
-    const overlays=cos.filter(c=>gamingMargin(c).overlay>0);
-    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0); flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — under guarantee'}); }
+    if(noSetup.length){ flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these',link:'game_setup_live.html',cta:'Open Game Setup'}); }
+    // 5. overlay games (lost on the guarantee) — excluding ones already acknowledged
+    const overlays=cos.filter(c=>gamingMargin(c).overlay>0 && c.overlay_ack!==true);
+    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0); flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — open the report to acknowledge',link:'admin_view_cloud_test.html',cta:'Open Tournament Report'}); }
     // 6. acknowledged-but-unpaid wages (transfer/invoice committed, not yet confirmed paid)
     const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
     if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
-      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen'}); }
+      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen',link:'wages_live.html',cta:'Open Wages'}); }
     // 7. incoming cash hand-ups from TDs awaiting confirmation
     const incoming=(CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
     if(incoming.length){ const amt=incoming.reduce((s,m)=>s+(Number(m.amount)||0),0);
-      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held'}); }
+      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held',drawer:'cash',cta:'Open Cash held'}); }
     // 8. opening cash balance not yet set
     if(!(OPENING && OPENING.as_of)){
-      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)', d2:'cash'});
+      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
     }
     computed.flags=flags;
     $('mFlags').textContent=flags.length;
@@ -531,7 +532,13 @@
         })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
-      b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub">Things worth a look this period — drawn from your live data.</div>'+(fl.length?fl.map(f=>'<div class="drow"><span class="l"><span style="font-size:16px;margin-right:8px">'+f.ic+'</span>'+f.t+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+f.d+'</span></span></div>').join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
+      b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub">Tap an item to jump straight to the screen where you can clear it.</div>'+(fl.length?fl.map((f,i)=>{
+        const cta=f.cta||'Open';
+        return '<div class="drow flagrow" data-flag="'+i+'" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:6px">'+
+          '<span class="l"><span style="font-size:16px;margin-right:8px">'+f.ic+'</span>'+f.t+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+f.d+'</span></span>'+
+          '<span style="align-self:flex-end;color:var(--blue);font-size:12px;font-weight:600">'+cta+' ›</span>'+
+        '</div>';
+      }).join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
     } else if(key==='pnl'){
       const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0};
       const line=(l,v,col)=>'<div class="drow"><span class="l">'+l+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
@@ -599,6 +606,11 @@
     // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
     b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
     b.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',()=>confirmCash(el.dataset.confirm)));
+    b.querySelectorAll('[data-flag]').forEach(el=>el.addEventListener('click',()=>{
+      const f=(computed.flags||[])[Number(el.dataset.flag)]; if(!f) return;
+      if(f.link){ window.location.href=f.link; }
+      else if(f.drawer){ openDetail(f.drawer); }
+    }));
     const sob=$('saveOpeningBtn'); if(sob) sob.addEventListener('click', saveOpening);
   }
   async function saveOpening(){
