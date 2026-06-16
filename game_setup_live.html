@@ -197,11 +197,11 @@
       '<div><label>Add-on price $</label><input data-f="addon_price" type="number" value="'+(g.addon_price??'')+'"></div>'+
       '<div><label>Guarantee $</label><input data-f="guarantee" type="number" value="'+(g.guarantee??'')+'"></div>'+
       '</div>'+
-      (rf?('<div class="rfpromo"><div class="rfpromoh">🎁 Rake-free promo (pre-set for TDs)</div>'+
+      '<div class="rfpromo"><div class="rfpromoh">🎁 Tournament Promotion (pre-set for TDs)</div>'+
         '<div class="gridtwo">'+
-        '<div><label>Default promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
+        '<div><label>Promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
         '<div><label>Promo description</label><input data-f="promo_desc" value="'+((g.promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand bonus"></div>'+
-        '</div><div class="hint" style="margin-top:6px">These pre-fill (locked) on the TD\'s close-out for this game.</div></div>'):'')+
+        '</div><div class="hint" style="margin-top:6px">Set by admin — pre-fills (locked) on the TD\'s close-out and reduces this game\'s net profit.</div></div>'+
       '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
       '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
       '<button class="delbtn" data-delete type="button">🗑 Delete</button>'+

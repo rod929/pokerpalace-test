@@ -247,6 +247,10 @@
       <label class="fld" style="font-size:14px;color:var(--ink-dim);margin:12px 0 6px;display:block">Game / tournament</label>
       <select class="inp" id="gameSel" disabled><option value="">Pick a venue first</option></select>
       <div class="hint" id="gameHint">Tournaments are filtered to the venue you choose.</div>
+      <div id="mainPromoBox" style="display:none;margin-top:12px;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px">
+        <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">🎁 Tournament promotion (set by admin)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><span id="mainPromoDesc" style="color:var(--ink-dim);font-size:13px">—</span><b id="mainPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
+      </div>
       <div id="rfBanner" style="display:none;margin-top:12px;background:rgba(127,160,196,.1);border:1px solid var(--blue);border-radius:9px;padding:12px;font-size:13px;color:var(--ink-dim)">🎲 <b style="color:var(--ink)">Rake Free Cash Game</b> — light close-out. Just import the GES players and add any promotion cost. No rake, prizes, money-in or staff needed.</div>
       <div id="promoField" style="display:none;margin-top:12px">
         <label class="fld" style="font-size:14px;color:var(--ink-dim);margin-bottom:6px;display:block">Promotion cost (optional)</label>
@@ -520,7 +524,20 @@
     currentGame = (idx!=='' && sel._games) ? sel._games[Number(idx)] : null;
     applyRakeFreeMode();
     updateRfParallel();
+    updateMainPromo();
     syncChips();
+  }
+  function updateMainPromo(){
+    const box=$('mainPromoBox'); if(!box) return;
+    const pc = currentGame ? (Number(currentGame.promo_default)||0) : 0;
+    const pd = currentGame ? (currentGame.promo_desc||'') : '';
+    const rf = currentGame && currentGame.rake_free===true;
+    // show for the main game when it has a promo set and it isn't the rake-free light flow (that has its own promo display)
+    if(currentGame && !rf && (pc>0 || pd)){
+      box.style.display='block';
+      $('mainPromoAmt').textContent='$'+pc.toLocaleString();
+      $('mainPromoDesc').textContent = pd || '(no description)';
+    } else { box.style.display='none'; }
   }
   function applyRakeFreeMode(){
     const rf = currentGame && currentGame.rake_free===true;
@@ -820,13 +837,19 @@
         cash_in:cashIn||null, transfer_in:tfrIn||null, ticket_in:tktIn||null,
         other_in:othIn||null, other_in_note:$('otherInNote').value.trim()||null,
         money_in:moneyInTotal||null, cash_leftover_calc:Math.round(leftover), leftover_cash:Math.round(leftover),
+        promo_cost: currentGame ? (Number(currentGame.promo_default)||0) : 0,
         ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null,
         ges_ticket_players: GES_TICKET_NAMES.length ? GES_TICKET_NAMES.join('\n') : null
       };
       let co=null;
       const ins = await supabase.from('closeouts').insert(row).select();
       if(ins.error){
-        if(/ges_players/.test(ins.error.message||'')){
+        if(/promo_cost/.test(ins.error.message||'')){
+          delete row.promo_cost;
+          const retry = await supabase.from('closeouts').insert(row).select();
+          if(retry.error && /ges_players/.test(retry.error.message||'')){ delete row.ges_players; const r2=await supabase.from('closeouts').insert(row).select(); if(r2.error) throw r2.error; co=r2.data&&r2.data[0]?r2.data[0]:null; }
+          else if(retry.error){ throw retry.error; } else { co=retry.data&&retry.data[0]?retry.data[0]:null; }
+        } else if(/ges_players/.test(ins.error.message||'')){
           delete row.ges_players;
           const retry = await supabase.from('closeouts').insert(row).select();
           if(retry.error) throw retry.error;
