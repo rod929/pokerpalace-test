@@ -332,9 +332,34 @@
         <div class="lrow total"><span>Cash leftover in till</span><span id="lfTotal">$0</span></div>
         <div class="lnote">Tickets &amp; transfers aren't deducted — that cash stays in the till.</div>
       </div>
-      <button class="submit block" id="lockBtn" style="margin-top:16px">🔒 Lock prize pool &amp; save</button>
-      <div class="blockwhy" id="lockWhy"></div>
     </div>
+
+    <!-- parallel rake-free cash game (after placings, before lock) -->
+    <div class="card" id="rfParallel" style="display:none;border:1px solid var(--blue)">
+      <h2><span class="n">🎲</span> Rake Free Cash Game <span style="font-size:12px;color:var(--ink-faint);font-weight:400" id="rfParallelName"></span></h2>
+      <p class="lead">A parallel cash game ran tonight (<b id="rfParallelGame">—</b>). Import its GES players. The promo is set by admin and locked.</p>
+      <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfRan"><span class="t">A rake-free cash game ran tonight<small>Tick to include it in this close-out</small></span></label>
+      <div id="rfFields" style="display:none">
+        <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfVoid"><span class="t">⛔ Rake-free game did not run (void)<small>Tick if the cash game was set up but didn't run — no GES needed</small></span></label>
+        <div id="rfLiveFields">
+          <div class="gesbox" style="margin-bottom:12px">
+            <div class="gesh">📋 Import GES entry report (cash game)</div>
+            <input type="file" id="rfGesFile" accept=".csv,text/csv" class="gesfile">
+            <details class="gesdet" style="margin-top:8px"><summary>or paste the report instead</summary>
+            <textarea id="rfGesPaste" placeholder="Paste the GES report for the cash game here…" style="width:100%;box-sizing:border-box;min-height:90px;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12px;margin-top:8px"></textarea>
+            <button class="addrow" id="rfGesBtn" type="button" style="margin-top:8px">Parse players</button></details>
+            <div id="rfGesCount" style="font-size:12.5px;color:var(--ink-dim);margin-top:8px"></div>
+          </div>
+        </div>
+        <div id="rfPromoBox" style="background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;margin-top:4px">
+          <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Promotion (set by admin)</div>
+          <div style="display:flex;justify-content:space-between"><span id="rfPromoDesc" style="color:var(--ink-dim)">—</span><b id="rfPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="submit block" id="lockBtn" style="margin-top:16px">🔒 Lock prize pool &amp; save</button>
+    <div class="blockwhy" id="lockWhy"></div>
 
     <!-- 3b. reconciliation (appears after lock) -->
     <div class="card void-hide" id="reconCard" style="display:none">
@@ -367,30 +392,6 @@
 
     <button class="submit block" id="submitBtn">Finalise close-out</button>
     <button class="submit block" id="voidSubmitBtn" style="display:none;background:var(--red);border-color:var(--red)">⛔ Submit void game (staff only)</button>
-
-    <!-- parallel rake-free cash game (shows if venue has one set up) -->
-    <div class="card" id="rfParallel" style="display:none;border:1px solid var(--blue)">
-      <h2><span class="n">🎲</span> Rake Free Cash Game <span style="font-size:12px;color:var(--ink-faint);font-weight:400" id="rfParallelName"></span></h2>
-      <p class="lead">A parallel cash game ran tonight (<b id="rfParallelGame">—</b>). Import its GES players and add any promo cost. This saves as its own record and triggers the club fee for the night.</p>
-      <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfRan"><span class="t">A rake-free cash game ran tonight<small>Tick to include it in this close-out</small></span></label>
-      <div id="rfFields" style="display:none">
-        <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfVoid"><span class="t">⛔ Rake-free game did not run (void)<small>Tick if the cash game was set up but didn't run — no GES needed</small></span></label>
-        <div id="rfLiveFields">
-          <div class="gesbox" style="margin-bottom:12px">
-            <div class="gesh">📋 Import GES entry report (cash game)</div>
-            <input type="file" id="rfGesFile" accept=".csv,text/csv" class="gesfile">
-            <details class="gesdet" style="margin-top:8px"><summary>or paste the report instead</summary>
-            <textarea id="rfGesPaste" placeholder="Paste the GES report for the cash game here…" style="width:100%;box-sizing:border-box;min-height:90px;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12px;margin-top:8px"></textarea>
-            <button class="addrow" id="rfGesBtn" type="button" style="margin-top:8px">Parse players</button></details>
-            <div id="rfGesCount" style="font-size:12.5px;color:var(--ink-dim);margin-top:8px"></div>
-          </div>
-        </div>
-        <div id="rfPromoBox" style="background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;margin-top:4px">
-          <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Promotion (set by admin)</div>
-          <div style="display:flex;justify-content:space-between"><span id="rfPromoDesc" style="color:var(--ink-dim)">—</span><b id="rfPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
-        </div>
-      </div>
-    </div>
 
     <div class="blockwhy" id="blockWhy"></div>
     </div>
@@ -548,15 +549,21 @@
   function applyVoidMode(){
     const isVoid = $('voidChk') && $('voidChk').checked;
     document.body.classList.toggle('void-mode', !!isVoid);
-    const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none':'';
-    const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
-    const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
-    // block the whole Entries section when void
+    // block Entries, Money, Placings, Recon when void
     const ec=$('entriesCard'); if(ec) ec.style.display = isVoid ? 'none':'';
-    // staff stays visible (they get paid) even when void
-    const st=$('secStaff'); if(st) st.style.display = '';
-    // re-evaluate the rake-free parallel section (stays visible if the tournament has one)
+    // keep staff visible (force phase2 open so the timesheet shows even without locking)
+    const p2=$('phase2'); if(p2 && isVoid) p2.style.display='block';
+    const st=$('secStaff'); if(st) st.style.display='';
+    // keep the rake-free section evaluated
     updateRfParallel();
+    // the lock/save button: in void it becomes the save action (relabeled); normal finalise button hidden
+    const lb=$('lockBtn');
+    const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
+    const vb=$('voidSubmitBtn'); if(vb) vb.style.display='none'; // we use the lock button to save in void now
+    if(lb){
+      lb.style.display='';
+      lb.textContent = isVoid ? '⛔ Save void close-out' : '🔒 Lock prize pool & save';
+    }
   }
   async function submitVoid(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
@@ -1054,7 +1061,7 @@
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
   $('signoutBtn').addEventListener('click', signOut);
   $('submitBtn').addEventListener('click', submit);
-  $('lockBtn').addEventListener('click', lockPlacings);
+  $('lockBtn').addEventListener('click', ()=>{ if($('voidChk')&&$('voidChk').checked){ submitVoid(); } else { lockPlacings(); } });
   $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
   $('rfRan')&&$('rfRan').addEventListener('change', ()=>{
