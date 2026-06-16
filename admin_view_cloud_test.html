@@ -33,6 +33,14 @@
   .codate{color:#a5a4a8;font-size:12.5px;font-family:'JetBrains Mono',monospace}
   .cometa{color:#a5a4a8;font-size:12.5px;margin-top:5px;font-family:'JetBrains Mono',monospace}
   .cowho{color:#7e90a5;font-size:11px;margin-top:6px;font-family:'JetBrains Mono',monospace}
+  .coclick{cursor:pointer;transition:border-color .15s} .coclick:hover{border-color:#D00E26}
+  .codetail{margin-top:10px;padding-top:10px;border-top:1px solid #34343a}
+  .dgrid{display:grid;grid-template-columns:1fr auto 1fr auto;gap:5px 10px;font-size:12.5px;margin-bottom:8px}
+  .dgrid .dk{color:#76757a} .dgrid .dv{font-family:'JetBrains Mono',monospace;text-align:right}
+  .dsec{font-family:'Archivo',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#a5a4a8;margin:11px 0 6px}
+  .dl{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #26262b;font-size:12.5px} .dl:last-child{border-bottom:none} .dl span:last-child{font-family:'JetBrains Mono',monospace;color:#c9b896}
+  .dmut{color:#76757a;font-size:12px;padding:4px 0}
+  .dchips{display:flex;flex-wrap:wrap;gap:5px} .dchip{background:#1e1e23;border:1px solid #34343a;border-radius:13px;padding:4px 10px;font-size:12px;color:#a5a4a8} .dchip.w{background:rgba(201,184,150,.13);border-color:#c9b896;color:#c9b896;font-weight:600}
   #app.hidden,#loginCard.hidden{display:none}
 </style>
 
@@ -92,18 +100,117 @@
   }
   function showLogin(){ $('app').classList.add('hidden'); $('loginCard').classList.remove('hidden'); }
 
+  let CO_DATA=[], PLC_DATA=[], SHF_DATA=[], PROFMAP={}, TKMAP={}, GAMES_D=[], VENUES_D=[], SMS_D=[];
+  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'Unknown'); }
   async function loadCloseouts(){
     try{
       const { data, error } = await supabase.from('closeouts').select('*').order('id',{ascending:false});
       if(error) throw error;
-      if(!data.length){ $('coList').innerHTML='<div class="co">No close-outs visible to you.</div>'; return; }
-      $('coList').innerHTML = data.map(c=>
-        '<div class="co"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+'</div>'+
+      CO_DATA=data||[];
+      // supporting data for detail + names
+      PLC_DATA=(await supabase.from('placings').select('*')).data||[];
+      SHF_DATA=(await supabase.from('staff_shifts').select('*')).data||[];
+      const profs=(await supabase.from('profiles').select('*')).data||[];
+      PROFMAP={}; profs.forEach(p=>{ PROFMAP[p.user_id]=p.name||p.full_name||null; });
+      const tks=(await supabase.from('tickets').select('*')).data||[];
+      TKMAP={}; tks.forEach(t=>TKMAP[t.id]=t.name);
+      GAMES_D=(await supabase.from('games').select('*')).data||[];
+      VENUES_D=(await supabase.from('venues').select('*')).data||[];
+      SMS_D=(await supabase.from('sms_charges').select('*')).data||[];
+      if(!CO_DATA.length){ $('coList').innerHTML='<div class="co">No close-outs visible to you.</div>'; return; }
+      $('coList').innerHTML = CO_DATA.map((c,i)=>
+        '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+'</div>'+
         '<div class="codate">'+(c.game_date||'')+'</div></div>'+
         '<div class="cometa">'+(c.venue_name||'')+' · '+(c.entries||0)+' entries · money in $'+(c.money_in||0)+' · leftover $'+(c.leftover_cash||0)+'</div>'+
-        '<div class="cowho">submitted by user '+(c.submitted_by||'').slice(0,8)+'…</div></div>'
+        '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
+        '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>'
       ).join('');
+      document.querySelectorAll('.coclick').forEach(el=>{
+        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; } });
+      });
     }catch(e){ setStatus('Could not load close-outs: '+(e.message||e),'err'); }
+  }
+  function coDetail(c){
+    const money=n=>{n=Math.round(Number(n)||0);return (n<0?'-$':'$')+Math.abs(n).toLocaleString();};
+    const plc=PLC_DATA.filter(p=>String(p.closeout_id)===String(c.id)).sort((a,b)=>a.place-b.place);
+    const shf=SHF_DATA.filter(s=>String(s.closeout_id)===String(c.id));
+    const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
+    const players=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean));
+    const winNames=new Set(plc.filter(p=>Number(p.amount)>0).map(p=>(p.player_name||'').toLowerCase()));
+
+    // --- economics from game setup ---
+    const g=GAMES_D.find(x=>x.name===c.game_name)||{};
+    const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+    const pool=(buyin-rake)*entries + addonPrice*addons;
+    const overlay=Math.max(0, gtee-pool);
+    const rakeColl=rake*entries;
+    const margin=rakeColl-overlay;
+    const wages=shf.reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+    // SMS attributed to this close-out (or matching game+date)
+    const sms=SMS_D.filter(x=> (x.closeout_id&&String(x.closeout_id)===String(c.id)) || (!x.closeout_id&&x.game_name===c.game_name&&x.charge_date===c.game_date) ).reduce((s,x)=>s+(Number(x.amount)||0),0);
+    // club money share
+    const v=VENUES_D.find(x=>x.name===c.venue_name)||{};
+    const basis=v.club_money_basis||'', rate2=Number(v.club_money_rate)||0;
+    let club=0, clubLbl='';
+    if(basis==='fixed_monthly'){
+      const ym=(c.game_date||'').slice(0,7);
+      const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym).length || 1;
+      club=rate2/gamesThatMonth; clubLbl=' (monthly '+money(rate2)+' ÷ '+gamesThatMonth+' games)';
+    } else if(rate2){ club=rate2; clubLbl=' (per game)'; }
+    const net=margin+club-wages-sms;
+
+    // --- prize payment breakdown (split-aware) ---
+    let pcash=0,ptfr=0,ptkt=0;
+    plc.forEach(p=>{
+      const a2=Number(p.amount_2)||0,a3=Number(p.amount_3)||0,a1=(Number(p.amount)||0)-a2-a3;
+      [[p.paid_by,a1],[p.paid_by_2,a2],[p.paid_by_3,a3]].forEach(([m,a])=>{ if(!m)return; if(m==='transfer')ptfr+=a; else if(m==='ticket')ptkt+=a; else pcash+=a; });
+    });
+    const prizesPaid=plc.reduce((s,p)=>s+(Number(p.amount)||0),0);
+
+    const row=(k,v,col)=>'<div class="dl"><span>'+k+'</span><span'+(col?(' style="color:'+col+'"'):'')+'>'+v+'</span></div>';
+    let h='<div class="dgrid">'+
+      ['Entries|'+entries,'Unique|'+(c.unique_players||0),'Re-entries|'+(c.re_entries||0),'Add-ons|'+addons,
+       'Cash in|'+money(c.cash_in),'Transfer in|'+money(c.transfer_in),'Ticket in|'+money(c.ticket_in),'Other in|'+money(c.other_in),
+       'Money in|'+money(c.money_in),'Leftover|'+money(c.leftover_cash)].map(x=>{const[k,vv]=x.split('|');return '<div class="dk">'+k+'</div><div class="dv">'+vv+'</div>';}).join('')+'</div>';
+
+    // P&L block
+    h+='<div class="dsec">💵 Game P&amp;L</div>';
+    h+= g.name ? (
+      row('Rake collected ('+money(rake)+' × '+entries+')',money(rakeColl))+
+      row('Less: overlay',overlay>0?('-'+money(overlay)):money(0), overlay>0?'#e07a5f':'')+
+      '<div class="dl" style="border-top:1px solid #34343a"><span><b>Gaming margin</b></span><span style="font-family:JetBrains Mono">'+money(margin)+'</span></div>'+
+      row('Club money'+clubLbl, club>0?('+'+money(club)):money(0), '#5cb88a')+
+      row('Less: staff wages', wages>0?('-'+money(wages)):money(0), wages>0?'#e07a5f':'')+
+      row('Less: SMS charges', sms>0?('-'+money(sms)):money(0), sms>0?'#e07a5f':'')+
+      '<div class="dl" style="border-top:2px solid #34343a"><span><b>GAME NET PROFIT</b></span><span style="font-family:JetBrains Mono;font-weight:700;color:'+(net>=0?'#5cb88a':'#e07a5f')+'">'+money(net)+'</span></div>'
+    ) : '<div class="dmut">No game setup found for "'+(c.game_name||'')+'" — can\'t compute rake/overlay. (Game may be renamed or retired.)</div>';
+
+    // staff (moved up — before prize sections)
+    h+='<div class="dsec">👷 Staff</div>';
+    h+= shf.length? shf.map(s=>'<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+'</span><span>'+money((Number(s.hours)||0)*(Number(s.rate)||0))+'</span></div>').join(''):'<div class="dmut">No staff recorded.</div>';
+
+    // prize pool breakdown
+    h+='<div class="dsec">🎰 Prize pool</div>';
+    h+= row('Prize pool', money(pool))+
+        row('Guarantee', money(gtee))+
+        row('Overlay (shortfall)', overlay>0?money(overlay):money(0), overlay>0?'#e07a5f':'')+
+        row('Total prizes paid', money(prizesPaid));
+    h+='<div class="dsec">💳 Prizes paid by</div>';
+    h+= row('Cash', money(pcash))+row('Transfer', money(ptfr))+row('Ticket', money(ptkt));
+
+    // winners
+    h+='<div class="dsec">🏆 Winners</div>';
+    h+= plc.length? plc.filter(p=>Number(p.amount)>0).map(p=>{
+      const a2=Number(p.amount_2)||0,a3=Number(p.amount_3)||0,a1=(Number(p.amount)||0)-a2-a3;
+      const parts=[[p.paid_by,a1],[p.paid_by_2,a2],[p.paid_by_3,a3]].filter(x=>x[0]&&x[1]>0).map(x=>x[0]+' '+money(x[1])).join(' + ');
+      return '<div class="dl"><span>'+p.place+suf(p.place)+' · '+(p.player_name||'(unassigned)')+'<br><span style="font-size:10px;color:#76757a">'+parts+'</span></span><span>'+money(p.amount)+'</span></div>';
+    }).join(''):'<div class="dmut">No placings.</div>';
+
+    // players
+    h+='<div class="dsec">👥 All players ('+players.length+')</div>';
+    h+= players.length? '<div class="dchips">'+players.map(n=>'<span class="dchip'+(winNames.has(n.toLowerCase())?' w':'')+'">'+(winNames.has(n.toLowerCase())?'🏆 ':'')+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list for this game.</div>';
+    return h;
   }
 
   async function signIn(){
