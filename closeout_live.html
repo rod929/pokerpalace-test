@@ -98,6 +98,10 @@
   .cashbig{background:linear-gradient(160deg,#241d12,#19140d);border:1px solid var(--gold);border-radius:14px;padding:22px;text-align:center;margin:6px 0 16px}
   .cashbig .cbl{font-size:13px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em}
   .cashbig .cbv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:40px;color:var(--gold);margin-top:8px}
+  .cashbig .cbbreak{margin-top:16px;padding-top:14px;border-top:1px solid rgba(201,184,150,.25);text-align:left}
+  .cashbig .cbrow{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-dim);padding:4px 0;font-family:'JetBrains Mono',monospace}
+  .cashbig .cbrow.cbtot{border-top:1px solid rgba(201,184,150,.2);margin-top:4px;padding-top:8px;color:var(--ink);font-weight:700}
+  .cashbig .cbnote{font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic;line-height:1.4}
   .ppflag{margin-top:10px;border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600}
   .ppflag.over{background:rgba(224,96,79,.12);border:1px solid #7a3328;color:#f0a99c}
   .ppflag.ok{background:rgba(47,158,111,.12);border:1px solid var(--good-deep);color:#8fdcb6}
@@ -481,6 +485,8 @@
       const { data:rdata } = await supabase.from('staff_rates').select('*');
       ALL_STAFF_RATES = rdata || [];
     }catch(e){ ALL_STAFF=[]; ALL_STAFF_RATES=[]; }
+    // staff names may have loaded after the initial rows were drawn — re-render so their dropdowns populate
+    if(staff && staff.length) renderStaff();
   }
   function staffRoleRates(staffId){ return ALL_STAFF_RATES.filter(r=>String(r.staff_id)===String(staffId)); }
 
@@ -510,7 +516,7 @@
     const hasParallel = currentGame && currentGame.rake_free===true;
     panel.style.display = hasParallel ? 'block':'none';
     if(hasParallel){
-      if($('rfParallelGame')) $('rfParallelGame').textContent = currentGame.name+' — cash game';
+      if($('rfParallelGame')) $('rfParallelGame').textContent = 'Rake Free Cash Game';
       if($('rfParallelName')) $('rfParallelName').textContent = '';
       const pc=Number(currentGame.cash_promo_default)||0;
       const pd=currentGame.cash_promo_desc||'';
@@ -551,24 +557,24 @@
     document.body.classList.toggle('void-mode', !!isVoid);
     // block Entries, Money, Placings, Recon when void
     const ec=$('entriesCard'); if(ec) ec.style.display = isVoid ? 'none':'';
-    // keep staff visible (force phase2 open so the timesheet shows even without locking)
+    // staff stays visible in void mode (someone runs the cash game / staff still paid)
     const p2=$('phase2'); if(p2 && isVoid) p2.style.display='block';
-    const st=$('secStaff'); if(st) st.style.display='';
+    const st=$('secStaff'); if(st && isVoid) st.style.display='';
     // keep the rake-free section evaluated
     updateRfParallel();
-    // the lock/save button: in void it becomes the save action (relabeled); normal finalise button hidden
-    const lb=$('lockBtn');
-    const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
-    const vb=$('voidSubmitBtn'); if(vb) vb.style.display='none'; // we use the lock button to save in void now
-    if(lb){
-      lb.style.display='';
-      lb.textContent = isVoid ? '⛔ Save void close-out' : '🔒 Lock prize pool & save';
+    // void: hide the lock button (no prize pool), use the bottom Submit button (sits after staff)
+    const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none':'';
+    const vb=$('voidSubmitBtn'); if(vb) vb.style.display='none';
+    const sb=$('submitBtn');
+    if(sb){
+      sb.style.display='block';
+      sb.textContent = isVoid ? '✓ Submit close-out' : 'Finalise close-out';
     }
   }
   async function submitVoid(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
     if(!$('venueSel').value){ setStatus('Pick a venue.','err'); return; }
-    const btn=$('voidSubmitBtn'); btn.disabled=true; setStatus('Saving void game...','ok');
+    const btn=$('lockBtn'); if(btn) btn.disabled=true; setStatus('Saving void close-out...','ok');
     try{
       // gather staff (so they get paid)
       const shifts=staff.filter(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0&&(Number(s.rate)>0));
@@ -590,10 +596,56 @@
       }
       // also save the parallel rake-free game if the TD marked it ran
       const rfCo = await saveParallelRakeFree();
-      setStatus('⛔ Void game saved'+(shifts.length?(' with '+shifts.length+' staff shift(s)'):'')+(rfCo?' + rake-free cash game recorded':'')+'. Staff wages recorded.','ok');
-      btn.textContent='✓ Submitted';
-      setTimeout(()=>{ window.location.href='index.html'; }, 1500);
-    }catch(e){ setStatus('Could not save void: '+(e.message||e),'err'); btn.disabled=false; }
+      clearStatus();
+      showVoidSummary(shifts);
+      loadMine();
+    }catch(e){ setStatus('Could not save void: '+(e.message||e),'err'); if(btn) btn.disabled=false; }
+  }
+  function showVoidSummary(validStaff){
+    const g=currentGame||{};
+    const money=n=>(n<0?'−$':'$')+Math.abs(Math.round(n)).toLocaleString();
+    const wages=(validStaff||[]).reduce((s,x)=>s+(calcHours(x.start,x.finish)*(Number(x.rate)||0)),0);
+    // rake-free cash game (if it ran)
+    let rfBox=''; let rfPromoCost=0; let rfRan=false;
+    if($('rfRan') && $('rfRan').checked){
+      rfRan=true;
+      const rfVoid = $('rfVoid') && $('rfVoid').checked;
+      const rfPlayers = RF_GES_NAMES.length;
+      rfPromoCost = Number(g.cash_promo_default)||0;
+      const rfDesc = g.cash_promo_desc || '(no description)';
+      rfBox =
+        '<div class="sumbox" style="border-color:var(--blue)">'+
+        '<div class="sumsec" style="color:var(--blue)">🎲 Rake Free Cash Game</div>'+
+        (rfVoid
+          ? '<div class="sumrow"><span>Status</span><span style="color:var(--red)">Did not run (void)</span></div>'
+          : '<div class="sumrow"><span>Players</span><span>'+rfPlayers+'</span></div>')+
+        '<div class="sumrow"><span>Promotion</span><span>'+rfDesc+'</span></div>'+
+        '<div class="sumrow"><span>Promo cost</span><span>'+money(-rfPromoCost)+'</span></div>'+
+        '</div>';
+    }
+    const venueDay = -wages - rfPromoCost; // tournament void = no profit; only staff + cash promo are costs
+    $('summaryPage').innerHTML=
+      '<div class="sumwrap"><div class="sh">'+(g.name||'Close-out')+' — VOID</div>'+
+      '<div class="ssub">'+($('venueSel').value||'')+' · '+($('gameDate').value||'')+'</div>'+
+      '<div class="sumbox" style="border-color:var(--red)">'+
+        '<div class="sumsec" style="color:var(--red)">⛔ Tournament did not run</div>'+
+        '<div class="sumrow"><span>Status</span><span style="color:var(--red)">Void — insufficient players</span></div>'+
+        '<div class="sumrow"><span>Staff wages (still paid)</span><span>'+money(-wages)+'</span></div>'+
+      '</div>'+
+      rfBox+
+      '<div class="sumbox" style="border-color:var(--gold)">'+
+        '<div class="sumsec" style="color:var(--gold)">🏛 Venue total for the day</div>'+
+        '<div class="sumrow"><span>Tournament profit (void)</span><span>'+money(0)+'</span></div>'+
+        '<div class="sumrow"><span>Less: staff wages</span><span>'+money(-wages)+'</span></div>'+
+        (rfRan?'<div class="sumrow"><span>Less: cash game promo</span><span>'+money(-rfPromoCost)+'</span></div>':'')+
+        '<div class="sumrow profitrow"><span><b>Venue net for the day</b></span><span style="color:'+(venueDay>=0?'var(--good)':'var(--red)')+'"><b>'+money(venueDay)+'</b></span></div>'+
+      '</div>'+
+      '<div class="sumbtns"><button class="new" id="newCloseoutBtn" type="button">New close-out</button></div>'+
+      '</div>';
+    document.querySelectorAll('.card,.phasebar,#reconCard,#phase2,#lockBtn,#voidSubmitBtn').forEach(el=>{ if(el.closest('#summaryPage'))return; el.style.display='none'; });
+    $('summaryPage').style.display='block';
+    $('newCloseoutBtn').addEventListener('click',()=>location.reload());
+    window.scrollTo({top:0,behavior:'smooth'});
   }
   async function submitRakeFree(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
@@ -1016,11 +1068,45 @@
     const wages=(validStaff||[]).reduce((s,x)=>s+(calcHours(x.start,x.finish)*(Number(x.rate)||0)),0);
     const profit=margin-wages;
     const leftover=Number($('lfTotal').textContent.replace(/[^0-9.-]/g,''))||0;
+    const cashInTill=Number(($('lfCashIn').textContent||'').replace(/[^0-9.-]/g,''))||0;
+    const cashPaidTill=Number(($('lfCashPaid').textContent||'').replace(/[^0-9.-]/g,''))||0;
     const money=n=>(n<0?'−$':'$')+Math.abs(Math.round(n)).toLocaleString();
     const winners=RECON.slice().sort((a,b)=>a.place-b.place).map(p=>{
       const suf=p.place===1?'st':p.place===2?'nd':p.place===3?'rd':'th';
       return '<div class="sumrow"><span><b>'+p.place+suf+'</b> &nbsp; '+(p.player_name||'(player)')+'</span><span>$'+Math.round(p.amount).toLocaleString()+'</span></div>';
     }).join('');
+    // rake-free cash game summary (if it ran tonight)
+    let rfBox=''; let rfPromoCost=0; let rfRanForDay=false;
+    const rfRanTonight = $('rfRan') && $('rfRan').checked;
+    if(rfRanTonight){
+      rfRanForDay=true;
+      const rfVoid = $('rfVoid') && $('rfVoid').checked;
+      const rfPlayers = RF_GES_NAMES.length;
+      const rfPromo = Number((currentGame||{}).cash_promo_default)||0;
+      rfPromoCost = rfPromo;
+      const rfDesc = (currentGame||{}).cash_promo_desc || '(no description)';
+      rfBox =
+        '<div class="sumbox" style="border-color:var(--blue)">'+
+        '<div class="sumsec" style="color:var(--blue)">🎲 Rake Free Cash Game</div>'+
+        (rfVoid
+          ? '<div class="sumrow"><span>Status</span><span style="color:var(--red)">Did not run (void)</span></div>'
+          : '<div class="sumrow"><span>Players</span><span>'+rfPlayers+'</span></div>')+
+        '<div class="sumrow"><span>Promotion</span><span>'+rfDesc+'</span></div>'+
+        '<div class="sumrow"><span>Promo cost</span><span>'+money(-rfPromo)+'</span></div>'+
+        '</div>';
+    }
+    // venue day total = tournament final profit − rake-free promo cost
+    const venueDay = profit - rfPromoCost;
+    let dayBox='';
+    if(rfRanForDay){
+      dayBox =
+        '<div class="sumbox" style="border-color:var(--gold)">'+
+        '<div class="sumsec" style="color:var(--gold)">🏛 Venue total for the day</div>'+
+        '<div class="sumrow"><span>'+(g.name||'Tournament')+' final profit</span><span>'+money(profit)+'</span></div>'+
+        '<div class="sumrow"><span>Less: cash game promo</span><span>'+money(-rfPromoCost)+'</span></div>'+
+        '<div class="sumrow profitrow"><span><b>Venue net for the day</b></span><span style="color:'+(venueDay>=0?'var(--good)':'var(--red)')+'"><b>'+money(venueDay)+'</b></span></div>'+
+        '</div>';
+    }
     $('summaryPage').innerHTML=
       '<div class="sumwrap"><div class="sh">'+(g.name||'Close-out')+'</div>'+
       '<div class="ssub">'+($('venueSel').value||'')+' · '+($('gameDate').value||'')+'</div>'+
@@ -1034,7 +1120,16 @@
       '<div class="sumrow"><span>Less: staff wages</span><span>'+money(-wages)+'</span></div>'+
       '<div class="sumrow profitrow"><span><b>Final profit</b></span><span style="color:'+(profit>=0?'var(--good)':'var(--red)')+'"><b>'+money(profit)+'</b></span></div></div>'+
 
-      '<div class="cashbig"><div class="cbl">💵 Cash leftover in till</div><div class="cbv">'+money(leftover)+'</div></div>'+
+      rfBox+
+      dayBox+
+
+      '<div class="cashbig"><div class="cbl">💵 Cash leftover in till</div><div class="cbv">'+money(leftover)+'</div>'+
+      '<div class="cbbreak">'+
+        '<div class="cbrow"><span>Cash in (incl. other in)</span><span>'+money(cashInTill)+'</span></div>'+
+        '<div class="cbrow"><span>Less: cash prizes paid</span><span>'+money(-Math.abs(cashPaidTill))+'</span></div>'+
+        '<div class="cbrow cbtot"><span>Leftover in till</span><span>'+money(leftover)+'</span></div>'+
+        '<div class="cbnote">Tickets &amp; transfers aren\'t deducted — that cash stays in the till.</div>'+
+      '</div></div>'+
 
       '<div class="sumbtns"><button class="new" id="newCloseoutBtn" type="button">New close-out</button></div>'+
       '</div>';
@@ -1060,7 +1155,7 @@
   $('signinBtn').addEventListener('click', signIn);
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
   $('signoutBtn').addEventListener('click', signOut);
-  $('submitBtn').addEventListener('click', submit);
+  $('submitBtn').addEventListener('click', ()=>{ if($('voidChk')&&$('voidChk').checked){ submitVoid(); } else { submit(); } });
   $('lockBtn').addEventListener('click', ()=>{ if($('voidChk')&&$('voidChk').checked){ submitVoid(); } else { lockPlacings(); } });
   $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
@@ -1091,7 +1186,7 @@
     const isVoid = $('rfVoid') && $('rfVoid').checked;
     const promo = Number(currentGame.cash_promo_default)||0; // locked cash-game promo from admin setup
     const row={
-      submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name+' (Cash Game)',
+      submitted_by:user.id, venue_name:$('venueSel').value, game_name:'Rake Free Cash Game',
       game_date:$('gameDate').value||null, money_in:null, leftover_cash:0, promo_cost:promo||0,
       void: isVoid===true, is_cash_game:true,
       ges_players: (!isVoid && RF_GES_NAMES.length) ? RF_GES_NAMES.join('\n') : null
