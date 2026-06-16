@@ -498,22 +498,21 @@
       $('gameHint').textContent=games.length+' tournament'+(games.length>1?'s':'')+' at '+venue+'.';
     }
     sel._games=games;
-    // detect a parallel rake-free game for this venue (the one the TD isn't closing out as the main game)
-    const rfGames=ALL_GAMES.filter(g=>(g.venue_name||'')===venue && g.rake_free===true);
-    RF_PARALLEL_GAME = rfGames.length ? rfGames[0] : null;
+    // the parallel cash game is now configured ON the tournament itself (rake_free flag + cash_promo_* fields)
+    RF_PARALLEL_GAME = null;
     updateRfParallel();
     syncChips();
   }
   function updateRfParallel(){
     const panel=$('rfParallel'); if(!panel) return;
-    const mainIsRf = currentGame && currentGame.rake_free===true;
-    const show = RF_PARALLEL_GAME && !mainIsRf;
-    panel.style.display = show ? 'block':'none';
-    if(show){
-      $('rfParallelGame').textContent = RF_PARALLEL_GAME.name;
-      if($('rfParallelName')) $('rfParallelName').textContent = '· '+RF_PARALLEL_GAME.name;
-      const pc=Number(RF_PARALLEL_GAME.promo_default)||0;
-      const pd=RF_PARALLEL_GAME.promo_desc||'';
+    // show parallel cash-game section when the SELECTED tournament has a parallel rake-free game configured
+    const hasParallel = currentGame && currentGame.rake_free===true;
+    panel.style.display = hasParallel ? 'block':'none';
+    if(hasParallel){
+      if($('rfParallelGame')) $('rfParallelGame').textContent = currentGame.name+' — cash game';
+      if($('rfParallelName')) $('rfParallelName').textContent = '';
+      const pc=Number(currentGame.cash_promo_default)||0;
+      const pd=currentGame.cash_promo_desc||'';
       if($('rfPromoAmt')) $('rfPromoAmt').textContent = '$'+pc.toLocaleString();
       if($('rfPromoDesc')) $('rfPromoDesc').textContent = pd || '(no description set)';
     }
@@ -1060,9 +1059,9 @@
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
   $('rfRan')&&$('rfRan').addEventListener('change', ()=>{
     const on=$('rfRan').checked; $('rfFields').style.display = on ? 'block':'none';
-    if(on && RF_PARALLEL_GAME){
-      $('rfPromoDesc').textContent = RF_PARALLEL_GAME.promo_desc || 'No promotion';
-      $('rfPromoAmt').textContent = '$'+(Number(RF_PARALLEL_GAME.promo_default)||0).toLocaleString();
+    if(on && currentGame && currentGame.rake_free===true){
+      $('rfPromoDesc').textContent = currentGame.cash_promo_desc || 'No promotion';
+      $('rfPromoAmt').textContent = '$'+(Number(currentGame.cash_promo_default)||0).toLocaleString();
     }
   });
   $('rfVoid')&&$('rfVoid').addEventListener('change', ()=>{
@@ -1074,17 +1073,18 @@
   });
   // shared: save the parallel rake-free close-out if the TD marked it ran
   async function saveParallelRakeFree(){
-    if(!RF_PARALLEL_GAME) return null;
+    if(!currentGame || currentGame.rake_free!==true) return null;
     if(!$('rfRan') || !$('rfRan').checked) return null;
     const isVoid = $('rfVoid') && $('rfVoid').checked;
-    const promo = Number(RF_PARALLEL_GAME.promo_default)||0; // locked, from admin setup
+    const promo = Number(currentGame.cash_promo_default)||0; // locked cash-game promo from admin setup
     const row={
-      submitted_by:user.id, venue_name:$('venueSel').value, game_name:RF_PARALLEL_GAME.name,
+      submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name+' (Cash Game)',
       game_date:$('gameDate').value||null, money_in:null, leftover_cash:0, promo_cost:promo||0,
-      void: isVoid===true,
+      void: isVoid===true, is_cash_game:true,
       ges_players: (!isVoid && RF_GES_NAMES.length) ? RF_GES_NAMES.join('\n') : null
     };
     let ins = await supabase.from('closeouts').insert(row).select();
+    if(ins.error && /is_cash_game/.test(ins.error.message||'')){ delete row.is_cash_game; ins=await supabase.from('closeouts').insert(row).select(); }
     if(ins.error && /void/.test(ins.error.message||'')){ delete row.void; ins=await supabase.from('closeouts').insert(row).select(); }
     if(ins.error && /promo_cost/.test(ins.error.message||'')){ delete row.promo_cost; ins=await supabase.from('closeouts').insert(row).select(); }
     if(ins.error && /ges_players/.test(ins.error.message||'')){ delete row.ges_players; ins=await supabase.from('closeouts').insert(row).select(); }

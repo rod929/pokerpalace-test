@@ -183,25 +183,33 @@
 
   function gameForm(g){
     const rf=g.rake_free===true;
-    return '<label class="rfcheck"><input type="checkbox" data-f="rake_free"'+(rf?' checked':'')+'> <b>Rake Free Cash Game</b> — parallel game, no rake/margin/staff; only a promo cost (if any) hits the day P&amp;L</label>'+
-      '<div class="gridtwo">'+
+    return '<div class="gridtwo">'+
       '<div><label>Game name</label><input data-f="name" value="'+(g.name||'')+'"></div>'+
       '<div><label>Venue</label><select data-f="venue_name">'+venueOptions(g.venue_name)+'</select></div>'+
       '</div>'+
-      '<div class="gridthree'+(rf?' rfdim':'')+'">'+
+      '<div class="gridthree">'+
       '<div><label>Day</label><select data-f="game_day">'+dayOptions(g.game_day)+'</select></div>'+
       '<div><label>Buy-in $</label><input data-f="buy_in" type="number" value="'+(g.buy_in??'')+'"></div>'+
       '<div><label>Rake $</label><input data-f="rake" type="number" value="'+(g.rake??'')+'"></div>'+
       '</div>'+
-      '<div class="gridtwo'+(rf?' rfdim':'')+'">'+
+      '<div class="gridtwo">'+
       '<div><label>Add-on price $</label><input data-f="addon_price" type="number" value="'+(g.addon_price??'')+'"></div>'+
       '<div><label>Guarantee $</label><input data-f="guarantee" type="number" value="'+(g.guarantee??'')+'"></div>'+
       '</div>'+
+      // Tournament Promotion — always shown
       '<div class="rfpromo"><div class="rfpromoh">🎁 Tournament Promotion (pre-set for TDs)</div>'+
         '<div class="gridtwo">'+
         '<div><label>Promo cost $</label><input data-f="promo_default" type="number" value="'+(g.promo_default??'')+'" placeholder="0"></div>'+
         '<div><label>Promo description</label><input data-f="promo_desc" value="'+((g.promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand bonus"></div>'+
         '</div><div class="hint" style="margin-top:6px">Set by admin — pre-fills (locked) on the TD\'s close-out and reduces this game\'s net profit.</div></div>'+
+      // Rake-free parallel toggle
+      '<label class="rfcheck"><input type="checkbox" data-f="rake_free"'+(rf?' checked':'')+'> <b>Rake Free Cash Game runs in parallel</b> — a cash game alongside this tournament; no rake/margin, only its promo cost hits the day P&amp;L</label>'+
+      // Cash Game Promotion — only when rake-free ticked
+      (rf?('<div class="rfpromo" style="border-color:var(--blue)"><div class="rfpromoh" style="color:var(--blue)">🎲 Cash Game Promotion (pre-set for TDs)</div>'+
+        '<div class="gridtwo">'+
+        '<div><label>Promo cost $</label><input data-f="cash_promo_default" type="number" value="'+(g.cash_promo_default??'')+'" placeholder="0"></div>'+
+        '<div><label>Promo description</label><input data-f="cash_promo_desc" value="'+((g.cash_promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand $200"></div>'+
+        '</div><div class="hint" style="margin-top:6px">For the parallel cash game — pre-fills (locked) on the TD\'s close-out.</div></div>'):'')+
       '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
       '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
       '<button class="delbtn" data-delete type="button">🗑 Delete</button>'+
@@ -254,7 +262,7 @@
   }
 
   async function saveGame(card,gid){
-    const fields={}; card.querySelectorAll('[data-f]').forEach(el=>{ const f=el.dataset.f; let v= el.type==='checkbox'?el.checked:el.value; if(['buy_in','rake','addon_price','guarantee','promo_default'].includes(f)) v = v===''?null:Number(v); fields[f]=v; });
+    const fields={}; card.querySelectorAll('[data-f]').forEach(el=>{ const f=el.dataset.f; let v= el.type==='checkbox'?el.checked:el.value; if(['buy_in','rake','addon_price','guarantee','promo_default','cash_promo_default'].includes(f)) v = v===''?null:Number(v); fields[f]=v; });
     const saveBtn=card.querySelector('[data-save]'); saveBtn.disabled=true; clearStatus();
     try{
       const { error: gErr } = await supabase.from('games').update(fields).eq('id', gid);
