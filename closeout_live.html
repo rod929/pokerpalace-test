@@ -253,10 +253,14 @@
       </div>
     </div>
 
+    <!-- void toggle (its own row, every tournament) -->
+    <div class="card" id="voidCard" style="display:none">
+      <label class="voidtoggle" id="voidToggle" style="display:block;margin:0"><input type="checkbox" id="voidChk"> <b>⛔ Tournament did not run (void)</b> — insufficient players. Ticking this blocks out the Entries section. No prizes/guarantee/club money; staff still get paid. If a rake-free cash game ran, record it below.</label>
+    </div>
+
     <!-- 1. entries -->
-    <div class="card">
+    <div class="card" id="entriesCard">
       <h2><span class="n">1</span> Entries <span class="req">&#9679;</span></h2>
-      <label class="voidtoggle" id="voidToggle" style="display:none"><input type="checkbox" id="voidChk"> <b>⛔ Game did not run (void)</b> — insufficient players. No GES data needed; no prizes/guarantee/club money. Staff still get paid; club money only if a rake-free game ran tonight.</label>
       <p class="lead">Paste the GES entry report below to auto-fill the counts — or type them in. Add-ons stay manual (GES doesn't report those).</p>
 
       <div class="gesbox" id="gesEntryBox">
@@ -537,8 +541,8 @@
     // rake_free is now a PARALLEL cash game on the tournament — the tournament itself closes out normally.
     document.body.classList.remove('rakefree-mode');
     const lb=$('lockBtn'); if(lb && !($('voidChk')&&$('voidChk').checked)) lb.style.display='';
-    // void toggle available for any selected game
-    const vt=$('voidToggle'); if(vt) vt.style.display = currentGame ? 'block':'none';
+    // void card available for any selected game
+    const vc=$('voidCard'); if(vc) vc.style.display = currentGame ? 'block':'none';
     applyVoidMode();
   }
   function applyVoidMode(){
@@ -547,7 +551,8 @@
     const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none':'';
     const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
     const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
-    const gb=$('gesEntryBox'); if(gb) gb.style.display = isVoid ? 'none':'';
+    // block the whole Entries section when void
+    const ec=$('entriesCard'); if(ec) ec.style.display = isVoid ? 'none':'';
   }
   async function submitVoid(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
