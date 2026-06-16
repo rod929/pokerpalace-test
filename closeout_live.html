@@ -297,7 +297,7 @@
     <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">✅ As soon as registration closes</span><span class="pb-line"></span></div>
 
     <!-- 2. money in -->
-    <div class="card rf-hide void-hide" id="secMoney">
+    <div class="card void-hide" id="secMoney">
       <h2><span class="n">2</span> Money In</h2>
       <p class="lead">Cash, transfer and ticket totals come from the GES import. Add anything else under "Other in".</p>
       <div class="grid">
@@ -314,7 +314,7 @@
     </div>
 
     <!-- 3. placings -->
-    <div class="card rf-hide void-hide" id="secPlace">
+    <div class="card void-hide" id="secPlace">
       <h2><span class="n">3</span> Placing Schedule</h2>
       <p class="lead">One card per paid place. Enter the prize and how it's paid — tap "+ split payment" to pay one prize across cash, transfer and/or ticket. For tickets, pick from the list. No player names needed.</p>
       <div id="placeBody"></div>
@@ -337,7 +337,7 @@
     </div>
 
     <!-- 3b. reconciliation (appears after lock) -->
-    <div class="card rf-hide void-hide" id="reconCard" style="display:none">
+    <div class="card void-hide" id="reconCard" style="display:none">
       <h2><span class="n">✓</span> Payment Reconciliation</h2>
       <p class="lead">Pick the winner for each place and confirm. Transfers are assigned a winner but paid later by Admin (they stay pending).</p>
       <div class="reconprog"><div class="rbar"><div class="rfill" id="rFill"></div></div><div class="rtxt" id="rTxt">0 of 0 paid</div></div>
@@ -352,7 +352,7 @@
     <div class="phasebar"><span class="pb-line"></span><span class="pb-txt">⏱ At tournament completion</span><span class="pb-line"></span></div>
 
     <!-- 4. staff -->
-    <div class="card rf-hide" id="secStaff">
+    <div class="card" id="secStaff">
       <h2><span class="n">4</span> Staff Timesheet</h2>
       <p class="lead">Pick who worked from the staff list and enter their hours — the rate comes from the locked staff setup. Add a row per person.</p>
       <table class="wtbl" id="staffTbl">
@@ -553,6 +553,10 @@
     const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
     // block the whole Entries section when void
     const ec=$('entriesCard'); if(ec) ec.style.display = isVoid ? 'none':'';
+    // staff stays visible (they get paid) even when void
+    const st=$('secStaff'); if(st) st.style.display = '';
+    // re-evaluate the rake-free parallel section (stays visible if the tournament has one)
+    updateRfParallel();
   }
   async function submitVoid(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
