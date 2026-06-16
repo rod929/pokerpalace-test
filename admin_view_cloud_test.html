@@ -42,7 +42,8 @@
   .dmut{color:#76757a;font-size:12px;padding:4px 0}
   .dchips{display:flex;flex-wrap:wrap;gap:5px} .dchip{background:#1e1e23;border:1px solid #34343a;border-radius:13px;padding:4px 10px;font-size:12px;color:#a5a4a8} .dchip.w{background:rgba(201,184,150,.13);border-color:#c9b896;color:#c9b896;font-weight:600}
   .cobox{background:#1b1b21;border:1px solid #3a3a44;border-radius:10px;padding:12px 13px;margin-bottom:4px}
-  .pnlbox{background:linear-gradient(160deg,#1d1f26,#202830);border:1px solid #3a4452;border-radius:10px;padding:12px 13px;margin-bottom:4px}
+  .pnlbox{background:linear-gradient(160deg,#241f2e,#2a2438);border:1px solid #5a4a7a;border-radius:10px;padding:12px 13px;margin-bottom:4px;box-shadow:0 0 0 1px rgba(127,100,180,.15) inset}
+  .secbox{background:#1c1d22;border:1px solid #313640;border-radius:10px;padding:11px 13px;margin-bottom:4px}
   .netprofit{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:12px 13px;border-radius:9px;background:rgba(92,184,138,.1);border:1px solid #3f8c66}
   .netprofit.neg{background:rgba(224,122,95,.1);border-color:#a14b39}
   .netprofit span:first-child{font-family:'Archivo',sans-serif;font-weight:800;font-size:12px;letter-spacing:.05em;color:#d8d8d8}
@@ -195,29 +196,34 @@
     ) : '<div class="dmut">No game setup found for "'+(c.game_name||'')+'" — can\'t compute rake/overlay. (Game may be renamed or retired.)</div>';
 
     // staff (moved up — before prize sections)
-    h+='<div class="dsec">👷 Staff</div>';
+    h+='<div class="dsec">👷 Staff</div><div class="secbox">';
     h+= shf.length? shf.map(s=>'<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+'</span><span>'+money((Number(s.hours)||0)*(Number(s.rate)||0))+'</span></div>').join(''):'<div class="dmut">No staff recorded.</div>';
+    h+='</div>';
 
     // prize pool breakdown
-    h+='<div class="dsec">🎰 Prize pool</div>';
+    h+='<div class="dsec">🎰 Prize pool</div><div class="secbox">';
     h+= row('Prize pool', money(pool))+
         row('Guarantee', money(gtee))+
         row('Overlay (shortfall)', overlay>0?money(overlay):money(0), overlay>0?'#e07a5f':'')+
         row('Total prizes paid', money(prizesPaid));
-    h+='<div class="dsec">💳 Prizes paid by</div>';
+    h+='</div>';
+    h+='<div class="dsec">💳 Prizes paid by</div><div class="secbox">';
     h+= row('Cash', money(pcash))+row('Transfer', money(ptfr))+row('Ticket', money(ptkt));
+    h+='</div>';
 
     // winners
-    h+='<div class="dsec">🏆 Winners</div>';
+    h+='<div class="dsec">🏆 Winners</div><div class="secbox">';
     h+= plc.length? plc.filter(p=>Number(p.amount)>0).map(p=>{
       const a2=Number(p.amount_2)||0,a3=Number(p.amount_3)||0,a1=(Number(p.amount)||0)-a2-a3;
       const parts=[[p.paid_by,a1],[p.paid_by_2,a2],[p.paid_by_3,a3]].filter(x=>x[0]&&x[1]>0).map(x=>x[0]+' '+money(x[1])).join(' + ');
       return '<div class="dl"><span>'+p.place+suf(p.place)+' · '+(p.player_name||'(unassigned)')+'<br><span style="font-size:10px;color:#76757a">'+parts+'</span></span><span>'+money(p.amount)+'</span></div>';
     }).join(''):'<div class="dmut">No placings.</div>';
+    h+='</div>';
 
     // players
-    h+='<div class="dsec">👥 All players ('+players.length+')</div>';
+    h+='<div class="dsec">👥 All players ('+players.length+')</div><div class="secbox">';
     h+= players.length? '<div class="dchips">'+players.map(n=>'<span class="dchip'+(winNames.has(n.toLowerCase())?' w':'')+'">'+(winNames.has(n.toLowerCase())?'🏆 ':'')+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list for this game.</div>';
+    h+='</div>';
     return h;
   }
 
