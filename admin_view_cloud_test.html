@@ -197,7 +197,7 @@
 
     // staff (moved up — before prize sections)
     h+='<div class="dsec">👷 Staff</div><div class="secbox">';
-    h+= shf.length? shf.map(s=>'<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+'</span><span>'+money((Number(s.hours)||0)*(Number(s.rate)||0))+'</span></div>').join(''):'<div class="dmut">No staff recorded.</div>';
+    h+= shf.length? shf.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
     h+='</div>';
 
     // prize pool breakdown
