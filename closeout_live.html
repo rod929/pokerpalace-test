@@ -248,7 +248,6 @@
       <select class="inp" id="gameSel" disabled><option value="">Pick a venue first</option></select>
       <div class="hint" id="gameHint">Tournaments are filtered to the venue you choose.</div>
       <div id="rfBanner" style="display:none;margin-top:12px;background:rgba(127,160,196,.1);border:1px solid var(--blue);border-radius:9px;padding:12px;font-size:13px;color:var(--ink-dim)">🎲 <b style="color:var(--ink)">Rake Free Cash Game</b> — light close-out. Just import the GES players and add any promotion cost. No rake, prizes, money-in or staff needed.</div>
-      <label class="voidtoggle" id="voidToggle" style="display:none"><input type="checkbox" id="voidChk"> <b>⛔ Game did not run (void)</b> — insufficient players. No prizes, guarantee or club money; staff still get paid. Club money only applies if a rake-free game ran tonight.</label>
       <div id="promoField" style="display:none;margin-top:12px">
         <label class="fld" style="font-size:14px;color:var(--ink-dim);margin-bottom:6px;display:block">Promotion cost (optional)</label>
         <div class="inrow"><span class="pre">$</span><input id="promoCost" type="number" placeholder="0" min="0"></div>
@@ -260,9 +259,10 @@
     <!-- 1. entries -->
     <div class="card">
       <h2><span class="n">1</span> Entries <span class="req">&#9679;</span></h2>
+      <label class="voidtoggle" id="voidToggle" style="display:none"><input type="checkbox" id="voidChk"> <b>⛔ Game did not run (void)</b> — insufficient players. No GES data needed; no prizes/guarantee/club money. Staff still get paid; club money only if a rake-free game ran tonight.</label>
       <p class="lead">Paste the GES entry report below to auto-fill the counts — or type them in. Add-ons stay manual (GES doesn't report those).</p>
 
-      <div class="gesbox">
+      <div class="gesbox" id="gesEntryBox">
         <div class="gesh">📋 Import GES entry report</div>
         <p class="gesp">After registration closes, export the entry report from GES, then upload the CSV file here. It counts total entries, unique players and re-entries automatically.</p>
         <input type="file" id="gesFile" accept=".csv,text/csv" class="gesfile">
@@ -366,6 +366,28 @@
 
     <button class="submit block" id="submitBtn">Finalise close-out</button>
     <button class="submit block" id="voidSubmitBtn" style="display:none;background:var(--red);border-color:var(--red)">⛔ Submit void game (staff only)</button>
+
+    <!-- parallel rake-free cash game (shows if venue has one set up) -->
+    <div class="card" id="rfParallel" style="display:none;border:1px solid var(--blue)">
+      <h2><span class="n">🎲</span> Rake Free Cash Game <span style="font-size:12px;color:var(--ink-faint);font-weight:400" id="rfParallelName"></span></h2>
+      <p class="lead">A parallel cash game ran tonight (<b id="rfParallelGame">—</b>). Import its GES players and add any promo cost. This saves as its own record and triggers the club fee for the night.</p>
+      <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfRan"><span class="t">A rake-free cash game ran tonight<small>Tick to include it in this close-out</small></span></label>
+      <div id="rfFields" style="display:none">
+        <label class="confirm" style="margin-bottom:12px"><input type="checkbox" id="rfVoid"><span class="t">⛔ Rake-free game did not run (void)<small>Tick if the cash game was set up but didn't run — no GES needed</small></span></label>
+        <div id="rfLiveFields">
+          <div class="gesbox" style="margin-bottom:12px">
+            <div class="gesh">📋 Import GES players (cash game)</div>
+            <textarea id="rfGesPaste" placeholder="Paste the GES report for the cash game here…" style="width:100%;box-sizing:border-box;min-height:90px;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12px"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px"><button class="addrow" id="rfGesBtn" type="button">Parse players</button><span id="rfGesCount" style="font-size:12.5px;color:var(--ink-dim);align-self:center"></span></div>
+          </div>
+        </div>
+        <div id="rfPromoBox" style="background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;margin-top:4px">
+          <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Promotion (set by admin)</div>
+          <div style="display:flex;justify-content:space-between"><span id="rfPromoDesc" style="color:var(--ink-dim)">—</span><b id="rfPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
+        </div>
+      </div>
+    </div>
+
     <div class="blockwhy" id="blockWhy"></div>
     </div>
 
@@ -388,7 +410,7 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[], ALL_STAFF_RATES=[];
-  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[];
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null;
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -472,13 +494,32 @@
       $('gameHint').textContent=games.length+' tournament'+(games.length>1?'s':'')+' at '+venue+'.';
     }
     sel._games=games;
+    // detect a parallel rake-free game for this venue (the one the TD isn't closing out as the main game)
+    const rfGames=ALL_GAMES.filter(g=>(g.venue_name||'')===venue && g.rake_free===true);
+    RF_PARALLEL_GAME = rfGames.length ? rfGames[0] : null;
+    updateRfParallel();
     syncChips();
+  }
+  function updateRfParallel(){
+    const panel=$('rfParallel'); if(!panel) return;
+    const mainIsRf = currentGame && currentGame.rake_free===true;
+    const show = RF_PARALLEL_GAME && !mainIsRf;
+    panel.style.display = show ? 'block':'none';
+    if(show){
+      $('rfParallelGame').textContent = RF_PARALLEL_GAME.name;
+      if($('rfParallelName')) $('rfParallelName').textContent = '· '+RF_PARALLEL_GAME.name;
+      const pc=Number(RF_PARALLEL_GAME.promo_default)||0;
+      const pd=RF_PARALLEL_GAME.promo_desc||'';
+      if($('rfPromoAmt')) $('rfPromoAmt').textContent = '$'+pc.toLocaleString();
+      if($('rfPromoDesc')) $('rfPromoDesc').textContent = pd || '(no description set)';
+    }
   }
 
   function onGameChange(){
     const sel=$('gameSel'); const idx=sel.value;
     currentGame = (idx!=='' && sel._games) ? sel._games[Number(idx)] : null;
     applyRakeFreeMode();
+    updateRfParallel();
     syncChips();
   }
   function applyRakeFreeMode(){
@@ -498,6 +539,7 @@
     const lb=$('lockBtn'); if(lb) lb.style.display = isVoid ? 'none' : (currentGame&&currentGame.rake_free===true?'none':'');
     const sb=$('submitBtn'); if(sb) sb.style.display = isVoid ? 'none':'';
     const vb=$('voidSubmitBtn'); if(vb) vb.style.display = isVoid ? 'block':'none';
+    const gb=$('gesEntryBox'); if(gb) gb.style.display = isVoid ? 'none':'';
   }
   async function submitVoid(){
     if(!currentGame){ setStatus('Pick a game first.','err'); return; }
@@ -522,7 +564,9 @@
         const rows=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, start:s.start||null, finish:s.finish||null, paid:false, pay_status:'outstanding'}));
         await supabase.from('staff_shifts').insert(rows);
       }
-      setStatus('⛔ Void game saved'+(shifts.length?(' with '+shifts.length+' staff shift(s)'):'')+'. Staff wages recorded.','ok');
+      // also save the parallel rake-free game if the TD marked it ran
+      const rfCo = await saveParallelRakeFree();
+      setStatus('⛔ Void game saved'+(shifts.length?(' with '+shifts.length+' staff shift(s)'):'')+(rfCo?' + rake-free cash game recorded':'')+'. Staff wages recorded.','ok');
       btn.textContent='✓ Submitted';
       setTimeout(()=>{ window.location.href='index.html'; }, 1500);
     }catch(e){ setStatus('Could not save void: '+(e.message||e),'err'); btn.disabled=false; }
@@ -924,6 +968,8 @@
         if(sErr) throw new Error('Staff save failed: '+sErr.message);
       }
       clearStatus();
+      // also save the parallel rake-free game if the TD marked it ran
+      await saveParallelRakeFree();
       showSummary(validStaff);
       loadMine();
     }catch(e){ setStatus('&#10007; Could not finalise: '+(e.message||e),'err'); $('submitBtn').disabled=false; }
@@ -989,6 +1035,38 @@
   $('rfSubmitBtn')&&$('rfSubmitBtn').addEventListener('click', submitRakeFree);
   $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);
+  $('rfRan')&&$('rfRan').addEventListener('change', ()=>{
+    const on=$('rfRan').checked; $('rfFields').style.display = on ? 'block':'none';
+    if(on && RF_PARALLEL_GAME){
+      $('rfPromoDesc').textContent = RF_PARALLEL_GAME.promo_desc || 'No promotion';
+      $('rfPromoAmt').textContent = '$'+(Number(RF_PARALLEL_GAME.promo_default)||0).toLocaleString();
+    }
+  });
+  $('rfVoid')&&$('rfVoid').addEventListener('change', ()=>{
+    const v=$('rfVoid').checked; const live=$('rfLiveFields'); if(live) live.style.display = v ? 'none':'block';
+  });
+  $('rfGesBtn')&&$('rfGesBtn').addEventListener('click', ()=>{
+    const raw=$('rfGesPaste').value; const names=parseGesNames(raw);
+    RF_GES_NAMES=names; $('rfGesCount').textContent = names.length ? ('✓ '+names.length+' players') : 'No players found — check the paste.';
+  });
+  // shared: save the parallel rake-free close-out if the TD marked it ran
+  async function saveParallelRakeFree(){
+    if(!RF_PARALLEL_GAME) return null;
+    if(!$('rfRan') || !$('rfRan').checked) return null;
+    const isVoid = $('rfVoid') && $('rfVoid').checked;
+    const promo = Number(RF_PARALLEL_GAME.promo_default)||0; // locked, from admin setup
+    const row={
+      submitted_by:user.id, venue_name:$('venueSel').value, game_name:RF_PARALLEL_GAME.name,
+      game_date:$('gameDate').value||null, money_in:null, leftover_cash:0, promo_cost:promo||0,
+      void: isVoid===true,
+      ges_players: (!isVoid && RF_GES_NAMES.length) ? RF_GES_NAMES.join('\n') : null
+    };
+    let ins = await supabase.from('closeouts').insert(row).select();
+    if(ins.error && /void/.test(ins.error.message||'')){ delete row.void; ins=await supabase.from('closeouts').insert(row).select(); }
+    if(ins.error && /promo_cost/.test(ins.error.message||'')){ delete row.promo_cost; ins=await supabase.from('closeouts').insert(row).select(); }
+    if(ins.error && /ges_players/.test(ins.error.message||'')){ delete row.ges_players; ins=await supabase.from('closeouts').insert(row).select(); }
+    return ins.error ? null : (ins.data && ins.data[0]);
+  }
   $('addPlace').addEventListener('click', addPlace);
   $('addStaff').addEventListener('click', addStaff);
   $('venueSel').addEventListener('change', onVenueChange);
@@ -1009,6 +1087,17 @@
   });
 
   // ---- GES entry report parser (works on raw CSV text from file or paste) ----
+  function parseGesNames(raw){
+    raw=(raw||'').trim(); if(!raw) return [];
+    const lines=raw.split(/\r?\n/).filter(l=>l.trim());
+    let headerIdx=lines.findIndex(l=>/last name/i.test(l) && /first name/i.test(l));
+    if(headerIdx===-1) headerIdx=0;
+    const dataLines=lines.slice(headerIdx+1);
+    const splitCSV=(line)=>{ const out=[]; let cur='',q=false; for(const ch of line){ if(ch==='"'){q=!q;} else if(ch===','&&!q){out.push(cur);cur='';} else cur+=ch; } out.push(cur); return out.map(s=>s.trim()); };
+    const names=new Set();
+    dataLines.forEach(l=>{ const c=splitCSV(l); const last=(c[0]||'').replace(/^'/,'').trim(), first=(c[1]||'').replace(/^'/,'').trim(); if(!last&&!first)return; const disp=(first+' '+last).trim(); if(disp) names.add(disp); });
+    return [...names].sort();
+  }
   function parseGES(raw, fileName){
     raw=(raw||'').trim();
     if(!raw){ $('gesResult').style.color='var(--red)'; $('gesResult').textContent='No data — choose a file or paste the report.'; return; }
