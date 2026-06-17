@@ -191,6 +191,8 @@
     $('allBtn').style.display='block';await loadAll();
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');$('allBtn').style.display='none';}
+  // re-load data when returning to the dashboard (e.g. back from the report after acknowledging) so flags refresh
+  window.addEventListener('pageshow', (e)=>{ if(user && isAdmin){ loadAll(); } });
 
   async function loadAll(){
     try{
@@ -402,10 +404,13 @@
     if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period',link:'venues_invoicing_live.html',cta:'Open Venues & Invoicing'}); }
     // 4. close-outs whose game has no setup (breaks P&L)
     const noSetup=cos.filter(c=>{const g=gameFor(c); return !g || (!(Number(g.buy_in))&&!(Number(g.rake))&&!(Number(g.guarantee)));});
-    if(noSetup.length){ flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these',link:'game_setup_live.html',cta:'Open Game Setup'}); }
+    if(noSetup.length){ const nsLink = noSetup.length===1 ? ('admin_view_cloud_test.html#co='+noSetup[0].id) : 'game_setup_live.html';
+      flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these',link:nsLink,cta:noSetup.length===1?'Open this tournament':'Open Game Setup'}); }
     // 5. overlay games (lost on the guarantee) — excluding ones already acknowledged
     const overlays=cos.filter(c=>gamingMargin(c).overlay>0 && c.overlay_ack!==true);
-    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0); flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — open the report to acknowledge',link:'admin_view_cloud_test.html',cta:'Open Tournament Report'}); }
+    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0);
+      const olLink = overlays.length===1 ? ('admin_view_cloud_test.html#co='+overlays[0].id) : 'admin_view_cloud_test.html#overlays';
+      flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — open the report to acknowledge',link:olLink,cta:overlays.length===1?'Open this tournament':'Open Tournament Report'}); }
     // 6. acknowledged-but-unpaid wages (transfer/invoice committed, not yet confirmed paid)
     const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
     if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
