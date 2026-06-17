@@ -200,6 +200,9 @@
   body.rakefree-mode .rf-hide{display:none !important}
   body.void-mode .void-hide{display:none !important}
   .voidtoggle{display:block;margin-top:12px;background:rgba(224,122,95,.08);border:1px solid var(--red);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink-dim);cursor:pointer;line-height:1.5} .voidtoggle input{accent-color:var(--red);margin-right:6px} .voidtoggle b{color:var(--ink)}
+  .editco{margin-top:10px;width:100%;background:var(--chip);border:1px solid var(--amber);color:var(--amber);border-radius:8px;padding:9px;font-weight:600;cursor:pointer;font-size:13px}
+  .editco:hover{background:rgba(224,173,85,.1)}
+  .lockedtag{margin-top:10px;font-size:11.5px;color:var(--ink-faint);font-style:italic;padding:7px 0}
 </style>
 
 <div class="wrap">
@@ -419,7 +422,7 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[], ALL_STAFF_RATES=[];
-  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null;
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null, EDIT_ID=null;
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -576,8 +579,11 @@
     if(!$('venueSel').value){ setStatus('Pick a venue.','err'); return; }
     const btn=$('lockBtn'); if(btn) btn.disabled=true; setStatus('Saving void close-out...','ok');
     try{
-      // gather staff (so they get paid)
-      const shifts=staff.filter(s=>(s.name&&s.name.trim())&&calcHours(s.start,s.finish)>0&&(Number(s.rate)>0));
+      // gather staff (so they get paid). Lenient: keep anyone with a name and some hours OR a rate.
+      const allNamed=staff.filter(s=>s.name&&s.name.trim());
+      const shifts=allNamed.filter(s=>(calcHours(s.start,s.finish)>0)||(Number(s.rate)>0));
+      const skipped=allNamed.length-shifts.length;
+      if(skipped>0){ if(!confirm(skipped+' staff row(s) have no hours/rate and will be skipped. Continue?\n\n(Make sure each staff member has a start & finish time and a rate.)')){ if(btn) btn.disabled=false; setStatus('','ok'); return; } }
       const row={
         submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
         game_date:$('gameDate').value||null, void:true,
@@ -838,15 +844,71 @@
 
   async function loadMine(){
     try{
-      const { data, error } = await supabase.from('closeouts').select('*').order('id',{ascending:false}).limit(10);
+      const { data, error } = await supabase.from('closeouts').select('*').eq('submitted_by',user.id).order('id',{ascending:false}).limit(10);
       if(error) throw error;
       if(!data.length){ $('mine').innerHTML='<div class="co">No close-outs yet.</div>'; return; }
+      const ids=data.map(c=>c.id);
+      // load lock signals: paid staff shifts + confirmed cash hand-ups for these close-outs
+      let paidShiftCoIds=new Set(), confirmedCashCoIds=new Set();
+      try{ const sh=(await supabase.from('staff_shifts').select('closeout_id,paid').in('closeout_id',ids)).data||[]; sh.forEach(s=>{ if(s.paid) paidShiftCoIds.add(String(s.closeout_id)); }); }catch(e){}
+      try{ const cm=(await supabase.from('cash_movements').select('closeout_id,status').in('closeout_id',ids)).data||[]; cm.forEach(m=>{ if(m.status==='approved') confirmedCashCoIds.add(String(m.closeout_id)); }); }catch(e){}
       $('mine').innerHTML=data.map(c=>{
         const fresh=c.id===lastId?' fresh':'';
+        const locked = paidShiftCoIds.has(String(c.id)) || confirmedCashCoIds.has(String(c.id));
+        const action = locked
+          ? '<div class="lockedtag">🔒 Locked — admin has actioned this. Ask admin to amend.</div>'
+          : '<button class="editco" data-edit="'+c.id+'" type="button">✏️ Edit / fix this close-out</button>';
         return '<div class="co'+fresh+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+(fresh?'  &larr; just submitted':'')+'</div><div class="codate">'+(c.game_date||'')+'</div></div>'+
-          '<div class="cometa">'+(c.venue_name||'')+' &middot; '+(c.entries||0)+' entries &middot; in $'+(c.money_in||0)+' &middot; leftover $'+(c.leftover_cash||0)+'</div></div>';
+          '<div class="cometa">'+(c.venue_name||'')+' &middot; '+(c.entries||0)+' entries &middot; in $'+(c.money_in||0)+' &middot; leftover $'+(c.leftover_cash||0)+'</div>'+
+          action+'</div>';
       }).join('');
+      $('mine').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>startEdit(b.dataset.edit)));
     }catch(e){ $('mine').innerHTML=''; }
+  }
+
+  async function startEdit(coId){
+    try{
+      setStatus('Loading close-out to edit…','ok');
+      const co=(await supabase.from('closeouts').select('*').eq('id',coId).single()).data;
+      if(!co){ setStatus('Could not load that close-out.','err'); return; }
+      const pls=(await supabase.from('placings').select('*').eq('closeout_id',coId).order('place')).data||[];
+      const shs=(await supabase.from('staff_shifts').select('*').eq('closeout_id',coId)).data||[];
+      EDIT_ID=co.id; LOCKED_ID=null;
+      $('venueSel').value=co.venue_name||'';
+      onVenueChange();
+      setTimeout(()=>{ const sel=$('gameSel'); if(sel&&sel._games){ const gi=sel._games.findIndex(g=>g.name===co.game_name); if(gi>=0){ sel.value=String(gi); onGameChange(); } } }, 200);
+      if(co.game_date) $('gameDate').value=co.game_date;
+      $('totent').value=co.entries??''; $('uniq').value=co.unique_players??''; $('reent').value=co.re_entries??'';
+      if($('addon')) $('addon').value=co.addons??''; if($('newp')) $('newp').value=co.new_players??'';
+      if($('otherIn')) $('otherIn').value=co.other_in??'';
+      GES_NAMES=(co.ges_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      GES_TICKET_NAMES=(co.ges_ticket_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      places = pls.length ? pls.map(p=>{
+        const splits=[{method:p.paid_by||'cash',amount:p.amount!=null?(Number(p.amount)-(Number(p.amount_2)||0)-(Number(p.amount_3)||0)):'',ticket_id:p.ticket_id||null}];
+        if(p.paid_by_2&&(Number(p.amount_2)||0)>0) splits.push({method:p.paid_by_2,amount:Number(p.amount_2),ticket_id:p.ticket_id_2||null});
+        if(p.paid_by_3&&(Number(p.amount_3)||0)>0) splits.push({method:p.paid_by_3,amount:Number(p.amount_3),ticket_id:p.ticket_id_3||null});
+        return {place:p.place, player_name:p.player_name||'', splits};
+      }) : [{splits:[{method:'cash',amount:'',ticket_id:null}]}];
+      renderPlaces();
+      staff = shs.length ? shs.map(s=>({staff_id:s.staff_id||null, name:s.staff_name||'', role:s.role||'', hours:s.hours||'', rate:s.rate||'', start:s.start||'', finish:s.finish||'', rate_id:null})) : [];
+      if(!staff.length){ staff=[{staff_id:null,name:'',role:'',hours:'',rate:'',rate_id:null}]; }
+      renderStaff();
+      if($('confirmEntries')) $('confirmEntries').checked=true;
+      showEditBanner(co);
+      window.scrollTo({top:0,behavior:'smooth'});
+      clearStatus();
+    }catch(e){ setStatus('Could not load close-out: '+(e.message||e),'err'); }
+  }
+  function showEditBanner(co){
+    let banner=$('editBanner');
+    if(!banner){
+      banner=document.createElement('div'); banner.id='editBanner';
+      banner.style.cssText='background:rgba(224,173,85,.1);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--ink)';
+      const app=$('app'); app.insertBefore(banner, app.firstChild.nextSibling);
+    }
+    banner.innerHTML='✏️ <b>Editing close-out</b> — '+(co.game_name||'')+' · '+(co.game_date||'')+'. Make your changes and re-save. <button id="cancelEdit" style="margin-left:8px;background:var(--chip);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer">Cancel edit</button>';
+    banner.style.display='block';
+    $('cancelEdit').addEventListener('click',()=>{ EDIT_ID=null; banner.style.display='none'; location.reload(); });
   }
 
   function validate(){
@@ -901,6 +963,18 @@
         ges_ticket_players: GES_TICKET_NAMES.length ? GES_TICKET_NAMES.join('\n') : null
       };
       let co=null;
+      if(EDIT_ID){
+        // EDIT MODE: update the existing close-out, then replace its placings
+        const upd = await supabase.from('closeouts').update(row).eq('id',EDIT_ID).select();
+        if(upd.error){
+          // strip optional columns and retry
+          const r2row={...row}; delete r2row.promo_cost; delete r2row.cash_leftover_calc; delete r2row.other_in_note;
+          const upd2 = await supabase.from('closeouts').update(r2row).eq('id',EDIT_ID).select();
+          if(upd2.error) throw upd2.error; co=upd2.data&&upd2.data[0]?upd2.data[0]:{id:EDIT_ID};
+        } else { co=upd.data&&upd.data[0]?upd.data[0]:{id:EDIT_ID}; }
+        // remove old placings for this close-out (we re-insert fresh below)
+        await supabase.from('placings').delete().eq('closeout_id',EDIT_ID);
+      } else {
       const ins = await supabase.from('closeouts').insert(row).select();
       if(ins.error){
         if(/promo_cost/.test(ins.error.message||'')){
@@ -916,6 +990,7 @@
         } else { throw ins.error; }
       } else {
         co = ins.data && ins.data[0] ? ins.data[0] : null;
+      }
       }
       lastId = co ? co.id : null; LOCKED_ID = lastId;
       const placeRows = validPlaces.map((p,idx)=>{
@@ -1044,15 +1119,20 @@
     $('submitBtn').disabled=true; setStatus('Finalising...','ok');
     try{
       const validStaff = staff.filter(s => (s.name && s.name.trim()) || Number(s.hours)>0);
+      // in edit mode, clear old staff shifts first so we don't duplicate
+      if(EDIT_ID){ await supabase.from('staff_shifts').delete().eq('closeout_id', LOCKED_ID); }
       if(validStaff.length){
         const staffRows = validStaff.map(s=>({ closeout_id: LOCKED_ID, staff_name:s.name?s.name.trim():null, role:s.role?s.role.trim():null, hours:calcHours(s.start,s.finish)||null, rate:s.rate?Number(s.rate):null }));
         const { error: sErr } = await supabase.from('staff_shifts').insert(staffRows);
         if(sErr) throw new Error('Staff save failed: '+sErr.message);
       }
       clearStatus();
-      // also save the parallel rake-free game if the TD marked it ran
-      await saveParallelRakeFree();
+      // also save the parallel rake-free game if the TD marked it ran (skip on edit to avoid dup)
+      if(!EDIT_ID) await saveParallelRakeFree();
+      const wasEditing=EDIT_ID; EDIT_ID=null;
+      const eb=$('editBanner'); if(eb) eb.style.display='none';
       showSummary(validStaff);
+      if(wasEditing && $('summaryPage')){ const note=document.createElement('div'); note.style.cssText='text-align:center;color:var(--good);font-size:13px;margin:8px 0'; note.textContent='✓ Close-out updated'; $('summaryPage').prepend(note); }
       loadMine();
     }catch(e){ setStatus('&#10007; Could not finalise: '+(e.message||e),'err'); $('submitBtn').disabled=false; }
   }
