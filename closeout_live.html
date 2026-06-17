@@ -579,11 +579,11 @@
     if(!$('venueSel').value){ setStatus('Pick a venue.','err'); return; }
     const btn=$('lockBtn'); if(btn) btn.disabled=true; setStatus('Saving void close-out...','ok');
     try{
-      // gather staff (so they get paid). Lenient: keep anyone with a name and some hours OR a rate.
+      // gather staff (so they get paid). Keep anyone with a name and some hours (typed or from times) OR a rate.
       const allNamed=staff.filter(s=>s.name&&s.name.trim());
-      const shifts=allNamed.filter(s=>(calcHours(s.start,s.finish)>0)||(Number(s.rate)>0));
+      const shifts=allNamed.filter(s=>(effHours(s)>0)||(Number(s.rate)>0));
       const skipped=allNamed.length-shifts.length;
-      if(skipped>0){ if(!confirm(skipped+' staff row(s) have no hours/rate and will be skipped. Continue?\n\n(Make sure each staff member has a start & finish time and a rate.)')){ if(btn) btn.disabled=false; setStatus('','ok'); return; } }
+      if(skipped>0){ if(!confirm(skipped+' staff row(s) have no hours/rate and will be skipped. Continue?\n\n(Each staff member needs hours — either start & finish times, or a typed Hours value — and a rate.)')){ if(btn) btn.disabled=false; setStatus('','ok'); return; } }
       const row={
         submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
         game_date:$('gameDate').value||null, void:true,
@@ -597,11 +597,11 @@
       const co = ins.data && ins.data[0] ? ins.data[0] : null;
       // save staff shifts against this void close-out
       if(co && shifts.length){
-        const rows=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, start:s.start||null, finish:s.finish||null, paid:false, pay_status:'outstanding'}));
+        const rows=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:effHours(s), rate:Number(s.rate)||0, start:s.start||null, finish:s.finish||null, paid:false, pay_status:'outstanding'}));
         let sres=await supabase.from('staff_shifts').insert(rows).select();
         // retry without optional columns if they don't exist
         if(sres.error && /pay_status|start|finish/.test(sres.error.message||'')){
-          const slim=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, paid:false}));
+          const slim=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:effHours(s), rate:Number(s.rate)||0, paid:false}));
           sres=await supabase.from('staff_shifts').insert(slim).select();
         }
         if(sres.error){ alert('⚠ Staff did NOT save: '+sres.error.message+'\n\nThe void close-out saved but wages are missing. Usually an RLS permission issue on staff_shifts.'); }
@@ -621,7 +621,7 @@
   function showVoidSummary(validStaff){
     const g=currentGame||{};
     const money=n=>(n<0?'−$':'$')+Math.abs(Math.round(n)).toLocaleString();
-    const wages=(validStaff||[]).reduce((s,x)=>s+(calcHours(x.start,x.finish)*(Number(x.rate)||0)),0);
+    const wages=(validStaff||[]).reduce((s,x)=>s+(effHours(x)*(Number(x.rate)||0)),0);
     // rake-free cash game (if it ran)
     let rfBox=''; let rfPromoCost=0; let rfRan=false;
     if($('rfRan') && $('rfRan').checked){
@@ -807,13 +807,13 @@
             '<option value="">- role -</option>'+roles.map(r=>'<option value="'+r.id+'"'+(String(s.rate_id)===String(r.id)?' selected':'')+'>'+r.role+' ($'+Math.round(r.rate)+')</option>').join('')+
            '</select>'+(roles.length?'':'<div style="font-size:10px;color:var(--amber);margin-top:2px">no rates set for this person</div>'))
         : '';
-      const hrs=calcHours(s.start,s.finish);
+      const hrs = (s.hours!==''&&s.hours!=null&&!isNaN(Number(s.hours))) ? Number(s.hours) : calcHours(s.start,s.finish);
       const pay=(hrs*(Number(s.rate)||0))||0;
       return '<tr>'+
       '<td><select class="tinput" data-sf="staff_id" data-si="'+i+'">'+opts+'</select>'+roleSel+'</td>'+
       '<td><input class="tinput r" data-sf="start" data-si="'+i+'" type="time" value="'+(s.start||'')+'"></td>'+
       '<td><input class="tinput r" data-sf="finish" data-si="'+i+'" type="time" value="'+(s.finish||'')+'"></td>'+
-      '<td class="r" style="font-family:\'JetBrains Mono\';color:var(--ink);font-size:13px">'+(hrs?hrs+'h':'-')+'</td>'+
+      '<td><input class="tinput r" data-sf="hours" data-si="'+i+'" type="number" step="0.25" min="0" placeholder="'+(calcHours(s.start,s.finish)||'')+'" value="'+(s.hours!=null?s.hours:'')+'" style="width:56px"></td>'+
       '<td class="r" style="font-family:\'JetBrains Mono\';color:var(--ink-faint);font-size:13px">'+(s.rate?('$'+s.rate):'-')+'</td>'+
       '<td class="pl" style="text-align:right;font-family:\'JetBrains Mono\';color:var(--gold)">$'+pay.toLocaleString()+'</td>'+
       '<td><button class="delrow" data-sdel="'+i+'" type="button">&times;</button></td>'+
@@ -841,14 +841,28 @@
       });
     });
     tb.querySelectorAll('input[data-sf="start"],input[data-sf="finish"]').forEach(el=>{
-      el.addEventListener('input',()=>{ const i=+el.dataset.si, f=el.dataset.sf; staff[i][f]=el.value; staff[i].hours=calcHours(staff[i].start,staff[i].finish); renderStaff(); });
+      el.addEventListener('input',()=>{ const i=+el.dataset.si, f=el.dataset.sf; staff[i][f]=el.value;
+        // only auto-fill hours from times if the user hasn't typed a manual hours value
+        const auto=calcHours(staff[i].start,staff[i].finish);
+        if(staff[i].hours===''||staff[i].hours==null){ /* leave blank, calc used as fallback */ }
+        recalcStaff(); updatePayCell(i);
+      });
+    });
+    tb.querySelectorAll('input[data-sf="hours"]').forEach(el=>{
+      el.addEventListener('input',()=>{ const i=+el.dataset.si; staff[i].hours=el.value; recalcStaff(); updatePayCell(i); });
     });
     tb.querySelectorAll('.delrow').forEach(b=>b.addEventListener('click',()=>{ staff.splice(+b.dataset.sdel,1); renderStaff(); }));
     recalcStaff();
   }
+  function effHours(s){ return (s.hours!==''&&s.hours!=null&&!isNaN(Number(s.hours))) ? Number(s.hours) : calcHours(s.start,s.finish); }
+  function updatePayCell(i){
+    const tb=$('staffBody'); if(!tb) return; const tr=tb.children[i]; if(!tr) return;
+    const s=staff[i]; const pay=(effHours(s)*(Number(s.rate)||0))||0;
+    const cell=tr.querySelector('.pl'); if(cell) cell.textContent='$'+pay.toLocaleString();
+  }
   function recalcStaff(){
-    let tot=0; staff.forEach(s=>tot+=calcHours(s.start,s.finish)*(Number(s.rate)||0));
-    $('wagesTot').textContent='$'+tot.toLocaleString();
+    let tot=0; staff.forEach(s=>tot+=effHours(s)*(Number(s.rate)||0));
+    if($('wagesTot')) $('wagesTot').textContent='$'+tot.toLocaleString();
     if(typeof updateFinaliseGate==='function' && LOCKED_ID) updateFinaliseGate();
   }
   function addStaff(){ staff.push({staff_id:null,name:'',role:'',hours:'',rate:'',rate_id:null}); renderStaff(); }
@@ -1129,11 +1143,11 @@
     if(!staffEntered()){ setStatus('Enter the staff timesheet before finalising.','err'); return; }
     $('submitBtn').disabled=true; setStatus('Finalising...','ok');
     try{
-      const validStaff = staff.filter(s => (s.name && s.name.trim()) || Number(s.hours)>0);
+      const validStaff = staff.filter(s => (s.name && s.name.trim()) || effHours(s)>0);
       // in edit mode, clear old staff shifts first so we don't duplicate
       if(EDIT_ID){ await supabase.from('staff_shifts').delete().eq('closeout_id', LOCKED_ID); }
       if(validStaff.length){
-        const staffRows = validStaff.map(s=>({ closeout_id: LOCKED_ID, staff_name:s.name?s.name.trim():null, role:s.role?s.role.trim():null, hours:calcHours(s.start,s.finish)||null, rate:s.rate?Number(s.rate):null }));
+        const staffRows = validStaff.map(s=>({ closeout_id: LOCKED_ID, staff_name:s.name?s.name.trim():null, role:s.role?s.role.trim():null, hours:effHours(s)||null, rate:s.rate?Number(s.rate):null }));
         const { error: sErr } = await supabase.from('staff_shifts').insert(staffRows);
         if(sErr) throw new Error('Staff save failed: '+sErr.message);
       }
@@ -1156,7 +1170,7 @@
     const overlay=Math.max(0, gtee-pool);
     const rakeCollected=rake*entries;
     const margin=rakeCollected-overlay;
-    const wages=(validStaff||[]).reduce((s,x)=>s+(calcHours(x.start,x.finish)*(Number(x.rate)||0)),0);
+    const wages=(validStaff||[]).reduce((s,x)=>s+(effHours(x)*(Number(x.rate)||0)),0);
     const profit=margin-wages;
     const leftover=Number($('lfTotal').textContent.replace(/[^0-9.-]/g,''))||0;
     const cashInTill=Number(($('lfCashIn').textContent||'').replace(/[^0-9.-]/g,''))||0;
