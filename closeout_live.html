@@ -598,7 +598,14 @@
       // save staff shifts against this void close-out
       if(co && shifts.length){
         const rows=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, start:s.start||null, finish:s.finish||null, paid:false, pay_status:'outstanding'}));
-        await supabase.from('staff_shifts').insert(rows);
+        let sres=await supabase.from('staff_shifts').insert(rows).select();
+        // retry without optional columns if they don't exist
+        if(sres.error && /pay_status|start|finish/.test(sres.error.message||'')){
+          const slim=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, paid:false}));
+          sres=await supabase.from('staff_shifts').insert(slim).select();
+        }
+        if(sres.error){ alert('⚠ Staff did NOT save: '+sres.error.message+'\n\nThe void close-out saved but wages are missing. This is usually an RLS permission issue on staff_shifts.'); }
+        else if(!sres.data || !sres.data.length){ alert('⚠ Staff insert returned nothing — likely an RLS permission issue on staff_shifts. Wages will be missing.'); }
       }
       // also save the parallel rake-free game if the TD marked it ran
       const rfCo = await saveParallelRakeFree();

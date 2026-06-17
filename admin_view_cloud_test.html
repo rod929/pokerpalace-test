@@ -420,7 +420,8 @@
       if(nightShifts.length){
         h+= nightShifts.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join('');
       } else {
-        h+='<div class="dmut">No staff recorded for this night.<br><span style="font-size:11px;color:#5a5a62">('+nightCoIds.length+' close-out(s) matched this venue+date; '+SHF_DATA.length+' total shifts in system. If staff were entered, they may be saved under a different date/venue.)</span></div>';
+        const shiftCoIds=[...new Set(SHF_DATA.map(s=>String(s.closeout_id)))];
+        h+='<div class="dmut">No staff matched this night.<br><span style="font-size:10px;color:#5a5a62">night close-out IDs: ['+nightCoIds.join(', ')+']<br>shift closeout_ids in system: ['+shiftCoIds.join(', ')+']<br>'+SHF_DATA.length+' total shifts. The cash game close-out id for tonight: '+(cash?cash.id:'none')+'</span></div>';
       }
       h+='</div>';
     }
@@ -436,7 +437,8 @@
     h+='<div class="dsec" style="margin-top:18px">🏛 Final P&amp;L — venue for the day</div>'+
       '<div class="pnlbox" style="border-color:#c9b896">'+
       row(isVoid?'Tournament (void — no margin)':'Tournament gaming net', money(tournamentGameNet))+
-      row('Plus: club money'+nightClubLbl, nightClub>0?('+'+money(nightClub)):money(0), nightClub>0?'#5cb88a':'')+
+      row('Plus: club money'+nightClubLbl, nightClub>0?('+'+money(nightClub)):money(0), nightClub>0?'#5cb88a':'#76757a')+
+      (nightClub===0?'<div class="dmut" style="font-size:10px;margin:-4px 0 6px">⚠ No club-money rate set for '+(c.venue_name||'this venue')+' — set it on the Venues &amp; Invoicing screen so it shows here.</div>':'')+
       row('Less: staff wages (whole night)', nightWagesAll>0?('-'+money(nightWagesAll)):money(0), nightWagesAll>0?'#e07a5f':'')+
       row('Less: cash game promo', cashPromo>0?('-'+money(cashPromo)):money(0), cashPromo>0?'#e07a5f':'')+
       '<div class="netprofit '+(dayTotal>=0?'pos':'neg')+'"><span>VENUE NET FOR THE DAY</span><span class="npval">'+money(dayTotal)+'</span></div>'+
