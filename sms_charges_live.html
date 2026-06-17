@@ -99,7 +99,10 @@
         <h2>Paste or upload charges</h2>
         <div class="hint">One row per charge: <b>Date, Game, Venue, Amount, Recipients, Note</b>. We match each to a game night by date + game. CSV from your SMS provider works too.</div>
         <input type="file" id="csv" accept=".csv,text/csv" style="margin-bottom:10px">
-        <textarea id="paste" placeholder="2026-06-13, Friday NLH, Club Marconi, 45.00, 320, Friday promo
+        <textarea id="paste" placeholder="Paste your SMS provider campaign report straight from desktop — it auto-detects the format.
+
+Or paste simple rows:
+2026-06-13, Friday NLH, Club Marconi, 45.00, 320, Friday promo
 2026-06-14, Saturday Deepstack, Ingleburn RSL, 38.50, 280, Sat blast"></textarea>
         <div style="display:flex;gap:8px;margin-top:10px"><button class="ghost" id="preview">Preview</button><button class="addbtn" id="importBtn" style="margin-top:0">Import matched rows</button></div>
         <div id="previewBox"></div>
@@ -176,16 +179,62 @@
 
   function splitCSV(line){const out=[];let cur='',q=false;for(const ch of line){if(ch==='"'){q=!q;}else if(ch===','&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(s=>s.trim());}
   function parseRows(raw){
-    const lines=(raw||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    raw=(raw||'').trim();
+    // Detect the SMS provider report block format (multi-line per campaign)
+    if(/SMS Campaign/i.test(raw)){
+      return parseSmsReport(raw);
+    }
+    const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
     const rows=[];
     lines.forEach(l=>{
       if(/date.*game.*amount/i.test(l)) return; // header
       const c=splitCSV(l); if(c.length<3) return;
       const date=c[0]||'', game=c[1]||'', venue=c[2]||'', amount=Number((c[3]||'').replace(/[^0-9.]/g,''))||0, rcp=Number((c[4]||'').replace(/[^0-9]/g,''))||null, note=c[5]||'';
-      // match a close-out: same game (and venue if given), nearest date
       let match=CO.find(co=>norm(co.game_name)===norm(game) && (!venue||norm(co.venue_name)===norm(venue)) && co.game_date===date);
       if(!match) match=CO.find(co=>norm(co.game_name)===norm(game) && (!venue||norm(co.venue_name)===norm(venue)));
       rows.push({date,game,venue,amount,rcp,note,match});
+    });
+    return rows;
+  }
+  // Parse the provider's campaign report (blocks separated by "SMS Campaign ..." lines)
+  function parseSmsReport(raw){
+    const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    // split into blocks starting at each "SMS Campaign"
+    const blocks=[]; let cur=null;
+    lines.forEach(l=>{ if(/^SMS Campaign/i.test(l)){ if(cur) blocks.push(cur); cur=[l]; } else if(cur){ cur.push(l); } });
+    if(cur) blocks.push(cur);
+    const venueList=[...new Set(CO.map(c=>c.venue_name).filter(Boolean))];
+    const rows=[];
+    blocks.forEach(b=>{
+      const text=b.join('\n');
+      // date: first YYYY-MM-DD in the block (processed date), else from the header "15th June 2026"
+      let date=''; const isoM=text.match(/(\d{4}-\d{2}-\d{2})/); if(isoM) date=isoM[1];
+      if(!date){ const hdr=b[0].match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/); if(hdr){ const mo={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12}[hdr[2].toLowerCase()]; if(mo) date=hdr[3]+'-'+('0'+mo).slice(-2)+'-'+('0'+hdr[1]).slice(-2); } }
+      // amount: the $ value (cost), recipients: a standalone integer line near the amount
+      let amount=0; const amtM=text.match(/\$\s*([0-9]+(?:\.[0-9]+)?)/g);
+      if(amtM&&amtM.length){ // the COST is the $ value that has decimals (e.g. $39.57), not message $ like "$3000"
+        const costCand=amtM.map(x=>Number(x.replace(/[^0-9.]/g,''))).filter(n=>!Number.isInteger(n)); // costs have cents
+        amount = costCand.length ? costCand[costCand.length-1] : Number((amtM[amtM.length-1]||'').replace(/[^0-9.]/g,''))||0;
+      }
+      // recipients: a line that's purely a number (3-5 digits), not part of a date
+      let rcp=null;
+      for(const ln of b){ if(/^\d{2,6}$/.test(ln)){ const n=Number(ln); if(n>0 && n<100000){ rcp=n; } } }
+      // venue: look for a known venue name mentioned in the message text (fuzzy — strip spaces/case)
+      let venue=''; const squish=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      const tsq=squish(text);
+      venueList.forEach(v=>{ if(squish(v) && tsq.includes(squish(v))) venue=v; });
+      // also catch common shorthands like "Cabravale" matching "Cabravale Resorts"
+      if(!venue){ venueList.forEach(v=>{ const first=(v||'').split(/\s+/)[0]; if(first&&first.length>3&&tsq.includes(squish(first))) venue=v; }); }
+      // message snippet as note
+      const msgLine=b.find(l=>/[A-Za-z].*!|GTD|Buy in|Overlay|Rego/i.test(l)&&!/^SMS Campaign/i.test(l)&&!/Processed/i.test(l)&&l!=='POKERPALACE');
+      const note=msgLine?('SMS: '+msgLine.slice(0,60)):'SMS campaign';
+      if(amount>0||rcp){
+        // try to match a close-out by venue + date
+        let match=null;
+        if(venue&&date) match=CO.find(co=>norm(co.venue_name)===norm(venue)&&co.game_date===date);
+        if(!match&&venue) match=CO.find(co=>norm(co.venue_name)===norm(venue));
+        rows.push({date, game:(match?match.game_name:''), venue, amount, rcp, note, match});
+      }
     });
     return rows;
   }
