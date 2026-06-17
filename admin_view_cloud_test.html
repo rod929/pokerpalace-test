@@ -154,7 +154,7 @@
         }).join('');
       }
       document.querySelectorAll('.coclick').forEach(el=>{
-        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; wireAck(d); } });
+        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ try{ d.innerHTML=coDetail(CO_DATA[i]); }catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f">Could not build this report: '+(err.message||err)+'</div>'; } d.dataset.built='1'; wireAck(d); } });
       });
       // deep-link: if URL has #co=ID, auto-open that specific tournament and scroll to it
       const hash=window.location.hash||'';
@@ -341,7 +341,7 @@
           '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
 
         // ===== Venue total for the day (club + staff shown ONCE here) =====
-        const tournamentNet = isVoid ? (club-voidWages) : (g.name ? (net-promo) : 0);
+        const tournamentNet = isVoid ? (club-(rakeFreeRanTonight?0:wages)) : (g.name ? (net-promo) : 0);
         const dayTotal = tournamentNet - cashPromo;
         h+='<div class="dsec" style="margin-top:18px">🏛 Venue total for the day</div>'+
           '<div class="pnlbox" style="border-color:#c9b896">'+
