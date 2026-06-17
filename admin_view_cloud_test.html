@@ -115,6 +115,30 @@
 
   let CO_DATA=[], PLC_DATA=[], SHF_DATA=[], PROFMAP={}, TKMAP={}, GAMES_D=[], VENUES_D=[], SMS_D=[];
   function tdName(uid){ return (uid&&PROFMAP[String(uid).toLowerCase().trim()]) || (uid?('TD '+String(uid).slice(0,6)):'Unknown'); }
+  // lightweight net profit for the LIST card — mirrors the Final P&L logic in coDetail
+  function cardNet(c){
+    const isCash=x=> x.is_cash_game===true || x.game_name==='Rake Free Cash Game';
+    const g=GAMES_D.find(x=>x.name===c.game_name)||{};
+    const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+    const pool=(buyin-rake)*entries + addonPrice*addons;
+    const overlay=Math.max(0, gtee-pool);
+    const margin=(c.void===true)?0:(rake*entries-overlay);
+    const promo=Number(c.promo_cost)||0;
+    const sms=SMS_D.filter(x=>(x.closeout_id&&String(x.closeout_id)===String(c.id))||(!x.closeout_id&&x.game_name===c.game_name&&x.charge_date===c.game_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
+    // whole-night staff + club + cash game (matching Final P&L)
+    const nightCoIds=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date).map(x=>String(x.id));
+    const nightWages=SHF_DATA.filter(s=>nightCoIds.includes(String(s.closeout_id))).reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+    const cash=(CO_DATA||[]).find(x=>isCash(x) && x.venue_name===c.venue_name && x.game_date===c.game_date);
+    const cashPromo=cash?(Number(cash.promo_cost)||0):0;
+    const v=VENUES_D.find(x=>x.name===c.venue_name)||{};
+    const basis=v.club_money_basis||'', rate2=Number(v.club_money_rate)||0;
+    let club=0;
+    if(basis==='fixed_monthly'){ const ym=(c.game_date||'').slice(0,7); const gm=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym && !isCash(x)).length||1; club=rate2/gm; }
+    else if(rate2){ club=rate2; }
+    const tournamentNet=(c.void===true)?0:(g.name?(margin-sms-promo):0);
+    return tournamentNet + club - nightWages - cashPromo;
+  }
   async function loadCloseouts(){
     try{
       const { data, error } = await supabase.from('closeouts').select('*').order('id',{ascending:false});
@@ -141,9 +165,13 @@
         const i=CO_DATA.indexOf(c);
         const cash=findCash(c);
         const tag = cash ? ' <span style="font-size:10px;color:#7fa0c4;border:1px solid #7fa0c4;border-radius:5px;padding:1px 6px;margin-left:6px">+ cash game</span>' : '';
+        const net=cardNet(c);
+        const netCol=net>=0?'#5cb88a':'#e07a5f';
+        const netStr=(net<0?'-$':'$')+Math.abs(Math.round(net)).toLocaleString();
         return '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+tag+'</div>'+
         '<div class="codate">'+(c.game_date||'')+'</div></div>'+
         '<div class="cometa">'+(c.venue_name||'')+' · '+(c.entries||0)+' entries · money in $'+(c.money_in||0)+' · leftover $'+(c.leftover_cash||0)+'</div>'+
+        '<div class="conet" style="font-family:JetBrains Mono;font-weight:700;font-size:26px;color:'+netCol+';margin:8px 0 2px">'+netStr+'<span style="font-size:11px;color:#76757a;font-weight:400;margin-left:8px">net for the day</span></div>'+
         '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
         '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
       }).join('');
@@ -151,9 +179,11 @@
       const orphans=CO_DATA.filter(c=>isCashCo(c) && !visible.some(t=>t.venue_name===c.venue_name && t.game_date===c.game_date));
       if(orphans.length){
         $('coList').innerHTML += orphans.map(c=>{ const i=CO_DATA.indexOf(c);
+          const onet=cardNet(c); const ocol=onet>=0?'#5cb88a':'#e07a5f'; const ostr=(onet<0?'-$':'$')+Math.abs(Math.round(onet)).toLocaleString();
           return '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">🎲 '+(c.game_name||'Rake Free Cash Game')+'</div>'+
           '<div class="codate">'+(c.game_date||'')+'</div></div>'+
           '<div class="cometa">'+(c.venue_name||'')+' · cash game only</div>'+
+          '<div class="conet" style="font-family:JetBrains Mono;font-weight:700;font-size:26px;color:'+ocol+';margin:8px 0 2px">'+ostr+'<span style="font-size:11px;color:#76757a;font-weight:400;margin-left:8px">net for the day</span></div>'+
           '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
           '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
         }).join('');
@@ -387,7 +417,11 @@
     // for a void night, also show the night's staff breakdown here (the tournament card skipped it)
     if(isVoid){
       h+='<div class="dsec">👷 Staff <span style="font-size:11px;color:#76757a">(whole night)</span></div><div class="secbox">';
-      h+= nightShifts.length? nightShifts.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
+      if(nightShifts.length){
+        h+= nightShifts.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join('');
+      } else {
+        h+='<div class="dmut">No staff recorded for this night.<br><span style="font-size:11px;color:#5a5a62">('+nightCoIds.length+' close-out(s) matched this venue+date; '+SHF_DATA.length+' total shifts in system. If staff were entered, they may be saved under a different date/venue.)</span></div>';
+      }
       h+='</div>';
     }
 
@@ -395,14 +429,11 @@
     h+='<div class="dsec" style="margin-top:22px;border-top:2px solid #2a3a4a;padding-top:16px">🎲 Rake Free Cash Game</div>'+
       '<div class="cobox" style="border-color:#2f4a63"><div class="dl"><span>Players</span><span>'+cashPlayerList.length+'</span></div>'+
       '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
-    h+='<div class="dsec">👥 Cash game players ('+cashPlayerList.length+')</div><div class="secbox">';
-    h+= cashPlayerList.length? '<div class="dchips">'+cashPlayerList.map(n=>'<span class="dchip">'+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list imported for the cash game.</div>';
-    h+='</div>';
 
-    // ===== Venue total for the day (club + staff counted once) =====
+    // ===== FINAL P&L for the day (tournament + cash game + club − wages) — shown ABOVE the player list =====
     const tournamentGameNet = isVoid ? 0 : (g.name ? ((margin||0) - (sms||0) - (promo||0)) : 0);
     const dayTotal = tournamentGameNet + nightClub - nightWagesAll - cashPromo;
-    h+='<div class="dsec" style="margin-top:18px">🏛 Venue total for the day</div>'+
+    h+='<div class="dsec" style="margin-top:18px">🏛 Final P&amp;L — venue for the day</div>'+
       '<div class="pnlbox" style="border-color:#c9b896">'+
       row(isVoid?'Tournament (void — no margin)':'Tournament gaming net', money(tournamentGameNet))+
       row('Plus: club money'+nightClubLbl, nightClub>0?('+'+money(nightClub)):money(0), nightClub>0?'#5cb88a':'')+
@@ -411,6 +442,11 @@
       '<div class="netprofit '+(dayTotal>=0?'pos':'neg')+'"><span>VENUE NET FOR THE DAY</span><span class="npval">'+money(dayTotal)+'</span></div>'+
       '</div>'+
       '<div class="dmut" style="margin-top:6px;font-size:11px">Club money &amp; staff are counted once for the whole night (tournament + cash game combined).</div>';
+
+    // cash game player list (last — it's the longest section)
+    h+='<div class="dsec" style="margin-top:18px">👥 Cash game players ('+cashPlayerList.length+')</div><div class="secbox">';
+    h+= cashPlayerList.length? '<div class="dchips">'+cashPlayerList.map(n=>'<span class="dchip">'+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list imported for the cash game.</div>';
+    h+='</div>';
     return h;
   }
 
