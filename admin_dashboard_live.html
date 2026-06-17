@@ -551,18 +551,18 @@
       }).join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
     } else if(key==='pnl'){
       const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0,promo:0,sms:0};
-      const line=(l,v,col)=>'<div class="drow"><span class="l">'+l+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
-      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Gaming margin + club money − wages − overheads − promos − SMS, for this period.</div>'+
-        line('Rake collected', p.rakeTot, 'var(--good)')+
-        line('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)')+
-        '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Gaming margin</b></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
-        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">› tap for breakdown</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
-        line('Less: wages', -p.wages, 'var(--red)')+
-        line('Less: overheads & expenses', -p.exp, 'var(--red)')+
-        line('Less: promotions', -(p.promo||0), 'var(--red)')+
-        line('Less: SMS charges', -(p.sms||0), 'var(--red)')+
+      const dline=(l,v,col,dest)=>'<div class="drow" data-d="'+dest+'" style="cursor:pointer"><span class="l">'+l+' <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Tap any line for its game-by-game breakdown.</div>'+
+        dline('Rake collected', p.rakeTot, 'var(--good)','rakebd')+
+        dline('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)','overlaybd')+
+        '<div class="drow" data-d="marginbd" style="cursor:pointer;border-color:var(--line)"><span class="l"><b>Gaming margin</b> <span style="color:var(--blue);font-size:11px">›</span></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
+        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
+        dline('Less: wages', -p.wages, 'var(--red)','wagesbd')+
+        dline('Less: overheads & expenses', -p.exp, 'var(--red)','expbd')+
+        dline('Less: promotions', -(p.promo||0), 'var(--red)','promobd')+
+        dline('Less: SMS charges', -(p.sms||0), 'var(--red)','smsbd')+
         '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'−':'')+money(Math.abs(p.net))+'</b></span></div>'+
-        '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period. Older close-outs created before add-ons were saved may show a higher overlay than reality.</div>';
+        '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period.</div>';
     } else if(key==='prize'){
       const rows=computed.cos.map(c=>{const pr=PLACINGS.filter(p=>p.closeout_id===c.id).reduce((s,p)=>s+(Number(p.amount)||0),0);return {n:(c.game_name||'(no name)')+' · '+(c.venue_name||''),v:pr};}).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
       b.innerHTML='<div class="dtitle">🏆 Prizepools</div><div class="dsub">Total prize money by game, this period</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--blue)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">No prizes in this period.</div>');
@@ -577,12 +577,53 @@
       let vl=computed.vlist||[];
       if(key==='venloss') vl=[...vl].reverse();
       b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Shared overheads sit at the business level, not here.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
+    } else if(key==='rakebd'||key==='overlaybd'||key==='marginbd'||key==='wagesbd'||key==='expbd'||key==='promobd'||key==='smsbd'){
+      const cos=computed.cos||[];
+      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:none;background:none;padding:6px 0;margin-bottom:6px"><span class="l" style="color:var(--blue)">‹ back to Net P&amp;L</span></div>';
+      const gl=(name,v,col)=>'<div class="drow"><span class="l">'+name+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      const gname=c=>(c.game_name||'(no name)')+' · '+(c.venue_name||'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.game_date||'')+'</span>';
+      let title='',sub='',rows=[],empty='';
+      if(key==='rakebd'){
+        title='💵 Rake collected — by game'; sub='Rake × entries for each game this period.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).rake,col:'var(--good)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No rake this period.';
+      } else if(key==='overlaybd'){
+        title='📉 Overlay — by game'; sub='Guarantee top-ups paid when the prize pool fell short.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).overlay,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No overlays this period. 🎉';
+      } else if(key==='marginbd'){
+        title='📊 Gaming margin — by game'; sub='Rake collected − overlay, per game.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).margin,col:gamingMargin(c).margin>=0?'var(--good)':'var(--red)'})).filter(r=>Math.abs(r.v)>0.5).sort((a,b)=>b.v-a.v);
+        empty='No gaming margin this period.';
+      } else if(key==='wagesbd'){
+        title='💵 Wages — by game'; sub='Staff pay recorded against each game this period.';
+        const byco={}; STAFF.forEach(s=>{ const c=cos.find(x=>x.id===s.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(s.hours)||0)*(Number(s.rate)||0); } });
+        rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
+        empty='No wages this period.';
+      } else if(key==='expbd'){
+        title='🧾 Overheads & expenses'; sub='Expenses dated in this period.';
+        rows=(EXPENSES||[]).filter(expInPeriod).map(e=>({n:(e.note||e.category||'Expense')+(e.venue_name?(' · '+e.venue_name):'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.expense_date||e.date||'')+'</span>',v:Number(e.amount)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No expenses this period.';
+      } else if(key==='promobd'){
+        title='🎁 Promotions — by game'; sub='Promo costs recorded on each game this period.';
+        rows=cos.map(c=>({n:gname(c),v:Number(c.promo_cost)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No promotions this period.';
+      } else if(key==='smsbd'){
+        title='📲 SMS charges — by game'; sub='SMS marketing spend linked to each game this period.';
+        const byco={}; (SMS||[]).forEach(x=>{ const c=cos.find(cc=>cc.id===x.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(x.amount)||0); } });
+        rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
+        empty='No SMS charges linked this period.';
+      }
+      const total=rows.reduce((s,r)=>s+r.v,0);
+      b.innerHTML=back+'<div class="dtitle">'+title+'</div><div class="dsub">'+sub+'</div>'+
+        (rows.length?rows.map(r=>gl(r.n,r.v,r.col)).join('')+'<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total</b></span><span class="r"><b>'+(total<0?'−':'')+money(Math.abs(total))+'</b></span></div>':'<div class="empty">'+empty+'</div>');
     } else if(key==='clubdetail'){
       const cos=computed.cos||[];
+      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:none;background:none;padding:6px 0;margin-bottom:6px"><span class="l" style="color:var(--blue)">‹ back to Net P&amp;L</span></div>';
       const earned=earnedClubByVenue(cos);
       const names=Object.keys(earned).sort((a,b)=>earned[b].earned-earned[a].earned);
       const invs=invsForVenues();
-      b.innerHTML='<div class="dtitle">💰 Club money — earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
+      b.innerHTML=backLink+'<div class="dtitle">💰 Club money — earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
         (names.length?names.map(n=>{
           const e=earned[n];
           const inv=invs.find(i=>i.venue_name===n);
