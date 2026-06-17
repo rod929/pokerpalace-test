@@ -208,7 +208,10 @@
     if(!amt){ setStatus('Enter an amount.','err'); return; }
     const co=CO.find(c=>String(c.id)===String(coId))||{};
     try{
-      const{error}=await supabase.from('sms_charges').insert({charge_date:co.game_date||null, game_name:co.game_name||null, venue_name:co.venue_name||null, amount:amt, recipients:$('rcp').value?Number($('rcp').value):null, note:$('note').value.trim()||null, closeout_id:Number(coId), recorded_by:user.id});
+      const rowOne={charge_date:co.game_date||null, game_name:co.game_name||null, venue_name:co.venue_name||null, amount:amt, recipients:$('rcp').value?Number($('rcp').value):null, note:$('note').value.trim()||null, closeout_id:Number(coId), recorded_by:user.id};
+      let {error}=await supabase.from('sms_charges').insert(rowOne);
+      if(error && /recorded_by/.test(error.message||'')){ delete rowOne.recorded_by; ({error}=await supabase.from('sms_charges').insert(rowOne)); }
+      if(error && /recipients/.test(error.message||'')){ delete rowOne.recipients; ({error}=await supabase.from('sms_charges').insert(rowOne)); }
       if(error)throw error;
       setStatus('✓ Charge added.','ok'); $('amt').value='';$('rcp').value='';$('note').value='';$('coSel').value='';
       await load();
@@ -280,7 +283,10 @@
         const co = r.coId ? CO.find(c=>String(c.id)===String(r.coId)) : null;
         return {charge_date:(co?co.game_date:r.date)||null, game_name:co?co.game_name:null, venue_name:co?co.venue_name:null, amount:r.amount, recipients:r.rcp, note:r.note||null, closeout_id:co?co.id:null, recorded_by:user.id};
       });
-      const{data,error}=await supabase.from('sms_charges').insert(payload).select();
+      let {data,error}=await supabase.from('sms_charges').insert(payload).select();
+      // gracefully retry without optional columns that may not exist
+      if(error && /recorded_by/.test(error.message||'')){ payload.forEach(p=>delete p.recorded_by); ({data,error}=await supabase.from('sms_charges').insert(payload).select()); }
+      if(error && /recipients/.test(error.message||'')){ payload.forEach(p=>delete p.recipients); ({data,error}=await supabase.from('sms_charges').insert(payload).select()); }
       if(error) throw error;
       if(!data || !data.length){ throw new Error('Saved nothing — this is a permissions (RLS) issue on the sms_charges table. Admins need an INSERT policy. I can give you the SQL.'); }
       const linked=data.filter(p=>p.closeout_id).length;
