@@ -604,8 +604,12 @@
           const slim=shifts.map(s=>({closeout_id:co.id, staff_name:s.name.trim(), role:s.role||null, hours:calcHours(s.start,s.finish), rate:Number(s.rate)||0, paid:false}));
           sres=await supabase.from('staff_shifts').insert(slim).select();
         }
-        if(sres.error){ alert('⚠ Staff did NOT save: '+sres.error.message+'\n\nThe void close-out saved but wages are missing. This is usually an RLS permission issue on staff_shifts.'); }
+        if(sres.error){ alert('⚠ Staff did NOT save: '+sres.error.message+'\n\nThe void close-out saved but wages are missing. Usually an RLS permission issue on staff_shifts.'); }
         else if(!sres.data || !sres.data.length){ alert('⚠ Staff insert returned nothing — likely an RLS permission issue on staff_shifts. Wages will be missing.'); }
+        else { setStatus('✓ Void saved with '+sres.data.length+' staff shift(s).','ok'); }
+      } else {
+        // no staff passed the filter — tell the user explicitly so they know wages are empty
+        alert('Note: no staff were saved for this void.\n\nStaff rows found: '+staff.length+', with a name: '+staff.filter(s=>s.name&&s.name.trim()).length+'.\n\nIf you entered staff, make sure each has a NAME selected plus a start/finish time or rate, then edit this close-out to add them.');
       }
       // also save the parallel rake-free game if the TD marked it ran
       const rfCo = await saveParallelRakeFree();
