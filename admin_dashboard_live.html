@@ -175,7 +175,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null;
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null,INJECTIONS=[];
   function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -211,6 +211,7 @@
       OWNERPAY=(await supabase.from('owner_payments').select('*')).data||[];
       CASH=(await supabase.from('cash_movements').select('*')).data||[];
       SMS=(await supabase.from('sms_charges').select('*')).data||[];
+      try{ INJECTIONS=(await supabase.from('cash_injections').select('*')).data||[]; }catch(e){ INJECTIONS=[]; }
       try{ const od=(await supabase.from('cash_opening').select('*').eq('id',1)).data; OPENING=(od&&od[0])||null; }catch(e){ OPENING=null; }
       compute();
     }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
@@ -458,8 +459,11 @@
     computed.tdHeldTotal=tdHeldTotal;
     computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
     const movementsSince = cashHeld+tdHeldTotal;
-    computed.movementsSince=movementsSince;
-    const totalCashHeld=openAmt+movementsSince;
+    // cash injections after the opening date add to the float
+    const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
+    computed.injectAmt=injectAmt;
+    computed.movementsSince=movementsSince+injectAmt;
+    const totalCashHeld=openAmt+movementsSince+injectAmt;
     computed.totalCashHeld=totalCashHeld;
     // new players registered in the period
     const newP=PLAYERS.filter(inPeriod).length;
@@ -528,6 +532,14 @@
         openingBlock+
         '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
+        ((computed.injectAmt||0)>0?'<div class="drow"><span class="l">Cash injections</span><span class="r" style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
+        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Add cash injection</span><span class="r" style="color:var(--blue)">›</span></div>'+
+        '<div id="injectForm" style="display:none;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:8px">'+
+          '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Add cash to the float (e.g. you put cash in). Increases total cash held from the date.</div>'+
+          '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="injAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="injDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+          '<input id="injNote" type="text" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+          '<button id="saveInjectBtn" style="width:100%;background:var(--good);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Add injection</button>'+
+        '</div>'+
         '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
         (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+'</span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
@@ -668,6 +680,20 @@
       else if(f.drawer){ openDetail(f.drawer); }
     }));
     const sob=$('saveOpeningBtn'); if(sob) sob.addEventListener('click', saveOpening);
+    const air=$('addInjectRow'); if(air) air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; });
+    const sib=$('saveInjectBtn'); if(sib) sib.addEventListener('click', saveInjection);
+  }
+  async function saveInjection(){
+    const amt=Number($('injAmt').value); const date=$('injDate').value; const note=$('injNote').value.trim();
+    if(!amt||isNaN(amt)){ alert('Enter an amount.'); return; }
+    if(!date){ alert('Pick a date.'); return; }
+    const btn=$('saveInjectBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { data, error } = await supabase.from('cash_injections').insert({ amount:amt, inject_date:date, note:note||null, added_by:user.id }).select();
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_injections.');
+      INJECTIONS.push(data[0]); compute(); openDetail('cash');
+    }catch(e){ alert('Could not save injection: '+(e.message||e)); btn.disabled=false; btn.textContent='Add injection'; }
   }
   async function saveOpening(){
     const amt=Number($('openAmtIn').value); const date=$('openDateIn').value;

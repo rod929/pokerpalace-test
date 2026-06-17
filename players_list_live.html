@@ -96,8 +96,20 @@
   <div class="bar" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 14px;font-size:13px;color:var(--ink-dim)"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn" style="background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;cursor:pointer">Sign out</button></div>
   <div class="exportbar">
     <button class="exportbtn xls" id="exportCsv"><span class="xi">⬇</span> Export CSV</button>
+    <button class="exportbtn xls" id="importMembBtn"><span class="xi">⬆</span> Import memberships</button>
   </div>
   <div class="exporthint" id="exportHint"></div>
+
+  <div id="importPanel" style="display:none;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:16px;margin:6px 0 14px">
+    <div style="font-family:'Archivo';font-weight:600;font-size:15px;margin-bottom:4px">⬆ Bulk import venue memberships</div>
+    <div style="font-size:12.5px;color:var(--ink-dim);margin-bottom:12px">Import a club's membership list from GES. Pick the venue, then paste the list or choose a CSV. Each row needs a <b>name</b> and <b>membership number</b> (any order, comma/tab separated).</div>
+    <label style="display:block;font-size:12px;color:var(--ink-faint);margin-bottom:4px">Venue (applies to all rows)</label>
+    <select id="impVenue" class="search" style="width:100%;margin-bottom:10px"><option value="">Select venue…</option></select>
+    <input type="file" id="impCsv" accept=".csv,text/csv" style="margin-bottom:10px;color:var(--ink-dim);font-size:13px">
+    <textarea id="impPaste" placeholder="Paste the membership list — e.g.&#10;12345, John Smith&#10;Jane Doe, 67890&#10;(name and number, any order)" style="width:100%;box-sizing:border-box;min-height:120px;background:var(--card);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font-family:'JetBrains Mono';font-size:12.5px;margin-bottom:10px"></textarea>
+    <div style="display:flex;gap:8px"><button id="impPreviewBtn" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer">Preview</button><button id="impDoBtn" style="background:var(--good,#3f8c66);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:9px 14px;cursor:pointer">Import memberships</button></div>
+    <div id="impPreview" style="margin-top:12px"></div>
+  </div>
   <p class="sub">The member registry — one Poker Palace number per player, across every venue.</p>
 
   <div class="totals">
@@ -132,7 +144,7 @@
   function clearStatus(){$('status').style.display='none';}
   var norm=function(s){return (s||'').trim().toLowerCase();};
 
-  var PLAYERS=[], q='', venueFilter='', CURRENT_USER=null;
+  var PLAYERS=[], q='', venueFilter='', CURRENT_USER=null, MEMBERSHIPS=[], VENUE_NAMES=[];
 
   function initials(n){var p=(n||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase();}
   function fmtDate(d){ if(!d) return '—'; var x=new Date(d); if(isNaN(x)) return d; return ('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear(); }
@@ -143,6 +155,8 @@
       var pr=await supabase.from('players').select('*').order('last_name');
       if(pr.error) throw pr.error;
       var players=pr.data||[];
+      try{ MEMBERSHIPS=(await supabase.from('memberships').select('*')).data||[]; }catch(e){ MEMBERSHIPS=[]; }
+      try{ VENUE_NAMES=((await supabase.from('venues').select('name')).data||[]).map(function(v){return v.name;}); }catch(e){ VENUE_NAMES=[]; }
       // enrich from placings (winnings + tickets) and closeouts (games played via ges_players)
       var plc=(await supabase.from('placings').select('player_name,amount,paid_by,paid')).data||[];
       var cos=(await supabase.from('closeouts').select('game_date,ges_players,venue_name')).data||[];
@@ -207,13 +221,82 @@
           '<div class="prow"><span class="k">Registered</span><span class="vv">'+p.joined+'</span></div>'+
           '<div class="prow"><span class="k">Phone</span><span class="vv">'+p.phone+'</span></div>'+
         '</div>'+
-        (p.venues.length?('<div class="memberships"><div class="mlabel">Venue memberships</div>'+
-          p.venues.map(function(v){return '<span class="mvenue">📍 '+v+'</span>';}).join('')+'</div>'):'')+
+        '<div class="memberships"><div class="mlabel">Venue memberships</div>'+
+          membershipBlock(p.name)+
+        '</div>'+
         '</div></div>';
     }).join('');
     $('playerList').querySelectorAll('.player').forEach(function(el){
-      el.querySelector('.phead').addEventListener('click',function(){el.classList.toggle('open');});
+      el.querySelector('.phead').addEventListener('click',function(ev){ if(ev.target.closest('.memb-ui')) return; el.classList.toggle('open');});
     });
+    wireMembershipUI();
+  }
+
+  function membershipsFor(name){ var k=norm(name); return MEMBERSHIPS.filter(function(m){return norm(m.player_name)===k;}); }
+  function membershipBlock(name){
+    var rows=membershipsFor(name);
+    var html='';
+    if(rows.length){
+      html+=rows.map(function(m){
+        return '<div class="membcard" style="background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:7px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:var(--ink)">📍 '+(m.venue_name||'—')+'</b>'+
+          '<button class="memb-ui delMemb" data-id="'+m.id+'" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:16px">×</button></div>'+
+          (m.membership_no?'<div class="prow"><span class="k">Membership #</span><span class="vv">'+m.membership_no+'</span></div>':'')+
+          (m.tier?'<div class="prow"><span class="k">Tier</span><span class="vv">'+m.tier+'</span></div>':'')+
+          (m.member_since?'<div class="prow"><span class="k">Member since</span><span class="vv">'+fmtDate(m.member_since)+'</span></div>':'')+
+          (m.expiry?'<div class="prow"><span class="k">Expiry</span><span class="vv">'+fmtDate(m.expiry)+'</span></div>':'')+
+          (m.note?'<div class="prow"><span class="k">Note</span><span class="vv">'+m.note+'</span></div>':'')+
+        '</div>';
+      }).join('');
+    } else {
+      html+='<div style="color:var(--ink-faint);font-size:12.5px;margin-bottom:7px">No venue memberships recorded.</div>';
+    }
+    // add-membership form (collapsed)
+    var venueOpts='<option value="">Select venue…</option>'+VENUE_NAMES.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');
+    html+='<div class="memb-ui" style="margin-top:6px">'+
+      '<button class="addMembBtn" data-name="'+encodeURIComponent(name)+'" style="background:var(--chip);border:1px dashed var(--line);color:var(--blue);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;width:100%">＋ Add venue membership</button>'+
+      '<div class="addMembForm" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px;margin-top:7px">'+
+        '<select class="mf-venue" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink);margin-bottom:7px">'+venueOpts+'</select>'+
+        '<input class="mf-no" placeholder="Membership number" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink);margin-bottom:7px">'+
+        '<input class="mf-tier" placeholder="Tier (optional, e.g. Gold)" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink);margin-bottom:7px">'+
+        '<div style="display:flex;gap:7px;margin-bottom:7px"><input class="mf-since" type="date" title="Member since" style="flex:1;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink)"><input class="mf-expiry" type="date" title="Expiry" style="flex:1;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink)"></div>'+
+        '<input class="mf-note" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink);margin-bottom:7px">'+
+        '<button class="saveMembBtn" data-name="'+encodeURIComponent(name)+'" style="width:100%;background:var(--good,#3f8c66);color:#06210f;font-weight:700;border:none;border-radius:7px;padding:9px;cursor:pointer">Save membership</button>'+
+      '</div>'+
+    '</div>';
+    return html;
+  }
+  function wireMembershipUI(){
+    document.querySelectorAll('.addMembBtn').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var f=b.parentElement.querySelector('.addMembForm'); f.style.display=f.style.display==='none'?'block':'none'; }); });
+    document.querySelectorAll('.saveMembBtn').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); saveMembership(b); }); });
+    document.querySelectorAll('.delMemb').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delMembership(b.dataset.id); }); });
+  }
+  async function saveMembership(btn){
+    var wrap=btn.closest('.addMembForm');
+    var name=decodeURIComponent(btn.dataset.name);
+    var venue=wrap.querySelector('.mf-venue').value;
+    if(!venue){ alert('Pick a venue.'); return; }
+    var rec={ player_name:name, venue_name:venue,
+      membership_no:wrap.querySelector('.mf-no').value.trim()||null,
+      tier:wrap.querySelector('.mf-tier').value.trim()||null,
+      member_since:wrap.querySelector('.mf-since').value||null,
+      expiry:wrap.querySelector('.mf-expiry').value||null,
+      note:wrap.querySelector('.mf-note').value.trim()||null };
+    btn.disabled=true; btn.textContent='Saving…';
+    try{
+      var res=await supabase.from('memberships').insert(rec).select();
+      if(res.error) throw res.error;
+      if(!res.data||!res.data.length) throw new Error('Saved nothing — likely an RLS permission issue on memberships.');
+      MEMBERSHIPS.push(res.data[0]); render();
+    }catch(e){ alert('Could not save membership: '+(e.message||e)); btn.disabled=false; btn.textContent='Save membership'; }
+  }
+  async function delMembership(id){
+    if(!confirm('Remove this membership?')) return;
+    try{
+      var res=await supabase.from('memberships').delete().eq('id',id);
+      if(res.error) throw res.error;
+      MEMBERSHIPS=MEMBERSHIPS.filter(function(m){return String(m.id)!==String(id);}); render();
+    }catch(e){ alert('Could not remove: '+(e.message||e)); }
   }
 
   function exportCsv(){
@@ -228,6 +311,76 @@
   $('search').addEventListener('input',function(e){q=e.target.value.trim().toLowerCase();render();});
   $('venueSel').addEventListener('change',function(e){venueFilter=e.target.value;render();});
   $('exportCsv').addEventListener('click',exportCsv);
+
+  // ===== bulk membership import =====
+  var IMP_ROWS=[];
+  function parseMemberships(raw){
+    var lines=(raw||'').split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+    var out=[];
+    lines.forEach(function(l){
+      // skip header-looking lines
+      if(/member|name|number|venue/i.test(l) && !/\d{2,}/.test(l)) return;
+      // split on comma or tab
+      var parts=l.split(/\t|,/).map(function(x){return x.trim();}).filter(Boolean);
+      if(!parts.length) return;
+      var num='', name='';
+      if(parts.length>=2){
+        // figure out which part is the number (mostly digits) vs the name
+        var p0digits=(parts[0].replace(/\D/g,'').length)/Math.max(1,parts[0].length);
+        var p1digits=(parts[1].replace(/\D/g,'').length)/Math.max(1,parts[1].length);
+        if(p0digits>p1digits){ num=parts[0]; name=parts.slice(1).join(' '); }
+        else { name=parts.slice(0,parts.length-1).join(' '); num=parts[parts.length-1]; }
+        // if last part isn't numeric but first is, swap handled above
+      } else {
+        // single token — try "12345 John Smith"
+        var mm=parts[0].match(/^(\d+)\s+(.+)$/) || parts[0].match(/^(.+?)\s+(\d+)$/);
+        if(mm){ if(/^\d+$/.test(mm[1])){ num=mm[1]; name=mm[2]; } else { name=mm[1]; num=mm[2]; } }
+        else { name=parts[0]; }
+      }
+      name=name.replace(/\s+/g,' ').trim();
+      num=num.trim();
+      if(name||num) out.push({ name:name, number:num });
+    });
+    return out;
+  }
+  function previewImport(){
+    var raw=$('impPaste').value;
+    IMP_ROWS=parseMemberships(raw);
+    var venue=$('impVenue').value;
+    var box=$('impPreview');
+    if(!IMP_ROWS.length){ box.innerHTML='<div style="color:var(--ink-faint);font-size:13px">No rows found. Each line needs a name and a membership number.</div>'; return; }
+    box.innerHTML='<div style="font-size:12.5px;color:var(--ink-dim);margin-bottom:8px">Found '+IMP_ROWS.length+' membership'+(IMP_ROWS.length>1?'s':'')+(venue?(' for '+venue):' — pick a venue above')+':</div>'+
+      '<div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:9px">'+
+      IMP_ROWS.map(function(r){return '<div style="display:flex;justify-content:space-between;padding:7px 11px;border-bottom:1px solid var(--line);font-size:13px"><span>'+(r.name||'<i style="color:var(--ink-faint)">no name</i>')+'</span><span style="font-family:JetBrains Mono;color:var(--gold)">'+(r.number||'—')+'</span></div>';}).join('')+
+      '</div>';
+  }
+  async function doImport(){
+    var venue=$('impVenue').value;
+    if(!venue){ alert('Pick a venue first — it applies to every row.'); return; }
+    if(!IMP_ROWS.length){ IMP_ROWS=parseMemberships($('impPaste').value); }
+    if(!IMP_ROWS.length){ alert('Nothing to import. Paste the list or choose a CSV, then Preview.'); return; }
+    var btn=$('impDoBtn'); btn.disabled=true; btn.textContent='Importing…';
+    try{
+      var payload=IMP_ROWS.filter(function(r){return r.name||r.number;}).map(function(r){
+        return { player_name:r.name||null, venue_name:venue, membership_no:r.number||null };
+      });
+      var res=await supabase.from('memberships').insert(payload).select();
+      if(res.error) throw res.error;
+      if(!res.data||!res.data.length) throw new Error('Saved nothing — likely an RLS permission issue on memberships.');
+      res.data.forEach(function(m){ MEMBERSHIPS.push(m); });
+      $('impPreview').innerHTML='<div style="color:#9fe3c0;font-size:13px">✓ Imported '+res.data.length+' membership(s) for '+venue+'.</div>';
+      $('impPaste').value=''; IMP_ROWS=[]; render();
+    }catch(e){ alert('Could not import: '+(e.message||e)); btn.disabled=false; btn.textContent='Import memberships'; return; }
+    btn.disabled=false; btn.textContent='Import memberships';
+  }
+  $('importMembBtn').addEventListener('click',function(){ var p=$('importPanel'); p.style.display=p.style.display==='none'?'block':'none';
+    // populate venue dropdown
+    var sel=$('impVenue'); if(sel.options.length<=1){ VENUE_NAMES.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); }
+  });
+  $('impPreviewBtn').addEventListener('click',previewImport);
+  $('impDoBtn').addEventListener('click',doImport);
+  $('impCsv').addEventListener('change',function(e){ var f=e.target.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ $('impPaste').value=rd.result; previewImport(); }; rd.readAsText(f); });
+
 
   // ===== auth =====
   async function showApp(u){
