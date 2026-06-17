@@ -83,6 +83,11 @@
   const SUPABASE_KEY = 'sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
+  function showDbg(msg){
+    let dbg=document.getElementById('__dbg');
+    if(!dbg){ dbg=document.createElement('div'); dbg.id='__dbg'; dbg.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#1a1a22;border:1px solid #7fa0c4;color:#cde;font:12px/1.4 monospace;padding:8px 10px;border-radius:8px;max-height:30vh;overflow:auto'; document.body.appendChild(dbg); }
+    dbg.textContent='DBG: '+msg;
+  }
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -154,16 +159,17 @@
         }).join('');
       }
       document.querySelectorAll('.coclick').forEach(el=>{
-        el.addEventListener('click',()=>{
-          const i=+el.dataset.co; const d=$('codetail'+i);
-          if(!d){ alert('No detail panel found for index '+i); return; }
-          const open=(d.style.display==='none'||d.style.display==='');
-          d.style.display=open?'block':'none';
-          if(open&&!d.dataset.built){
-            try{ d.innerHTML=coDetail(CO_DATA[i]); }
-            catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f;padding:12px">⚠ Could not build this report: '+(err&&err.message?err.message:err)+'</div>'; }
-            d.dataset.built='1'; wireAck(d);
-          }
+        el.addEventListener('click',(ev)=>{
+          try{
+            const i=+el.dataset.co; const d=$('codetail'+i);
+            if(!d){ return; }
+            const open=(d.style.display==='none'||d.style.display==='');
+            d.style.display=open?'block':'none';
+            if(open&&!d.dataset.built){
+              try{ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; wireAck(d); }
+              catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f;padding:12px">⚠ '+(err&&err.message?err.message:err)+'</div>'; }
+            }
+          }catch(outer){ console.error('click error',outer); }
         });
       });
       // deep-link: if URL has #co=ID, auto-open that specific tournament and scroll to it
@@ -255,6 +261,17 @@
     const prizesPaid=plc.reduce((s,p)=>s+(Number(p.amount)||0),0);
 
     const row=(k,v,col)=>'<div class="dl"><span>'+k+'</span><span'+(col?(' style="color:'+col+'"'):'')+'>'+v+'</span></div>';
+
+    // VOID tournament: minimal view — just a VOID banner, then straight to the cash game section + day total
+    if(isVoid){
+      let hv='<div class="dsec">💵 Game P&amp;L</div>'+
+        '<div class="pnlbox" style="border-color:#a14b39">'+
+        '<div class="dl"><span>⛔ '+(c.game_name||'Tournament')+' — VOID</span><span style="color:#e07a5f">did not run (insufficient players)</span></div>'+
+        '</div>';
+      hv += unifiedCashSection(c, g, {isVoid:true, margin:0, sms:0, promo:0, basis, rate2});
+      return hv;
+    }
+
     let h='<div class="dsec">📋 Close-out sheet</div><div class="cobox"><div class="dgrid">'+
       ['Entries|'+entries,'Unique|'+(c.unique_players||0),'Re-entries|'+(c.re_entries||0),'Add-ons|'+addons,
        'Cash in|'+money(c.cash_in),'Transfer in|'+money(c.transfer_in),'Ticket in|'+money(c.ticket_in),'Other in|'+money(c.other_in),
@@ -308,9 +325,11 @@
       }
     }
 
-    // staff (moved up — before prize sections)
-    h+='<div class="dsec">👷 Staff</div><div class="secbox">';
-    h+= shf.length? shf.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
+    // staff (whole night: this close-out + any paired cash-game close-out at same venue+date)
+    const nightStaffIds=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date).map(x=>String(x.id));
+    const nightShf=SHF_DATA.filter(s=>nightStaffIds.includes(String(s.closeout_id)));
+    h+='<div class="dsec">👷 Staff <span style="font-size:11px;color:#76757a">(whole night)</span></div><div class="secbox">';
+    h+= nightShf.length? nightShf.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
     h+='</div>';
 
     // prize pool breakdown
@@ -341,27 +360,57 @@
     // ===== UNIFIED: if a parallel Rake Free Cash Game ran this venue+date, fold it in as its own section =====
     const isThisCash = c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
     if(!isThisCash){
-      const cash=(CO_DATA||[]).find(x=>(x.is_cash_game===true||x.game_name==='Rake Free Cash Game') && x.venue_name===c.venue_name && x.game_date===c.game_date);
-      if(cash){
-        const cashPlayers=((cash.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).length;
-        const cashPromo=Number(cash.promo_cost)||0;
-        // distinct separation: a header + the cash game's own mini close-out sheet (players + promo only)
-        h+='<div class="dsec" style="margin-top:22px;border-top:2px solid #2a3a4a;padding-top:16px">🎲 Rake Free Cash Game</div>'+
-          '<div class="cobox" style="border-color:#2f4a63"><div class="dl"><span>Players</span><span>'+cashPlayers+'</span></div>'+
-          '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
-
-        // ===== Venue total for the day (club + staff shown ONCE here) =====
-        const tournamentNet = isVoid ? (club-(rakeFreeRanTonight?0:wages)) : (g.name ? (net-promo) : 0);
-        const dayTotal = tournamentNet - cashPromo;
-        h+='<div class="dsec" style="margin-top:18px">🏛 Venue total for the day</div>'+
-          '<div class="pnlbox" style="border-color:#c9b896">'+
-          row(isVoid?'Tournament (void)':'Tournament net', money(tournamentNet))+
-          row('Less: cash game promo', cashPromo>0?('-'+money(cashPromo)):money(0), cashPromo>0?'#e07a5f':'')+
-          '<div class="netprofit '+(dayTotal>=0?'pos':'neg')+'"><span>VENUE NET FOR THE DAY</span><span class="npval">'+money(dayTotal)+'</span></div>'+
-          '</div>'+
-          '<div class="dmut" style="margin-top:6px;font-size:11px">Club money &amp; staff wages are included once in the tournament net above — not double-counted.</div>';
-      }
+      h += unifiedCashSection(c, g, {isVoid:false, margin, sms, promo, basis, rate2});
     }
+    return h;
+  }
+
+  // Builds the Rake Free Cash Game section + Venue total for the day (used by both normal & void paths)
+  function unifiedCashSection(c, g, opts){
+    const money=n=>{n=Math.round(Number(n)||0);return (n<0?'-$':'$')+Math.abs(n).toLocaleString();};
+    const row=(k,v,col)=>'<div class="dl"><span>'+k+'</span><span'+(col?(' style="color:'+col+'"'):'')+'>'+v+'</span></div>';
+    const {isVoid, margin, sms, promo, basis, rate2}=opts;
+    const cash=(CO_DATA||[]).find(x=>(x.is_cash_game===true||x.game_name==='Rake Free Cash Game') && x.venue_name===c.venue_name && x.game_date===c.game_date);
+    if(!cash) return '';
+    let h='';
+    const cashPlayerList=((cash.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean));
+    const cashPromo=Number(cash.promo_cost)||0;
+    // staff for the whole night (tournament + cash game close-outs at this venue+date)
+    const nightCoIds=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date).map(x=>String(x.id));
+    const nightShifts=SHF_DATA.filter(s=>nightCoIds.includes(String(s.closeout_id)));
+    const nightWagesAll=nightShifts.reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+    // club money for the night (the venue fee — applies once because a game ran)
+    let nightClub=0, nightClubLbl='';
+    if(basis==='fixed_monthly'){ const ym=(c.game_date||'').slice(0,7); const gm=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym && !(x.is_cash_game===true||x.game_name==='Rake Free Cash Game')).length||1; nightClub=rate2/gm; nightClubLbl=' (monthly '+money(rate2)+' ÷ '+gm+')'; }
+    else if(rate2){ nightClub=rate2; nightClubLbl=' (per game)'; }
+
+    // for a void night, also show the night's staff breakdown here (the tournament card skipped it)
+    if(isVoid){
+      h+='<div class="dsec">👷 Staff <span style="font-size:11px;color:#76757a">(whole night)</span></div><div class="secbox">';
+      h+= nightShifts.length? nightShifts.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded.</div>';
+      h+='</div>';
+    }
+
+    // distinct separation: cash game's own mini close-out sheet (players + promo only)
+    h+='<div class="dsec" style="margin-top:22px;border-top:2px solid #2a3a4a;padding-top:16px">🎲 Rake Free Cash Game</div>'+
+      '<div class="cobox" style="border-color:#2f4a63"><div class="dl"><span>Players</span><span>'+cashPlayerList.length+'</span></div>'+
+      '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
+    h+='<div class="dsec">👥 Cash game players ('+cashPlayerList.length+')</div><div class="secbox">';
+    h+= cashPlayerList.length? '<div class="dchips">'+cashPlayerList.map(n=>'<span class="dchip">'+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list imported for the cash game.</div>';
+    h+='</div>';
+
+    // ===== Venue total for the day (club + staff counted once) =====
+    const tournamentGameNet = isVoid ? 0 : (g.name ? ((margin||0) - (sms||0) - (promo||0)) : 0);
+    const dayTotal = tournamentGameNet + nightClub - nightWagesAll - cashPromo;
+    h+='<div class="dsec" style="margin-top:18px">🏛 Venue total for the day</div>'+
+      '<div class="pnlbox" style="border-color:#c9b896">'+
+      row(isVoid?'Tournament (void — no margin)':'Tournament gaming net', money(tournamentGameNet))+
+      row('Plus: club money'+nightClubLbl, nightClub>0?('+'+money(nightClub)):money(0), nightClub>0?'#5cb88a':'')+
+      row('Less: staff wages (whole night)', nightWagesAll>0?('-'+money(nightWagesAll)):money(0), nightWagesAll>0?'#e07a5f':'')+
+      row('Less: cash game promo', cashPromo>0?('-'+money(cashPromo)):money(0), cashPromo>0?'#e07a5f':'')+
+      '<div class="netprofit '+(dayTotal>=0?'pos':'neg')+'"><span>VENUE NET FOR THE DAY</span><span class="npval">'+money(dayTotal)+'</span></div>'+
+      '</div>'+
+      '<div class="dmut" style="margin-top:6px;font-size:11px">Club money &amp; staff are counted once for the whole night (tournament + cash game combined).</div>';
     return h;
   }
 
