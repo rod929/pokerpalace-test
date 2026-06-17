@@ -175,7 +175,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},period='week',computed={},OPENING=null;
+  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null;
   function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -210,6 +210,7 @@
       EXPENSES=(await supabase.from('expenses').select('*')).data||[];
       OWNERPAY=(await supabase.from('owner_payments').select('*')).data||[];
       CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      SMS=(await supabase.from('sms_charges').select('*')).data||[];
       try{ const od=(await supabase.from('cash_opening').select('*').eq('id',1)).data; OPENING=(od&&od[0])||null; }catch(e){ OPENING=null; }
       compute();
     }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
@@ -275,8 +276,10 @@
     let exp=0; (useExpenses||[]).forEach(e=>{ exp+=Number(e.amount)||0; });
     // rake-free promo costs in these close-outs
     let promo=0; cos.forEach(c=>{ promo+=Number(c.promo_cost)||0; });
-    const net = margin + club - wages - exp - promo;
-    return {net, margin, rakeTot, overlayTot, wages, club, exp, promo};
+    // SMS charges linked to these close-outs
+    let sms=0; (SMS||[]).forEach(x=>{ if(ids.has(x.closeout_id)) sms+=Number(x.amount)||0; });
+    const net = margin + club - wages - exp - promo - sms;
+    return {net, margin, rakeTot, overlayTot, wages, club, exp, promo, sms};
   }
   function expInPeriod(e){
     const r=periodRange('cur'); if(!r.start) return true;
@@ -341,15 +344,17 @@
     PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
     // per venue: gaming margin + club money − venue wages − venue-tagged expenses
     const byV={};
-    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0,promo:0});
+    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0,promo:0,sms:0});
       const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin; byV[v].promo+=Number(c.promo_cost)||0;});
     // wages per venue (from staff shifts on that venue's close-outs)
     STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
+    // SMS per venue (from sms charges on that venue's close-outs)
+    (SMS||[]).forEach(x=>{const c=cos.find(cc=>cc.id===x.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].sms+=Number(x.amount)||0;}});
     // club money per venue (invoiced this period)
     invsForVenues().forEach(i=>{ const v=i.venue_name||'(no venue)'; if(byV[v]) byV[v].club+=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; });
     // venue-tagged expenses this period
     EXPENSES.filter(expInPeriod).forEach(e=>{ if(e.venue_name && byV[e.venue_name]) byV[e.venue_name].exp+=Number(e.amount)||0; });
-    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo})).sort((a,b)=>b.profit-a.profit);
+    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo-byV[v].sms})).sort((a,b)=>b.profit-a.profit);
     computed={cos,prizes,outstanding,outN,vlist,byV};
 
     // invoices — outstanding club money (status not paid) for the relevant period
@@ -545,15 +550,17 @@
         '</div>';
       }).join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period — no unpaid payouts, pending approvals, draft invoices, missing setups, or overlays.</p></div>');
     } else if(key==='pnl'){
-      const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0};
+      const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0,promo:0,sms:0};
       const line=(l,v,col)=>'<div class="drow"><span class="l">'+l+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
-      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Gaming margin + club money − wages − overheads, for this period.</div>'+
+      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Gaming margin + club money − wages − overheads − promos − SMS, for this period.</div>'+
         line('Rake collected', p.rakeTot, 'var(--good)')+
         line('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)')+
         '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Gaming margin</b></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
         '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">› tap for breakdown</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
         line('Less: wages', -p.wages, 'var(--red)')+
         line('Less: overheads & expenses', -p.exp, 'var(--red)')+
+        line('Less: promotions', -(p.promo||0), 'var(--red)')+
+        line('Less: SMS charges', -(p.sms||0), 'var(--red)')+
         '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'−':'')+money(Math.abs(p.net))+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period. Older close-outs created before add-ons were saved may show a higher overlay than reality.</div>';
     } else if(key==='prize'){
