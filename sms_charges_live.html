@@ -97,14 +97,10 @@
       <!-- bulk -->
       <div class="card" id="bulkCard" style="display:none">
         <h2>Paste or upload charges</h2>
-        <div class="hint">One row per charge: <b>Date, Game, Venue, Amount, Recipients, Note</b>. We match each to a game night by date + game. CSV from your SMS provider works too.</div>
+        <div class="hint">Paste your SMS provider report (any format). We'll pull out each charge's <b>amount</b> and <b>recipients</b> — then you pick which game night each belongs to from a dropdown.</div>
         <input type="file" id="csv" accept=".csv,text/csv" style="margin-bottom:10px">
-        <textarea id="paste" placeholder="Paste your SMS provider campaign report straight from desktop — it auto-detects the format.
-
-Or paste simple rows:
-2026-06-13, Friday NLH, Club Marconi, 45.00, 320, Friday promo
-2026-06-14, Saturday Deepstack, Ingleburn RSL, 38.50, 280, Sat blast"></textarea>
-        <div style="display:flex;gap:8px;margin-top:10px"><button class="ghost" id="preview">Preview</button><button class="addbtn" id="importBtn" style="margin-top:0">Import matched rows</button></div>
+        <textarea id="paste" placeholder="Paste your SMS campaign report here — straight from desktop is fine."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px"><button class="ghost" id="preview">Find charges</button><button class="addbtn" id="importBtn" style="margin-top:0">Import these charges</button></div>
         <div id="previewBox"></div>
       </div>
 
@@ -178,84 +174,73 @@ Or paste simple rows:
   async function delRow(id){ try{ const{error}=await supabase.from('sms_charges').delete().eq('id',id); if(error)throw error; await load(); }catch(e){ setStatus('Could not delete: '+(e.message||e),'err'); } }
 
   function splitCSV(line){const out=[];let cur='',q=false;for(const ch of line){if(ch==='"'){q=!q;}else if(ch===','&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(s=>s.trim());}
+  // Simple, robust extractor: find every cost ($NN.NN), and for each, grab the nearby
+  // recipients count and date. No venue/game guessing — the admin assigns via dropdown.
   function parseRows(raw){
-    raw=(raw||'').trim();
-    // Detect the SMS provider report block format. Triggers on the campaign header OR the
-    // tell-tale structure (a "Processed" line, or a $NN.NN cost sitting near a recipients count).
-    const looksLikeReport = /SMS Campaign/i.test(raw) || /\bProcessed\b/i.test(raw) || /POKERPALACE/i.test(raw) || (/\$\d+\.\d{2}\b/.test(raw) && /^\d{2,6}$/m.test(raw));
-    if(looksLikeReport){
-      const r=parseSmsReport(raw);
-      if(r.length) return r;
-    }
+    raw=(raw||'').trim(); if(!raw) return [];
     const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    const rows=[];
-    lines.forEach(l=>{
-      if(/date.*game.*amount/i.test(l)) return; // header
-      const c=splitCSV(l); if(c.length<3) return;
-      const date=c[0]||'', game=c[1]||'', venue=c[2]||'', amount=Number((c[3]||'').replace(/[^0-9.]/g,''))||0, rcp=Number((c[4]||'').replace(/[^0-9]/g,''))||null, note=c[5]||'';
-      let match=CO.find(co=>norm(co.game_name)===norm(game) && (!venue||norm(co.venue_name)===norm(venue)) && co.game_date===date);
-      if(!match) match=CO.find(co=>norm(co.game_name)===norm(game) && (!venue||norm(co.venue_name)===norm(venue)));
-      rows.push({date,game,venue,amount,rcp,note,match});
-    });
-    return rows;
-  }
-  // Parse the provider's campaign report. Blocks ideally start at "SMS Campaign"; if that header
-  // is missing, fall back to splitting on "Processed" or each $NN.NN cost line.
-  function parseSmsReport(raw){
-    const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    let blocks=[]; let cur=null;
-    const startsNew = (l)=> /^SMS Campaign/i.test(l) || /^Processed$/i.test(l);
-    lines.forEach(l=>{ if(startsNew(l)){ if(cur&&cur.length) blocks.push(cur); cur=[l]; } else if(cur){ cur.push(l); } else { cur=[l]; } });
-    if(cur&&cur.length) blocks.push(cur);
-    // if we didn't split well (one giant block), re-split by cost lines so each $NN.NN is its own charge
-    const costCount=(raw.match(/\$\d+\.\d{2}\b/g)||[]).length;
-    if(blocks.length< costCount){
-      blocks=[]; cur=[];
-      lines.forEach(l=>{ cur.push(l); if(/\$\d+\.\d{2}\b/.test(l)){ blocks.push(cur); cur=[]; } });
-      if(cur.length) blocks.push(cur);
+    // CSV fallback: if it looks like "date, game, venue, amount..." comma rows, use the old path
+    const looksCsv = lines.length && lines.every(l=>l.split(',').length>=4) && !/\$\d+\.\d{2}/.test(raw);
+    if(looksCsv){
+      const rows=[];
+      lines.forEach(l=>{ if(/date.*game.*amount/i.test(l)) return; const c=splitCSV(l); if(c.length<3) return;
+        const date=c[0]||'',game=c[1]||'',venue=c[2]||'',amount=Number((c[3]||'').replace(/[^0-9.]/g,''))||0,rcp=Number((c[4]||'').replace(/[^0-9]/g,''))||null,note=c[5]||'';
+        let match=CO.find(co=>norm(co.game_name)===norm(game)&&(!venue||norm(co.venue_name)===norm(venue))&&co.game_date===date)||CO.find(co=>norm(co.game_name)===norm(game));
+        rows.push({date,game,venue,amount,rcp,note,match,coId:match?match.id:''});
+      });
+      return rows;
     }
-    const venueList=[...new Set(CO.map(c=>c.venue_name).filter(Boolean))];
+    // SMS report: split into blocks (each charge ends at a $NN.NN cost line)
+    const blocks=[]; let cur=[];
+    lines.forEach(l=>{ cur.push(l); if(/\$\s*\d+\.\d{2}\b/.test(l)){ blocks.push(cur); cur=[]; } });
+    if(cur.length && blocks.length===0) blocks.push(cur); // no cost found — one block
     const rows=[];
     blocks.forEach(b=>{
       const text=b.join('\n');
+      const costs=(text.match(/\$\s*\d+\.\d{2}\b/g)||[]).map(x=>Number(x.replace(/[^0-9.]/g,'')));
+      const amount=costs.length?costs[costs.length-1]:0;
+      if(amount<=0) return;
       let date=''; const isoM=text.match(/(\d{4}-\d{2}-\d{2})/); if(isoM) date=isoM[1];
       if(!date){ const hdr=text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/); if(hdr){ const mo={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12}[hdr[2].toLowerCase()]; if(mo) date=hdr[3]+'-'+('0'+mo).slice(-2)+'-'+('0'+hdr[1]).slice(-2); } }
-      // cost = the $ value WITH cents (e.g. $39.57). Message amounts ($3000, $150) are whole — ignored.
-      let amount=0; const costs=(text.match(/\$\s*\d+\.\d{2}\b/g)||[]).map(x=>Number(x.replace(/[^0-9.]/g,'')));
-      if(costs.length) amount=costs[costs.length-1];
-      // recipients = a standalone integer line (2–6 digits)
       let rcp=null; for(const ln of b){ if(/^\d{2,6}$/.test(ln)){ const n=Number(ln); if(n>0&&n<1000000) rcp=n; } }
-      // venue from message text (fuzzy, ignore spaces/case)
-      let venue=''; const squish=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); const tsq=squish(text);
-      venueList.forEach(v=>{ if(squish(v)&&tsq.includes(squish(v))) venue=v; });
-      if(!venue){ venueList.forEach(v=>{ const first=(v||'').split(/\s+/)[0]; if(first&&first.length>3&&tsq.includes(squish(first))) venue=v; }); }
-      const msgLine=b.find(l=>/[A-Za-z].*!|GTD|Buy in|Overlay|Rego/i.test(l)&&!/^SMS Campaign/i.test(l)&&!/Processed/i.test(l)&&l!=='POKERPALACE');
-      const note=msgLine?('SMS: '+msgLine.slice(0,60)):'SMS campaign';
-      if(amount>0){
-        let match=null;
-        if(venue&&date) match=CO.find(co=>norm(co.venue_name)===norm(venue)&&co.game_date===date);
-        if(!match&&venue) match=CO.find(co=>norm(co.venue_name)===norm(venue));
-        rows.push({date, game:(match?match.game_name:''), venue, amount, rcp, note, match});
-      }
+      const msgLine=b.find(l=>/[A-Za-z].*!|GTD|Buy in|Overlay|Rego/i.test(l)&&l!=='POKERPALACE'&&!/Processed/i.test(l));
+      const note=msgLine?('SMS: '+msgLine.slice(0,50)):'SMS campaign';
+      // best-guess a close-out for the dropdown default (by date), else blank
+      let match = date ? CO.find(co=>co.game_date===date) : null;
+      rows.push({date, amount, rcp, note, match, coId: match?match.id:''});
     });
     return rows;
   }
+  function coLabel(co){ return (co.game_date||'?')+' · '+(co.game_name||'?')+' · '+(co.venue_name||'?'); }
+  function coSelect(idx, selId){
+    const opts=['<option value="">— not linked to a game —</option>']
+      .concat(CO.slice().sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||'')).map(co=>'<option value="'+co.id+'"'+(String(selId)===String(co.id)?' selected':'')+'>'+coLabel(co)+'</option>'));
+    return '<select class="co-assign" data-i="'+idx+'">'+opts.join('')+'</select>';
+  }
   function preview(){
     parsed=parseRows($('paste').value);
-    if(!parsed.length){ $('previewBox').innerHTML='<div class="empty">Nothing to preview.</div>'; return; }
-    $('previewBox').innerHTML='<table class="pvtable"><thead><tr><th>Date</th><th>Game</th><th>Match</th><th class="r">Amount</th></tr></thead><tbody>'+
-      parsed.map(r=>'<tr class="'+(r.match?'':'bad')+'"><td>'+r.date+'</td><td>'+r.game+'</td><td>'+(r.match?('✓ '+(r.match.game_date||'')):'⚠ no match')+'</td><td class="r">'+money(r.amount)+'</td></tr>').join('')+
-      '</tbody></table><div class="hint" style="margin-top:8px">Rows without a match will still import, but won\'t attach to a game night (won\'t hit game profit until matched).</div>';
+    if(!parsed.length){ $('previewBox').innerHTML='<div class="empty">No charges found. Paste the SMS report (each charge has a $NN.NN cost line).</div>'; return; }
+    $('previewBox').innerHTML='<div class="hint" style="margin:10px 0 6px">Found '+parsed.length+' charge'+(parsed.length>1?'s':'')+'. Pick the game night for each, then Import.</div>'+
+      parsed.map((r,i)=>'<div class="pvrow" style="background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="color:var(--gold);font-family:JetBrains Mono">'+money(r.amount)+'</b><span style="font-size:12px;color:var(--ink-dim)">'+(r.rcp?(r.rcp+' recipients'):'')+(r.date?(' · '+r.date):'')+'</span></div>'+
+        '<label style="font-size:11px;color:var(--ink-faint);display:block;margin-bottom:4px">Link to game night</label>'+
+        coSelect(i, r.coId)+
+      '</div>').join('');
+    // wire the dropdowns to update each parsed row's coId
+    $('previewBox').querySelectorAll('.co-assign').forEach(sel=>sel.addEventListener('change',()=>{ const i=+sel.dataset.i; parsed[i].coId=sel.value; }));
   }
   async function importRows(){
     if(!parsed.length) parsed=parseRows($('paste').value);
-    if(!parsed.length){ setStatus('Nothing to import — paste rows or choose a file first.','err'); return; }
+    if(!parsed.length){ setStatus('Nothing to import — paste the SMS report and tap Find charges first.','err'); return; }
     try{
-      const payload=parsed.map(r=>({charge_date:r.date||(r.match?r.match.game_date:null), game_name:r.game||(r.match?r.match.game_name:null), venue_name:r.venue||(r.match?r.match.venue_name:null), amount:r.amount, recipients:r.rcp, note:r.note||null, closeout_id:r.match?r.match.id:null, recorded_by:user.id}));
+      const payload=parsed.map(r=>{
+        const co = r.coId ? CO.find(c=>String(c.id)===String(r.coId)) : null;
+        return {charge_date:(co?co.game_date:r.date)||null, game_name:co?co.game_name:null, venue_name:co?co.venue_name:null, amount:r.amount, recipients:r.rcp, note:r.note||null, closeout_id:co?co.id:null, recorded_by:user.id};
+      });
       const{error}=await supabase.from('sms_charges').insert(payload);
       if(error)throw error;
-      const matched=parsed.filter(r=>r.match).length;
-      setStatus('✓ Imported '+payload.length+' charge(s) — '+matched+' matched to a game night.','ok');
+      const linked=payload.filter(p=>p.closeout_id).length;
+      setStatus('✓ Imported '+payload.length+' charge(s) — '+linked+' linked to a game night.','ok');
       $('paste').value=''; parsed=[]; $('previewBox').innerHTML=''; await load();
     }catch(e){ setStatus('Could not import: '+(e.message||e),'err'); }
   }
