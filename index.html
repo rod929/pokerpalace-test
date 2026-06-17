@@ -294,6 +294,7 @@
     if(role==='admin'){ window.location.replace('admin_dashboard_live.html'); return; }
     $('roleLbl').textContent=(role||'user').toUpperCase();
     $('roleChip').textContent=(role||'user').toUpperCase();
+    startHeartbeat();
     $('adminTiles').style.display = role==='admin' ? 'block':'none';
     $('tdTiles').style.display = role==='td' ? 'block':'none';
     $('ownerTiles').style.display = role==='owner' ? 'block':'none';
@@ -594,6 +595,10 @@
     $('tdPanel').scrollIntoView({behavior:'smooth'});
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');}
+  // heartbeat: stamp last_seen now and every 60s so admins can see who's active
+  let HB_TIMER=null;
+  async function beat(){ if(!user)return; try{ await supabase.from('profiles').update({last_seen:new Date().toISOString()}).eq('user_id',user.id); }catch(e){} }
+  function startHeartbeat(){ beat(); if(HB_TIMER)clearInterval(HB_TIMER); HB_TIMER=setInterval(beat,60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) beat(); }); }
 
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
   async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
