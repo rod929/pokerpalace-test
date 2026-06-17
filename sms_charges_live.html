@@ -180,9 +180,12 @@ Or paste simple rows:
   function splitCSV(line){const out=[];let cur='',q=false;for(const ch of line){if(ch==='"'){q=!q;}else if(ch===','&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(s=>s.trim());}
   function parseRows(raw){
     raw=(raw||'').trim();
-    // Detect the SMS provider report block format (multi-line per campaign)
-    if(/SMS Campaign/i.test(raw)){
-      return parseSmsReport(raw);
+    // Detect the SMS provider report block format. Triggers on the campaign header OR the
+    // tell-tale structure (a "Processed" line, or a $NN.NN cost sitting near a recipients count).
+    const looksLikeReport = /SMS Campaign/i.test(raw) || /\bProcessed\b/i.test(raw) || /POKERPALACE/i.test(raw) || (/\$\d+\.\d{2}\b/.test(raw) && /^\d{2,6}$/m.test(raw));
+    if(looksLikeReport){
+      const r=parseSmsReport(raw);
+      if(r.length) return r;
     }
     const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
     const rows=[];
@@ -196,40 +199,39 @@ Or paste simple rows:
     });
     return rows;
   }
-  // Parse the provider's campaign report (blocks separated by "SMS Campaign ..." lines)
+  // Parse the provider's campaign report. Blocks ideally start at "SMS Campaign"; if that header
+  // is missing, fall back to splitting on "Processed" or each $NN.NN cost line.
   function parseSmsReport(raw){
     const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    // split into blocks starting at each "SMS Campaign"
-    const blocks=[]; let cur=null;
-    lines.forEach(l=>{ if(/^SMS Campaign/i.test(l)){ if(cur) blocks.push(cur); cur=[l]; } else if(cur){ cur.push(l); } });
-    if(cur) blocks.push(cur);
+    let blocks=[]; let cur=null;
+    const startsNew = (l)=> /^SMS Campaign/i.test(l) || /^Processed$/i.test(l);
+    lines.forEach(l=>{ if(startsNew(l)){ if(cur&&cur.length) blocks.push(cur); cur=[l]; } else if(cur){ cur.push(l); } else { cur=[l]; } });
+    if(cur&&cur.length) blocks.push(cur);
+    // if we didn't split well (one giant block), re-split by cost lines so each $NN.NN is its own charge
+    const costCount=(raw.match(/\$\d+\.\d{2}\b/g)||[]).length;
+    if(blocks.length< costCount){
+      blocks=[]; cur=[];
+      lines.forEach(l=>{ cur.push(l); if(/\$\d+\.\d{2}\b/.test(l)){ blocks.push(cur); cur=[]; } });
+      if(cur.length) blocks.push(cur);
+    }
     const venueList=[...new Set(CO.map(c=>c.venue_name).filter(Boolean))];
     const rows=[];
     blocks.forEach(b=>{
       const text=b.join('\n');
-      // date: first YYYY-MM-DD in the block (processed date), else from the header "15th June 2026"
       let date=''; const isoM=text.match(/(\d{4}-\d{2}-\d{2})/); if(isoM) date=isoM[1];
-      if(!date){ const hdr=b[0].match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/); if(hdr){ const mo={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12}[hdr[2].toLowerCase()]; if(mo) date=hdr[3]+'-'+('0'+mo).slice(-2)+'-'+('0'+hdr[1]).slice(-2); } }
-      // amount: the $ value (cost), recipients: a standalone integer line near the amount
-      let amount=0; const amtM=text.match(/\$\s*([0-9]+(?:\.[0-9]+)?)/g);
-      if(amtM&&amtM.length){ // the COST is the $ value that has decimals (e.g. $39.57), not message $ like "$3000"
-        const costCand=amtM.map(x=>Number(x.replace(/[^0-9.]/g,''))).filter(n=>!Number.isInteger(n)); // costs have cents
-        amount = costCand.length ? costCand[costCand.length-1] : Number((amtM[amtM.length-1]||'').replace(/[^0-9.]/g,''))||0;
-      }
-      // recipients: a line that's purely a number (3-5 digits), not part of a date
-      let rcp=null;
-      for(const ln of b){ if(/^\d{2,6}$/.test(ln)){ const n=Number(ln); if(n>0 && n<100000){ rcp=n; } } }
-      // venue: look for a known venue name mentioned in the message text (fuzzy — strip spaces/case)
-      let venue=''; const squish=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-      const tsq=squish(text);
-      venueList.forEach(v=>{ if(squish(v) && tsq.includes(squish(v))) venue=v; });
-      // also catch common shorthands like "Cabravale" matching "Cabravale Resorts"
+      if(!date){ const hdr=text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/); if(hdr){ const mo={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12}[hdr[2].toLowerCase()]; if(mo) date=hdr[3]+'-'+('0'+mo).slice(-2)+'-'+('0'+hdr[1]).slice(-2); } }
+      // cost = the $ value WITH cents (e.g. $39.57). Message amounts ($3000, $150) are whole — ignored.
+      let amount=0; const costs=(text.match(/\$\s*\d+\.\d{2}\b/g)||[]).map(x=>Number(x.replace(/[^0-9.]/g,'')));
+      if(costs.length) amount=costs[costs.length-1];
+      // recipients = a standalone integer line (2–6 digits)
+      let rcp=null; for(const ln of b){ if(/^\d{2,6}$/.test(ln)){ const n=Number(ln); if(n>0&&n<1000000) rcp=n; } }
+      // venue from message text (fuzzy, ignore spaces/case)
+      let venue=''; const squish=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); const tsq=squish(text);
+      venueList.forEach(v=>{ if(squish(v)&&tsq.includes(squish(v))) venue=v; });
       if(!venue){ venueList.forEach(v=>{ const first=(v||'').split(/\s+/)[0]; if(first&&first.length>3&&tsq.includes(squish(first))) venue=v; }); }
-      // message snippet as note
       const msgLine=b.find(l=>/[A-Za-z].*!|GTD|Buy in|Overlay|Rego/i.test(l)&&!/^SMS Campaign/i.test(l)&&!/Processed/i.test(l)&&l!=='POKERPALACE');
       const note=msgLine?('SMS: '+msgLine.slice(0,60)):'SMS campaign';
-      if(amount>0||rcp){
-        // try to match a close-out by venue + date
+      if(amount>0){
         let match=null;
         if(venue&&date) match=CO.find(co=>norm(co.venue_name)===norm(venue)&&co.game_date===date);
         if(!match&&venue) match=CO.find(co=>norm(co.venue_name)===norm(venue));
