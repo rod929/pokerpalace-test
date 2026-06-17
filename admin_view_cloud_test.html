@@ -154,7 +154,17 @@
         }).join('');
       }
       document.querySelectorAll('.coclick').forEach(el=>{
-        el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ try{ d.innerHTML=coDetail(CO_DATA[i]); }catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f">Could not build this report: '+(err.message||err)+'</div>'; } d.dataset.built='1'; wireAck(d); } });
+        el.addEventListener('click',()=>{
+          const i=+el.dataset.co; const d=$('codetail'+i);
+          if(!d){ alert('No detail panel found for index '+i); return; }
+          const open=(d.style.display==='none'||d.style.display==='');
+          d.style.display=open?'block':'none';
+          if(open&&!d.dataset.built){
+            try{ d.innerHTML=coDetail(CO_DATA[i]); }
+            catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f;padding:12px">⚠ Could not build this report: '+(err&&err.message?err.message:err)+'</div>'; }
+            d.dataset.built='1'; wireAck(d);
+          }
+        });
       });
       // deep-link: if URL has #co=ID, auto-open that specific tournament and scroll to it
       const hash=window.location.hash||'';
@@ -164,7 +174,7 @@
         const idx=CO_DATA.findIndex(c=>String(c.id)===String(targetId));
         if(idx>=0){
           const d=$('codetail'+idx);
-          if(d){ d.style.display='block'; if(!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[idx]); d.dataset.built='1'; wireAck(d); } }
+          if(d){ d.style.display='block'; if(!d.dataset.built){ try{ d.innerHTML=coDetail(CO_DATA[idx]); }catch(err){ d.innerHTML='<div class="dmut" style="color:#e07a5f">Could not build: '+(err.message||err)+'</div>'; } d.dataset.built='1'; wireAck(d); } }
           const card=document.querySelector('.coclick[data-co="'+idx+'"]');
           if(card){ card.style.outline='2px solid #7fa0c4'; card.style.borderRadius='12px'; setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),200); }
         }
