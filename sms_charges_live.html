@@ -25,6 +25,16 @@
   input,select,textarea{width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-size:15px;padding:11px 12px;outline:none;font-family:inherit}
   input:focus,select:focus,textarea:focus{border-color:var(--blue)}
   textarea{min-height:120px;font-family:'JetBrains Mono';font-size:13px;resize:vertical}
+  .sumtop{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .sumstat{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}
+  .sumstat .sl{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+  .sumstat .sv{font-family:'JetBrains Mono';font-weight:700;font-size:20px}
+  .sumwarn{background:rgba(224,173,85,.1);border:1px solid var(--amber);border-radius:9px;padding:10px 12px;font-size:12.5px;color:var(--ink-dim);margin-bottom:14px}
+  .sumh{font-family:'Archivo',sans-serif;font-weight:600;font-size:13px;color:var(--ink-dim);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .sumrow{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--chip);border:1px solid var(--line);border-radius:9px;margin-bottom:6px}
+  .sumrow .sn{font-size:13.5px}
+  .sumrow .sc{display:block;font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono';margin-top:2px}
+  .sumrow .sa{font-family:'JetBrains Mono';font-weight:700;color:var(--gold)}
   .signinbtn{width:100%;margin-top:16px;background:var(--blue);border:none;color:#0e1a26;font-weight:700;font-size:15px;border-radius:10px;padding:13px;cursor:pointer}
   .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 14px;font-size:13px;color:var(--ink-dim)} .bar b{color:var(--ink)}
   .bar button{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer} .bar button:hover{border-color:var(--blue);color:var(--blue)}
@@ -104,6 +114,11 @@
         <div id="previewBox"></div>
       </div>
 
+      <div class="card" id="summaryCard" style="display:none">
+        <h2>📊 SMS summary</h2>
+        <div id="summaryBox"></div>
+      </div>
+
       <div class="card">
         <h2>Recorded charges</h2>
         <div id="list"></div>
@@ -143,10 +158,38 @@
       CO=(await supabase.from('closeouts').select('id,game_name,venue_name,game_date').order('game_date',{ascending:false})).data||[];
       ROWS=(await supabase.from('sms_charges').select('*').order('charge_date',{ascending:false})).data||[];
       $('coSel').innerHTML='<option value="">- pick game night -</option>'+CO.map(c=>'<option value="'+c.id+'">'+(c.game_date||'?')+' · '+(c.game_name||'')+' · '+(c.venue_name||'')+'</option>').join('');
-      renderTotal(); renderList();
+      renderTotal(); renderSummary(); renderList();
     }catch(e){ setStatus('Could not load: '+(e.message||e),'err'); }
   }
   function renderTotal(){ $('totAll').textContent=money(ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0)); }
+  function renderSummary(){
+    const box=$('summaryBox'), card=$('summaryCard');
+    if(!ROWS.length){ card.style.display='none'; return; }
+    card.style.display='block';
+    const totAmt=ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0);
+    const totRcp=ROWS.reduce((s,r)=>s+(Number(r.recipients)||0),0);
+    const unmatched=ROWS.filter(r=>!r.closeout_id).length;
+    // by venue
+    const byVenue={};
+    ROWS.forEach(r=>{ const v=r.venue_name||'(no venue / unlinked)'; if(!byVenue[v])byVenue[v]={amt:0,rcp:0,n:0}; byVenue[v].amt+=Number(r.amount)||0; byVenue[v].rcp+=Number(r.recipients)||0; byVenue[v].n++; });
+    const venueRows=Object.keys(byVenue).sort((a,b)=>byVenue[b].amt-byVenue[a].amt);
+    // by month
+    const byMonth={};
+    ROWS.forEach(r=>{ const m=(r.charge_date||'').slice(0,7)||'(no date)'; if(!byMonth[m])byMonth[m]={amt:0,rcp:0,n:0}; byMonth[m].amt+=Number(r.amount)||0; byMonth[m].rcp+=Number(r.recipients)||0; byMonth[m].n++; });
+    const monthRows=Object.keys(byMonth).sort().reverse();
+    const monthName=(ym)=>{ if(!/^\d{4}-\d{2}$/.test(ym))return ym; const [y,mm]=ym.split('-'); const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return names[Number(mm)-1]+' '+y; };
+    box.innerHTML=
+      '<div class="sumtop">'+
+        '<div class="sumstat"><div class="sl">Total spend</div><div class="sv" style="color:var(--gold)">'+money(totAmt)+'</div></div>'+
+        '<div class="sumstat"><div class="sl">Total recipients</div><div class="sv" style="color:var(--blue)">'+totRcp.toLocaleString()+'</div></div>'+
+        '<div class="sumstat"><div class="sl">Campaigns</div><div class="sv">'+ROWS.length+'</div></div>'+
+      '</div>'+
+      (unmatched?'<div class="sumwarn">⚠ '+unmatched+' charge'+(unmatched>1?'s':'')+' not linked to a game night — won\'t hit game P&amp;L until linked.</div>':'')+
+      '<div class="sumh">By venue</div>'+
+      venueRows.map(v=>'<div class="sumrow"><span class="sn">'+v+' <span class="sc">'+byVenue[v].n+' campaign'+(byVenue[v].n>1?'s':'')+(byVenue[v].rcp?(' · '+byVenue[v].rcp.toLocaleString()+' sent'):'')+'</span></span><span class="sa">'+money(byVenue[v].amt)+'</span></div>').join('')+
+      '<div class="sumh">By month</div>'+
+      monthRows.map(m=>'<div class="sumrow"><span class="sn">'+monthName(m)+' <span class="sc">'+byMonth[m].n+' campaign'+(byMonth[m].n>1?'s':'')+(byMonth[m].rcp?(' · '+byMonth[m].rcp.toLocaleString()+' sent'):'')+'</span></span><span class="sa">'+money(byMonth[m].amt)+'</span></div>').join('');
+  }
   function renderList(){
     if(!ROWS.length){ $('list').innerHTML='<div class="empty">No SMS charges yet.</div>'; return; }
     $('list').innerHTML=ROWS.map(r=>{
@@ -231,18 +274,19 @@
   }
   async function importRows(){
     if(!parsed.length) parsed=parseRows($('paste').value);
-    if(!parsed.length){ setStatus('Nothing to import — paste the SMS report and tap Find charges first.','err'); return; }
+    if(!parsed.length){ setStatus('Nothing to import — paste the SMS report and tap Find charges first.','err'); alert('Nothing to import yet — tap "Find charges" first.'); return; }
     try{
       const payload=parsed.map(r=>{
         const co = r.coId ? CO.find(c=>String(c.id)===String(r.coId)) : null;
         return {charge_date:(co?co.game_date:r.date)||null, game_name:co?co.game_name:null, venue_name:co?co.venue_name:null, amount:r.amount, recipients:r.rcp, note:r.note||null, closeout_id:co?co.id:null, recorded_by:user.id};
       });
-      const{error}=await supabase.from('sms_charges').insert(payload);
-      if(error)throw error;
-      const linked=payload.filter(p=>p.closeout_id).length;
-      setStatus('✓ Imported '+payload.length+' charge(s) — '+linked+' linked to a game night.','ok');
+      const{data,error}=await supabase.from('sms_charges').insert(payload).select();
+      if(error) throw error;
+      if(!data || !data.length){ throw new Error('Saved nothing — this is a permissions (RLS) issue on the sms_charges table. Admins need an INSERT policy. I can give you the SQL.'); }
+      const linked=data.filter(p=>p.closeout_id).length;
+      setStatus('✓ Imported '+data.length+' charge(s) — '+linked+' linked to a game night.','ok');
       $('paste').value=''; parsed=[]; $('previewBox').innerHTML=''; await load();
-    }catch(e){ setStatus('Could not import: '+(e.message||e),'err'); }
+    }catch(e){ setStatus('Could not import: '+(e.message||e),'err'); alert('Could not import: '+(e.message||e)); }
   }
 
   $('csv').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=()=>{ $('paste').value=rd.result; preview(); }; rd.readAsText(f); });
