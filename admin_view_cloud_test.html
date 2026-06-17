@@ -126,13 +126,33 @@
       VENUES_D=(await supabase.from('venues').select('*')).data||[];
       SMS_D=(await supabase.from('sms_charges').select('*')).data||[];
       if(!CO_DATA.length){ $('coList').innerHTML='<div class="co">No close-outs visible to you.</div>'; return; }
-      $('coList').innerHTML = CO_DATA.map((c,i)=>
-        '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+'</div>'+
+      // helper: is this close-out the parallel rake-free cash game (saved as its own record)?
+      const isCashCo=c=> c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
+      // build the visible list: hide standalone cash-game records (they fold into the tournament card for that venue+date)
+      const visible=CO_DATA.filter(c=>!isCashCo(c));
+      // map each visible close-out index back to its CO_DATA index, and find its paired cash game
+      const findCash=(c)=> CO_DATA.find(x=>isCashCo(x) && x.venue_name===c.venue_name && x.game_date===c.game_date) || null;
+      $('coList').innerHTML = visible.map((c)=>{
+        const i=CO_DATA.indexOf(c);
+        const cash=findCash(c);
+        const tag = cash ? ' <span style="font-size:10px;color:#7fa0c4;border:1px solid #7fa0c4;border-radius:5px;padding:1px 6px;margin-left:6px">+ cash game</span>' : '';
+        return '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">'+(c.game_name||'(no name)')+tag+'</div>'+
         '<div class="codate">'+(c.game_date||'')+'</div></div>'+
         '<div class="cometa">'+(c.venue_name||'')+' · '+(c.entries||0)+' entries · money in $'+(c.money_in||0)+' · leftover $'+(c.leftover_cash||0)+'</div>'+
         '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
-        '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>'
-      ).join('');
+        '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
+      }).join('');
+      // also render any ORPHAN cash games (cash game with no matching tournament that night) as their own card
+      const orphans=CO_DATA.filter(c=>isCashCo(c) && !visible.some(t=>t.venue_name===c.venue_name && t.game_date===c.game_date));
+      if(orphans.length){
+        $('coList').innerHTML += orphans.map(c=>{ const i=CO_DATA.indexOf(c);
+          return '<div class="co coclick" data-co="'+i+'"><div class="cotop"><div class="coname">🎲 '+(c.game_name||'Rake Free Cash Game')+'</div>'+
+          '<div class="codate">'+(c.game_date||'')+'</div></div>'+
+          '<div class="cometa">'+(c.venue_name||'')+' · cash game only</div>'+
+          '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
+          '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
+        }).join('');
+      }
       document.querySelectorAll('.coclick').forEach(el=>{
         el.addEventListener('click',()=>{ const i=+el.dataset.co; const d=$('codetail'+i); const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(open&&!d.dataset.built){ d.innerHTML=coDetail(CO_DATA[i]); d.dataset.built='1'; wireAck(d); } });
       });
@@ -153,6 +173,21 @@
   }
   function coDetail(c){
     const money=n=>{n=Math.round(Number(n)||0);return (n<0?'-$':'$')+Math.abs(n).toLocaleString();};
+    const row0=(k,v,col)=>'<div class="dl"><span>'+k+'</span><span'+(col?(' style="color:'+col+'"'):'')+'>'+v+'</span></div>';
+    // standalone Rake Free Cash Game close-out (orphan, or opened directly): show ONLY players + promo + staff
+    if(c.is_cash_game===true || c.game_name==='Rake Free Cash Game'){
+      const cashPlayers=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).length;
+      const cashPromo=Number(c.promo_cost)||0;
+      const cshf=SHF_DATA.filter(s=>String(s.closeout_id)===String(c.id));
+      const cwages=cshf.reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+      let hh='<div class="dsec">🎲 Rake Free Cash Game</div>'+
+        '<div class="cobox" style="border-color:#2f4a63"><div class="dl"><span>Players</span><span>'+cashPlayers+'</span></div>'+
+        '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
+      hh+='<div class="dsec">👷 Staff</div><div class="secbox">';
+      hh+= cshf.length? cshf.map(s=>{const hrs=Math.round((Number(s.hours)||0)*10)/10; const rate=Number(s.rate)||0; const t=(s.start&&s.finish)?(s.start+'–'+s.finish):(hrs+'h'); return '<div class="dl"><span>'+(s.staff_name||'')+(s.role?(' · '+s.role):'')+' · '+t+' · $'+rate+'/h</span><span>'+money(hrs*rate)+'</span></div>';}).join(''):'<div class="dmut">No staff recorded against the cash game (may be on the tournament close-out for this night).</div>';
+      hh+='</div>';
+      return hh;
+    }
     const plc=PLC_DATA.filter(p=>String(p.closeout_id)===String(c.id)).sort((a,b)=>a.place-b.place);
     const shf=SHF_DATA.filter(s=>String(s.closeout_id)===String(c.id));
     const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
@@ -292,6 +327,31 @@
     h+='<div class="dsec">👥 All players ('+players.length+')</div><div class="secbox">';
     h+= players.length? '<div class="dchips">'+players.map(n=>'<span class="dchip'+(winNames.has(n.toLowerCase())?' w':'')+'">'+(winNames.has(n.toLowerCase())?'🏆 ':'')+n+'</span>').join('')+'</div>':'<div class="dmut">No GES player list for this game.</div>';
     h+='</div>';
+
+    // ===== UNIFIED: if a parallel Rake Free Cash Game ran this venue+date, fold it in as its own section =====
+    const isThisCash = c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
+    if(!isThisCash){
+      const cash=(CO_DATA||[]).find(x=>(x.is_cash_game===true||x.game_name==='Rake Free Cash Game') && x.venue_name===c.venue_name && x.game_date===c.game_date);
+      if(cash){
+        const cashPlayers=((cash.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).length;
+        const cashPromo=Number(cash.promo_cost)||0;
+        // distinct separation: a header + the cash game's own mini close-out sheet (players + promo only)
+        h+='<div class="dsec" style="margin-top:22px;border-top:2px solid #2a3a4a;padding-top:16px">🎲 Rake Free Cash Game</div>'+
+          '<div class="cobox" style="border-color:#2f4a63"><div class="dl"><span>Players</span><span>'+cashPlayers+'</span></div>'+
+          '<div class="dl"><span>Promotional cost</span><span style="color:'+(cashPromo>0?'#e07a5f':'#76757a')+'">'+(cashPromo>0?('-'+money(cashPromo)):money(0))+'</span></div></div>';
+
+        // ===== Venue total for the day (club + staff shown ONCE here) =====
+        const tournamentNet = isVoid ? (club-voidWages) : (g.name ? (net-promo) : 0);
+        const dayTotal = tournamentNet - cashPromo;
+        h+='<div class="dsec" style="margin-top:18px">🏛 Venue total for the day</div>'+
+          '<div class="pnlbox" style="border-color:#c9b896">'+
+          row(isVoid?'Tournament (void)':'Tournament net', money(tournamentNet))+
+          row('Less: cash game promo', cashPromo>0?('-'+money(cashPromo)):money(0), cashPromo>0?'#e07a5f':'')+
+          '<div class="netprofit '+(dayTotal>=0?'pos':'neg')+'"><span>VENUE NET FOR THE DAY</span><span class="npval">'+money(dayTotal)+'</span></div>'+
+          '</div>'+
+          '<div class="dmut" style="margin-top:6px;font-size:11px">Club money &amp; staff wages are included once in the tournament net above — not double-counted.</div>';
+      }
+    }
     return h;
   }
 
