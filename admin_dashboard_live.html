@@ -681,6 +681,10 @@
   }
 
   document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
+  // delegated handler: any element with data-d inside the detail drawer drills down (works after re-render)
+  $('detailBody').addEventListener('click',(e)=>{
+    const el=e.target.closest('[data-d]'); if(el && $('detailBody').contains(el)){ openDetail(el.dataset.d); }
+  });
   $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('open'));
   $('periodToggle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;period=b.dataset.p;$('periodToggle').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));compute();});
   $('allBtn').addEventListener('click',()=>$('menu').classList.add('open'));
