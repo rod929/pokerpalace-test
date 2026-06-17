@@ -299,8 +299,10 @@
         const id=btn.dataset.ack;
         btn.disabled=true; btn.textContent='Saving…';
         try{
-          const { error } = await supabase.from('closeouts').update({ overlay_ack:true }).eq('id', id);
+          const { data, error } = await supabase.from('closeouts').update({ overlay_ack:true }).eq('id', id).select();
           if(error) throw error;
+          if(!data || !data.length){ throw new Error('Update saved nothing — likely a permissions (RLS) issue on the closeouts table. An UPDATE policy for admins is needed. See the note I can give you.'); }
+          if(data[0].overlay_ack!==true){ throw new Error('The overlay_ack column did not update — it may not exist. Run the alter-table SQL to add it.'); }
           // update local copy + swap the block to the acknowledged state
           const co=CO_DATA.find(x=>String(x.id)===String(id)); if(co) co.overlay_ack=true;
           const box=btn.closest('.secbox');
