@@ -168,6 +168,14 @@
     const rakeColl=rake*entries;
     const margin=rakeColl-overlay;
     const wages=shf.reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+    // for the Rake Free Cash Game close-out, staff may have been logged against the void tournament
+    // that same night/venue — gather those so wages show here (the game that actually ran).
+    const isCashGameCo = c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
+    let nightWages=wages;
+    if(isCashGameCo && wages===0){
+      const nightCoIds=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date).map(x=>String(x.id));
+      nightWages=SHF_DATA.filter(s=>nightCoIds.includes(String(s.closeout_id))).reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
+    }
     // SMS attributed to this close-out (or matching game+date)
     const sms=SMS_D.filter(x=> (x.closeout_id&&String(x.closeout_id)===String(c.id)) || (!x.closeout_id&&x.game_name===c.game_name&&x.charge_date===c.game_date) ).reduce((s,x)=>s+(Number(x.amount)||0),0);
     // club money share
@@ -176,9 +184,13 @@
     let club=0, clubLbl='';
     // for a void game, club only applies if a rake-free game ran same venue+date
     const voidHere = c.void===true;
-    const rakeFreeRanTonight = (CO_DATA||[]).some(x=>x.venue_name===c.venue_name && x.game_date===c.game_date && (GAMES_D.find(gg=>gg.name===x.game_name)||{}).rake_free===true);
-    if(voidHere && !rakeFreeRanTonight){
-      club=0; clubLbl=' (void, no other game)';
+    const rakeFreeRanTonight = (CO_DATA||[]).some(x=>x.venue_name===c.venue_name && x.game_date===c.game_date && (
+      x.is_cash_game===true || x.game_name==='Rake Free Cash Game' || (GAMES_D.find(gg=>gg.name===x.game_name)||{}).rake_free===true
+    ));
+    if(voidHere){
+      // void tournament: club fee + wages are shown on the Rake Free Cash Game close-out instead
+      // (that's the game that actually ran), so the void shows $0 club to avoid double-counting.
+      club=0; clubLbl=rakeFreeRanTonight?' (shown on cash game)':' (void, no other game)';
     } else if(basis==='fixed_monthly'){
       const ym=(c.game_date||'').slice(0,7);
       const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym).length || 1;
@@ -186,7 +198,7 @@
     } else if(rate2){ club=rate2; clubLbl=' (per game)'; }
     const net=margin+club-wages-sms;
     const promo=Number(c.promo_cost)||0;
-    const isRakeFree = g.rake_free===true;
+    const isRakeFree = g.rake_free===true || c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
     const isVoid = c.void===true;
 
     // --- prize payment breakdown (split-aware) ---
@@ -206,20 +218,23 @@
     // P&L block
     h+='<div class="dsec">💵 Game P&amp;L</div>';
     if(isVoid){
+      const voidWages = rakeFreeRanTonight ? 0 : wages; // if cash game ran, wages show on that close-out
       h+='<div class="pnlbox" style="border-color:#a14b39">'+
         '<div class="dl"><span>⛔ Game void — did not run</span><span style="color:#e07a5f">insufficient players</span></div>'+
         row('Rake / margin', money(0))+
         row('Guarantee liability', money(0)+' (void)')+
-        row('Club money', club>0?('+'+money(club)+' (rake-free ran)'):money(0)+' (no other game)', club>0?'#5cb88a':'')+
-        row('Less: staff wages', wages>0?('-'+money(wages)):money(0), wages>0?'#e07a5f':'')+
-        '<div class="netprofit '+((club-wages)>=0?'pos':'neg')+'"><span>NET RESULT</span><span class="npval">'+money(club-wages)+'</span></div>'+
+        row('Club money', club>0?('+'+money(club)):money(0)+(rakeFreeRanTonight?' (shown on cash game)':' (no other game)'), club>0?'#5cb88a':'')+
+        row('Less: staff wages', voidWages>0?('-'+money(voidWages)):money(0)+(rakeFreeRanTonight&&wages>0?' (shown on cash game)':''), voidWages>0?'#e07a5f':'')+
+        '<div class="netprofit '+((club-voidWages)>=0?'pos':'neg')+'"><span>NET RESULT</span><span class="npval">'+money(club-voidWages)+'</span></div>'+
         '</div>';
     } else if(isRakeFree){
-      const rfNet=-promo;
+      const rfNet=club-nightWages-promo;
       h+='<div class="pnlbox">'+
         '<div class="dl"><span>🎲 Rake Free Cash Game</span><span style="color:#7fa0c4">no rake / margin</span></div>'+
+        (club>0?row('Club money'+clubLbl, '+'+money(club), '#5cb88a'):'')+
         row('Promotion cost', promo>0?('-'+money(promo)):money(0), promo>0?'#e07a5f':'')+
-        '<div class="netprofit '+(rfNet>=0?'pos':'neg')+'"><span>NET COST TO DAY</span><span class="npval">'+money(rfNet)+'</span></div>'+
+        (nightWages>0?row('Less: staff wages', '-'+money(nightWages), '#e07a5f'):'')+
+        '<div class="netprofit '+(rfNet>=0?'pos':'neg')+'"><span>NET FOR THE DAY</span><span class="npval">'+money(rfNet)+'</span></div>'+
         '</div>';
     } else {
     h+= g.name ? ('<div class="pnlbox">'+

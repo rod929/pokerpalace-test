@@ -295,8 +295,11 @@
     const nightsByVenue={}; // venue -> Set of qualifying dates
     cos.forEach(c=>{
       const v=c.venue_name||'(no venue)'; const d=c.game_date||''; if(!d) return;
-      const isVoid=c.void===true; const isRF=gameIsRakeFree(c.game_name);
-      const qualifies = isRF || !isVoid; // rake-free always qualifies; non-void tournament qualifies; void tournament alone does not
+      const isVoid=c.void===true;
+      // a night qualifies for club money if SOMETHING ran: a non-void tournament, OR a rake-free cash game.
+      // the parallel cash game is saved as its own close-out (is_cash_game / named "Rake Free Cash Game").
+      const isCashGame = c.is_cash_game===true || c.game_name==='Rake Free Cash Game' || gameIsRakeFree(c.game_name);
+      const qualifies = isCashGame || !isVoid;
       if(qualifies){ (nightsByVenue[v]=nightsByVenue[v]||new Set()).add(d); }
     });
     const out={};
