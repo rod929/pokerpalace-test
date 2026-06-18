@@ -923,10 +923,12 @@
         if(ins.error) throw ins.error; if(!ins.data||!ins.data.length) throw new Error('Draft saved nothing — likely an RLS issue.');
         coId=ins.data[0].id;
       }
-      // save any placings entered so far
-      const plRows=(places||[]).filter(p=>p.player_name&&p.player_name.trim()).map((p,idx)=>{
+      // save any placings entered so far (drafts: keep even if winner name not yet assigned)
+      const plRows=(places||[]).map((p,idx)=>{
         const sp=p.splits||[]; const tot=sp.reduce((s,x)=>s+(Number(x.amount)||0),0);
-        return { closeout_id:coId, place:p.place||idx+1, player_name:p.player_name.trim(), amount:tot, paid_by:(sp[0]||{}).method||'cash', ticket_id:(sp[0]||{}).ticket_id||null, paid:false };
+        return { p, idx, tot, sp };
+      }).filter(x=>x.tot>0 || (x.p.player_name&&x.p.player_name.trim())).map(x=>{
+        return { closeout_id:coId, place:x.p.place||x.idx+1, player_name:(x.p.player_name||'').trim()||null, amount:x.tot, paid_by:(x.sp[0]||{}).method||'cash', ticket_id:(x.sp[0]||{}).ticket_id||null, ticket_value:(x.sp[0]||{}).ticket_value||null, paid:false };
       });
       if(plRows.length) await supabase.from('placings').insert(plRows);
       // save any staff entered so far
@@ -953,6 +955,10 @@
       $('totent').value=co.entries??''; $('uniq').value=co.unique_players??''; $('reent').value=co.re_entries??'';
       if($('addon')) $('addon').value=co.addons??''; if($('newp')) $('newp').value=co.new_players??'';
       if($('otherIn')) $('otherIn').value=co.other_in??'';
+      if($('cashIn')) $('cashIn').value=co.cash_in??'';
+      if($('transferIn')) $('transferIn').value=co.transfer_in??'';
+      if($('ticketIn')) $('ticketIn').value=co.ticket_in??'';
+      if($('otherInNote')&&co.other_in_note) $('otherInNote').value=co.other_in_note;
       GES_NAMES=(co.ges_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
       GES_TICKET_NAMES=(co.ges_ticket_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
       // if this old close-out has no GES roster on file, let the entry fields be editable as a fallback
@@ -978,7 +984,16 @@
       if(!staff.length){ staff=[{staff_id:null,name:'',role:'',hours:'',rate:'',rate_id:null}]; }
       renderStaff();
       if($('confirmEntries')) $('confirmEntries').checked=true;
-      setTimeout(()=>{ updatePrizePool(); recalcMoneyIn(); recalcPlaces(); refreshCashIn(); }, 260);
+      setTimeout(()=>{
+        // now the game is loaded — recompute the GES cash baseline from saved cash_in minus add-on cash
+        const ac=(Number(co.addons)||0)*((currentGame&&Number(currentGame.addon_price))||0);
+        GES_CASH=Math.max(0,(Number(co.cash_in)||0)-ac);
+        updatePrizePool(); recalcMoneyIn(); recalcPlaces(); refreshCashIn();
+        // ensure transfer/ticket stay at the saved values (refreshCashIn only touches cash)
+        if($('transferIn')&&(co.transfer_in!=null)) $('transferIn').value=co.transfer_in;
+        if($('ticketIn')&&(co.ticket_in!=null)) $('ticketIn').value=co.ticket_in;
+        recalcMoneyIn();
+      }, 320);
       showEditBanner(co);
       window.scrollTo({top:0,behavior:'smooth'});
       clearStatus();
