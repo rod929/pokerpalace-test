@@ -491,6 +491,12 @@
     CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
     computed.ownerRecvList=Object.keys(ownerRecv).map(k=>({name:k, amt:ownerRecv[k]})).sort((a,b)=>b.amt-a.amt);
     computed.ownerRecvTotal=Object.values(ownerRecv).reduce((s,x)=>s+x,0);
+    // tickets allocated to players (satellite/seat prizes won) — value held but owed out as seats
+    let ticketsAllocated=0;
+    PLACINGS.forEach(p=>{
+      [p.ticket_value, p.ticket_value_2, p.ticket_value_3].forEach(tv=>{ ticketsAllocated+=Number(tv)||0; });
+    });
+    computed.ticketsAllocated=ticketsAllocated;
     const cashHeld=received-cashExp-toOwners;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
@@ -603,6 +609,19 @@
           if(!pend.length) return '';
           return '<div class="dsub" style="margin-top:16px;color:var(--amber)">⏳ Awaiting your confirmation</div>'+
             pend.map(m=>'<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l">'+money(m.amount)+' from a TD'+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><button class="confirmcash" data-confirm="'+m.id+'" style="background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:8px;padding:8px 13px;font-size:12.5px;cursor:pointer;font-weight:600">✓ Confirm receipt</button></div>').join('');
+        })()+
+        // ===== Net free cash summary =====
+        (function(){
+          const held=Number(computed.totalCashHeld!=null?computed.totalCashHeld:computed.cashHeld)||0;
+          const tk=Number(computed.ticketsAllocated)||0;
+          const free=held-tk;
+          return '<div class="dsub" style="margin-top:18px">🧮 Net free cash</div>'+
+            '<div class="pnlbox" style="border-color:#c9b896">'+
+              '<div class="drow"><span class="l">Current cash held</span><span class="r" style="color:var(--gold)">'+money(held)+'</span></div>'+
+              '<div class="drow"><span class="l">Less: tickets allocated to players <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'−'+money(tk):money(0))+'</span></div>'+
+              '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>NET FREE CASH</span><span class="npval">'+money(free)+'</span></div>'+
+            '</div>'+
+            '<div class="dmut" style="margin-top:6px;font-size:11px">Net free cash = total cash held minus the value of ticket/satellite seats won by players (which are owed out as future entries).</div>';
         })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
