@@ -437,6 +437,9 @@
     loadVenues(); loadGames(); loadStaffList(); loadTickets(); loadMine();
     places=[]; addPlace(); addPlace(); addPlace();
     staff=[]; addStaff(); addStaff();
+    // if opened from the "close-outs to finish" list with #edit=ID, jump straight into editing it
+    const em=(window.location.hash||'').match(/edit=([^&]+)/);
+    if(em){ const eid=decodeURIComponent(em[1]); setTimeout(()=>{ startEdit(eid); }, 400); }
   }
   function showLogin(){ user=null; $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
 

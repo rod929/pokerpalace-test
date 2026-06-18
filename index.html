@@ -200,6 +200,7 @@
     <!-- TD sees their operational screens -->
     <div id="tdTiles" style="display:none">
       <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
+      <div id="toFinishBox" style="display:none"></div>
 
       <div class="tdtog" id="earnTog">
         <button data-p="week" class="on">This week</button><button data-p="month">This month</button><button data-p="ytd">Year to date</button>
@@ -329,8 +330,39 @@
       TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
       TD_PLAYERS = (await supabase.from('players').select('created_at,registered_by')).data||[];
       TD_ADMINS = ((await supabase.from('profiles').select('user_id,full_name,role').in('role',['admin','owner'])).data)||[];
-      renderEarn(); renderCash(); renderPlayers(); renderActive();
+      renderEarn(); renderCash(); renderPlayers(); renderActive(); renderToFinish();
     }catch(e){ /* silent */ }
+  }
+
+  function renderToFinish(){
+    const box=$('toFinishBox'); if(!box) return;
+    const shiftsByCo={}; TD_SHIFTS.forEach(s=>{ (shiftsByCo[s.closeout_id]=shiftsByCo[s.closeout_id]||[]).push(s); });
+    const placeByCo={}; TD_PLACINGS.forEach(p=>{ (placeByCo[p.closeout_id]=placeByCo[p.closeout_id]||[]).push(p); });
+    const items=[];
+    TD_CO.forEach(c=>{
+      const isVoid=c.void===true;
+      const isCash=c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
+      const miss=[];
+      if(!(shiftsByCo[c.id]&&shiftsByCo[c.id].length)) miss.push('staff/wages');
+      if(!isVoid && !isCash){
+        if(!(placeByCo[c.id]&&placeByCo[c.id].length)) miss.push('player placings (GES results)');
+        if((Number(c.entries)||0)>0 && !(Number(c.money_in)||0)) miss.push('money taken');
+        if(!c.ges_players) miss.push('GES player list');
+      }
+      if(miss.length){ items.push({co:c, miss}); }
+    });
+    if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='block';
+    box.innerHTML='<div style="background:rgba(224,173,85,.08);border:1px solid var(--amber,#e0ad55);border-radius:12px;padding:13px 15px;margin-bottom:14px">'+
+      '<div style="font-family:\'Archivo\',sans-serif;font-weight:700;font-size:14px;color:var(--amber,#e0ad55);margin-bottom:4px">⚠ Close-outs to finish ('+items.length+')</div>'+
+      '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:10px">These close-outs are missing details. Tap one to open it and complete it.</div>'+
+      items.map(it=>'<div class="tofinish-item" data-co="'+it.co.id+'" style="cursor:pointer;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:7px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13.5px">'+(it.co.game_name||'(no name)')+'</b><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(it.co.game_date||'')+'</span></div>'+
+        '<div style="font-size:11.5px;color:var(--amber,#e0ad55);margin-top:3px">Missing: '+it.miss.join(', ')+'</div>'+
+        '<div style="font-size:11px;color:var(--pp,#7fa0c4);margin-top:4px;font-weight:600">Tap to complete ›</div>'+
+      '</div>').join('')+
+    '</div>';
+    box.querySelectorAll('.tofinish-item').forEach(el=>el.addEventListener('click',()=>{ window.location.href='closeout_live.html#edit='+el.dataset.co; }));
   }
 
   function renderEarn(){

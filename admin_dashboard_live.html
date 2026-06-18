@@ -450,6 +450,21 @@
     if(!(OPENING && OPENING.as_of)){
       flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
     }
+    // 9. incomplete close-outs (missing staff or placings) — any TD, this period
+    const shByCo={}; (STAFF||[]).forEach(s=>{ (shByCo[s.closeout_id]=shByCo[s.closeout_id]||0); shByCo[s.closeout_id]++; });
+    const plByCo={}; (PLACINGS||[]).forEach(p=>{ (plByCo[p.closeout_id]=plByCo[p.closeout_id]||0); plByCo[p.closeout_id]++; });
+    const incomplete=cos.filter(c=>{
+      const isVoid=c.void===true; const isCash=c.is_cash_game===true||c.game_name==='Rake Free Cash Game';
+      const noStaff=!shByCo[c.id];
+      const noPlace=!isVoid && !isCash && !plByCo[c.id];
+      return noStaff || noPlace;
+    });
+    if(incomplete.length){
+      const one=incomplete.length===1;
+      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s'),d:'missing staff or player placings — '+(one?'open it':'review them')+' on the Tournament Report',
+        link: one ? ('admin_view_cloud_test.html#co='+incomplete[0].id) : 'admin_view_cloud_test.html',
+        cta: one ? 'Open this tournament' : 'Open Tournament Report'});
+    }
     computed.flags=flags;
     const ownerActionable=(computed.ownerFlags||[]).filter(f=>!f.placeholder).length;
     const totalCount=flags.length+ownerActionable;
