@@ -955,6 +955,18 @@
       if($('otherIn')) $('otherIn').value=co.other_in??'';
       GES_NAMES=(co.ges_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
       GES_TICKET_NAMES=(co.ges_ticket_players||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      // if this old close-out has no GES roster on file, let the entry fields be editable as a fallback
+      const entryFields=['totent','uniq','reent','newp'];
+      if(!GES_NAMES.length){ entryFields.forEach(id=>{ const el=$(id); if(el) el.removeAttribute('readonly'); }); }
+      else { entryFields.forEach(id=>{ const el=$(id); if(el) el.setAttribute('readonly','readonly'); }); }
+      // show the GES roster status so it's clear the import is (or isn't) attached
+      if($('gesResult')){
+        if(GES_NAMES.length){
+          $('gesResult').innerHTML='<div style="background:rgba(92,184,138,.1);border:1px solid var(--good-deep,#3f8c66);border-radius:9px;padding:10px 12px;color:#9fe3c0;font-size:12.5px">✓ GES report attached — '+GES_NAMES.length+' players on file. Winners can be picked from this list below.</div>';
+        } else {
+          $('gesResult').innerHTML='<div style="background:rgba(224,173,85,.1);border:1px solid var(--amber,#e0ad55);border-radius:9px;padding:10px 12px;color:var(--amber,#e0ad55);font-size:12.5px">⚠ No GES report saved for this close-out. The entry fields are unlocked so you can adjust them, or paste/import the GES report above to attach the full roster (needed to pick winners from a list).</div>';
+        }
+      }
       places = pls.length ? pls.map(p=>{
         const splits=[{method:p.paid_by||'cash',amount:p.amount!=null?(Number(p.amount)-(Number(p.amount_2)||0)-(Number(p.amount_3)||0)):'',ticket_id:p.ticket_id||null}];
         if(p.paid_by_2&&(Number(p.amount_2)||0)>0) splits.push({method:p.paid_by_2,amount:Number(p.amount_2),ticket_id:p.ticket_id_2||null});
@@ -966,6 +978,7 @@
       if(!staff.length){ staff=[{staff_id:null,name:'',role:'',hours:'',rate:'',rate_id:null}]; }
       renderStaff();
       if($('confirmEntries')) $('confirmEntries').checked=true;
+      setTimeout(()=>{ updatePrizePool(); recalcMoneyIn(); recalcPlaces(); refreshCashIn(); }, 260);
       showEditBanner(co);
       window.scrollTo({top:0,behavior:'smooth'});
       clearStatus();
@@ -1415,6 +1428,8 @@
     GES_NAMES = [...playerNames].sort();
     GES_TICKET_NAMES = [...ticketEntryNames].sort();
     $('totent').value=entries; $('uniq').value=unique; $('reent').value=reentries;
+    // GES is now attached — re-lock the entry fields (GES is the source of record)
+    ['totent','uniq','reent','newp'].forEach(id=>{ const el=$(id); if(el) el.setAttribute('readonly','readonly'); });
     // money in by method = count × buy-in (from game setup)
     const buyin=currentGame?Number(currentGame.buy_in)||0:0;
     GES_CASH = pmCount.cash*buyin;
