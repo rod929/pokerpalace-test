@@ -344,10 +344,9 @@
       const isCash=c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
       const miss=[];
       if(!(shiftsByCo[c.id]&&shiftsByCo[c.id].length)) miss.push('staff/wages');
+      // missing placings — only tournaments (not void, not cash game) need winners
       if(!isVoid && !isCash){
-        if(!(placeByCo[c.id]&&placeByCo[c.id].length)) miss.push('player placings (GES results)');
-        if((Number(c.entries)||0)>0 && !(Number(c.money_in)||0)) miss.push('money taken');
-        if(!c.ges_players) miss.push('GES player list');
+        if(!(placeByCo[c.id]&&placeByCo[c.id].length)) miss.push('player placings (winners)');
       }
       if(miss.length){ items.push({co:c, miss}); }
     });
