@@ -164,7 +164,8 @@
       $('coList').innerHTML = visible.map((c)=>{
         const i=CO_DATA.indexOf(c);
         const cash=findCash(c);
-        const tag = cash ? ' <span style="font-size:10px;color:#7fa0c4;border:1px solid #7fa0c4;border-radius:5px;padding:1px 6px;margin-left:6px">+ cash game</span>' : '';
+        const draftTag = c.is_draft===true ? ' <span style="font-size:10px;background:#e0ad55;color:#1a1a22;font-weight:700;border-radius:5px;padding:1px 6px;margin-left:6px">DRAFT</span>' : '';
+        const tag = (cash ? ' <span style="font-size:10px;color:#7fa0c4;border:1px solid #7fa0c4;border-radius:5px;padding:1px 6px;margin-left:6px">+ cash game</span>' : '') + draftTag;
         const net=cardNet(c);
         const netCol=net>=0?'#5cb88a':'#e07a5f';
         const netStr=(net<0?'-$':'$')+Math.abs(Math.round(net)).toLocaleString();

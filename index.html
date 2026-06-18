@@ -342,13 +342,14 @@
     TD_CO.forEach(c=>{
       const isVoid=c.void===true;
       const isCash=c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
+      const isDraft=c.is_draft===true;
       const miss=[];
+      if(isDraft) miss.push('draft — not yet finalised');
       if(!(shiftsByCo[c.id]&&shiftsByCo[c.id].length)) miss.push('staff/wages');
-      // missing placings — only tournaments (not void, not cash game) need winners
       if(!isVoid && !isCash){
         if(!(placeByCo[c.id]&&placeByCo[c.id].length)) miss.push('player placings (winners)');
       }
-      if(miss.length){ items.push({co:c, miss}); }
+      if(miss.length){ items.push({co:c, miss, isDraft}); }
     });
     if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
     box.style.display='block';
@@ -356,7 +357,7 @@
       '<div style="font-family:\'Archivo\',sans-serif;font-weight:700;font-size:14px;color:var(--amber,#e0ad55);margin-bottom:4px">⚠ Close-outs to finish ('+items.length+')</div>'+
       '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:10px">These close-outs are missing details. Tap one to open it and complete it.</div>'+
       items.map(it=>'<div class="tofinish-item" data-co="'+it.co.id+'" style="cursor:pointer;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:7px">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13.5px">'+(it.co.game_name||'(no name)')+'</b><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(it.co.game_date||'')+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13.5px">'+(it.isDraft?'<span style="background:var(--amber,#e0ad55);color:#1a1a22;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;margin-right:6px">DRAFT</span>':'')+(it.co.game_name||'(no name)')+'</b><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(it.co.game_date||'')+'</span></div>'+
         '<div style="font-size:11.5px;color:var(--amber,#e0ad55);margin-top:3px">Missing: '+it.miss.join(', ')+'</div>'+
         '<div style="font-size:11px;color:var(--pp,#7fa0c4);margin-top:4px;font-weight:600">Tap to complete ›</div>'+
       '</div>').join('')+

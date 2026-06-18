@@ -399,6 +399,8 @@
 
     <button class="submit block" id="submitBtn">Finalise close-out</button>
     <button class="submit block" id="voidSubmitBtn" style="display:none;background:var(--red);border-color:var(--red)">⛔ Submit void game (staff only)</button>
+    <button class="submit block" id="draftBtn" style="margin-top:10px;background:transparent;border:1px solid var(--amber,#e0ad55);color:var(--amber,#e0ad55)">💾 Save as draft (finish later)</button>
+    <div style="font-size:11.5px;color:var(--ink-faint);text-align:center;margin-top:6px">Can't finish now? Save a draft — it'll be waiting in your "Close-outs to finish" list.</div>
 
     <div class="blockwhy" id="blockWhy"></div>
     </div>
@@ -589,7 +591,7 @@
       if(skipped>0){ if(!confirm(skipped+' staff row(s) have no hours/rate and will be skipped. Continue?\n\n(Each staff member needs hours — either start & finish times, or a typed Hours value — and a rate.)')){ if(btn) btn.disabled=false; setStatus('','ok'); return; } }
       const row={
         submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
-        game_date:$('gameDate').value||null, void:true,
+        game_date:$('gameDate').value||null, void:true, is_draft:false,
         entries:0, money_in:null, leftover_cash:0,
         ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null
       };
@@ -894,6 +896,48 @@
     }catch(e){ $('mine').innerHTML=''; }
   }
 
+  async function saveDraft(){
+    if(!$('venueSel').value){ setStatus('Pick a venue before saving a draft.','err'); return; }
+    if(!currentGame){ setStatus('Pick a game before saving a draft.','err'); return; }
+    const btn=$('draftBtn'); btn.disabled=true; setStatus('Saving draft…','ok');
+    try{
+      const row={
+        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
+        game_date:$('gameDate').value||null, is_draft:true, void:false,
+        entries:Number($('totent').value)||0, unique_players:Number($('uniq').value)||0, re_entries:Number($('reent').value)||0,
+        addons:Number(($('addon')||{}).value)||0, new_players:Number(($('newp')||{}).value)||0,
+        cash_in:Number(($('cashIn')||{}).value)||0, transfer_in:Number(($('transferIn')||{}).value)||0,
+        ticket_in:Number(($('ticketIn')||{}).value)||0, other_in:Number(($('otherIn')||{}).value)||0,
+        money_in:Number(($('cashIn')||{}).value||0)+Number(($('transferIn')||{}).value||0)+Number(($('ticketIn')||{}).value||0)+Number(($('otherIn')||{}).value||0),
+        ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null,
+        ges_ticket_players: GES_TICKET_NAMES.length ? GES_TICKET_NAMES.join('\n') : null
+      };
+      let coId;
+      if(EDIT_ID){
+        const up=await supabase.from('closeouts').update(row).eq('id',EDIT_ID).select();
+        if(up.error) throw up.error; coId=EDIT_ID;
+        await supabase.from('placings').delete().eq('closeout_id',coId);
+        await supabase.from('staff_shifts').delete().eq('closeout_id',coId);
+      } else {
+        const ins=await supabase.from('closeouts').insert(row).select();
+        if(ins.error) throw ins.error; if(!ins.data||!ins.data.length) throw new Error('Draft saved nothing — likely an RLS issue.');
+        coId=ins.data[0].id;
+      }
+      // save any placings entered so far
+      const plRows=(places||[]).filter(p=>p.player_name&&p.player_name.trim()).map((p,idx)=>{
+        const sp=p.splits||[]; const tot=sp.reduce((s,x)=>s+(Number(x.amount)||0),0);
+        return { closeout_id:coId, place:p.place||idx+1, player_name:p.player_name.trim(), amount:tot, paid_by:(sp[0]||{}).method||'cash', ticket_id:(sp[0]||{}).ticket_id||null, paid:false };
+      });
+      if(plRows.length) await supabase.from('placings').insert(plRows);
+      // save any staff entered so far
+      const stRows=(staff||[]).filter(s=>s.name&&s.name.trim()).map(s=>({ closeout_id:coId, staff_name:s.name.trim(), role:s.role||null, hours:effHours(s)||null, rate:s.rate?Number(s.rate):null }));
+      if(stRows.length) await supabase.from('staff_shifts').insert(stRows);
+      clearStatus();
+      alert('💾 Draft saved. You\'ll find it in your "Close-outs to finish" list to complete later.');
+      window.location.href='index.html';
+    }catch(e){ setStatus('Could not save draft: '+(e.message||e),'err'); btn.disabled=false; }
+  }
+
   async function startEdit(coId){
     try{
       setStatus('Loading close-out to edit…','ok');
@@ -977,7 +1021,7 @@
       const leftover=(cashIn+othIn)-cashPrizes;
       const row={
         submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame?currentGame.name:'',
-        game_date:$('gameDate').value||null,
+        game_date:$('gameDate').value||null, is_draft:false,
         entries:$('totent').value?Number($('totent').value):null,
         unique_players:$('uniq').value?Number($('uniq').value):null,
         re_entries:$('reent').value?Number($('reent').value):null,
@@ -1264,6 +1308,7 @@
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
   $('signoutBtn').addEventListener('click', signOut);
   $('submitBtn').addEventListener('click', ()=>{ if($('voidChk')&&$('voidChk').checked){ submitVoid(); } else { submit(); } });
+  if($('draftBtn')) $('draftBtn').addEventListener('click', saveDraft);
   $('lockBtn').addEventListener('click', ()=>{ if($('voidChk')&&$('voidChk').checked){ submitVoid(); } else { lockPlacings(); } });
   $('voidChk')&&$('voidChk').addEventListener('change', applyVoidMode);
   $('voidSubmitBtn')&&$('voidSubmitBtn').addEventListener('click', submitVoid);

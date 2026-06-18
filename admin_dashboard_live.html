@@ -356,7 +356,9 @@
   }
 
   function compute(){
-    const cos=CLOSEOUTS.filter(inPeriod);const ids=new Set(cos.map(c=>c.id));
+    const cosAll=CLOSEOUTS.filter(inPeriod); // includes drafts (for flagging)
+    const cos=cosAll.filter(c=>c.is_draft!==true); // exclude drafts from all financial calcs
+    const ids=new Set(cos.map(c=>c.id));
     let prizes=0,outstanding=0,outN=0;
     PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
     // per venue: gaming margin + club money − venue wages − venue-tagged expenses
@@ -453,15 +455,17 @@
     // 9. incomplete close-outs (missing staff or placings) — any TD, this period
     const shByCo={}; (STAFF||[]).forEach(s=>{ (shByCo[s.closeout_id]=shByCo[s.closeout_id]||0); shByCo[s.closeout_id]++; });
     const plByCo={}; (PLACINGS||[]).forEach(p=>{ (plByCo[p.closeout_id]=plByCo[p.closeout_id]||0); plByCo[p.closeout_id]++; });
-    const incomplete=cos.filter(c=>{
+    const incomplete=cosAll.filter(c=>{
       const isVoid=c.void===true; const isCash=c.is_cash_game===true||c.game_name==='Rake Free Cash Game';
+      const isDraft=c.is_draft===true;
       const noStaff=!shByCo[c.id];
       const noPlace=!isVoid && !isCash && !plByCo[c.id];
-      return noStaff || noPlace;
+      return isDraft || noStaff || noPlace;
     });
     if(incomplete.length){
+      const drafts=incomplete.filter(c=>c.is_draft===true).length;
       const one=incomplete.length===1;
-      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s'),d:'missing staff or player placings — '+(one?'open it':'review them')+' on the Tournament Report',
+      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s')+(drafts?(' ('+drafts+' draft'+(drafts>1?'s':'')+')'):''),d:'missing staff/placings or saved as draft — '+(one?'open it':'review them')+' on the Tournament Report',
         link: one ? ('admin_view_cloud_test.html#co='+incomplete[0].id) : 'admin_view_cloud_test.html',
         cta: one ? 'Open this tournament' : 'Open Tournament Report'});
     }
