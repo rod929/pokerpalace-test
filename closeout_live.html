@@ -437,11 +437,7 @@
     loadVenues(); loadGames(); loadStaffList(); loadTickets(); loadMine();
     places=[]; addPlace(); addPlace(); addPlace();
     staff=[]; addStaff(); addStaff();
-    startHeartbeat();
   }
-  let HB_TIMER=null;
-  async function beat(){ if(!user)return; try{ await supabase.from('profiles').update({last_seen:new Date().toISOString()}).eq('user_id',user.id); }catch(e){} }
-  function startHeartbeat(){ beat(); if(HB_TIMER)clearInterval(HB_TIMER); HB_TIMER=setInterval(beat,60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) beat(); }); }
   function showLogin(){ user=null; $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
 
   function syncChips(){

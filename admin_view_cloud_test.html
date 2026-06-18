@@ -101,7 +101,7 @@
     let role = 'td';
     try {
       const { data, error } = await supabase.from('profiles').select('role').eq('user_id', user.id);
-      if (!error && Array.isArray(data) && data.length) role = (data.find(r=>r.role==='admin')?'admin':(data[0].role||'td'));
+      if (!error && Array.isArray(data) && data.length) role = (data.find(r=>r.role==='admin'||r.role==='owner')?'admin':(data[0].role||'td'));
     } catch(e){ /* no profile row → default td */ }
 
     $('rolePill').innerHTML = '<span class="rolepill '+(role==='admin'?'admin':'td')+'">'+role.toUpperCase()+'</span>';

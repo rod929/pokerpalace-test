@@ -107,7 +107,6 @@
   <div id="app" class="hidden">
     <div class="hero"><h1 id="greet">Command Centre</h1><p>Tap any box for the full detail.</p></div>
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
-    <div id="onlineLine" style="font-size:12px;color:var(--ink-faint);margin:-2px 2px 10px"></div>
     <div id="adminArea">
       <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
       <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ›</span></a>
@@ -186,9 +185,22 @@
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
-    try{const{data}=await supabase.from('profiles').select('*').eq('user_id',u.id);if(Array.isArray(data)&&data.length){isAdmin=data.some(r=>r.role==='admin');const me=data[0];const nm=me.full_name||me.name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];}else isAdmin=false;}catch(e){isAdmin=false;}
-    $('roleLbl').textContent=isAdmin?'ADMIN':'TD';
-    if(!isAdmin){$('adminArea').style.display='none';$('notAdmin').style.display='block';return;}
+    let myRole='';
+    try{const{data,error}=await supabase.from('profiles').select('*').eq('user_id',u.id);
+      if(error) throw error;
+      if(Array.isArray(data)&&data.length){
+        const me=data.find(r=>r.role==='admin'||r.role==='owner')||data[0];
+        myRole=me.role||'';
+        isAdmin=data.some(r=>r.role==='admin'||r.role==='owner');
+        const nm=me.full_name||me.name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];
+      } else { isAdmin=false; myRole='(no profile row found)'; }
+    }catch(e){ isAdmin=false; myRole='(error: '+(e.message||e)+')'; }
+    $('roleLbl').textContent=isAdmin?(myRole==='owner'?'OWNER':'ADMIN'):'TD';
+    if(!isAdmin){
+      $('adminArea').style.display='none';$('notAdmin').style.display='block';
+      $('notAdmin').innerHTML='This dashboard is for admins and owners. Your account\'s role reads as: <b>'+(myRole||'(blank)')+'</b>.<br><br>If you\'re an owner and seeing this, your profiles row needs role set to <b>owner</b> (Table Editor → profiles → your row).';
+      return;
+    }
     $('allBtn').style.display='block';await loadAll();
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');$('allBtn').style.display='none';}
@@ -406,9 +418,14 @@
     // 1. unpaid placings (across all close-outs in period)
     const unpaid=PLACINGS.filter(p=>!p.paid && cos.some(c=>c.id===p.closeout_id));
     if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation',link:'payment_reconciliation_live.html',cta:'Open Payment Reconciliation'}); }
-    // 2. owner payments pending approval
+    // ===== OWNER actions (separate section) =====
+    const ownerFlags=[];
+    // owner payments pending approval — owners confirm they've received the payment
     const pend=OWNERPAY.filter(o=>o.status==='pending');
-    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); flags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' pending approval',d:money(amt)+' awaiting owner sign-off',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
+    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); ownerFlags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' to confirm',d:money(amt)+' — confirm you\'ve received this cash on the Owner Payments screen',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
+    // bank transactions that can't be allocated — placeholder (feature coming)
+    ownerFlags.push({ic:'🏦',t:'Unallocated bank transactions',d:'Coming soon — bank transactions that can\'t be matched to a game/venue will appear here for owners to review',placeholder:true,cta:'Coming soon'});
+    computed.ownerFlags=ownerFlags;
     // 3. invoices not yet sent/paid (this period)
     const draftInv=invsForVenues().filter(i=>i.status==='draft');
     if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period',link:'venues_invoicing_live.html',cta:'Open Venues & Invoicing'}); }
@@ -434,21 +451,12 @@
       flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
     }
     computed.flags=flags;
-    // online TDs (active in last 5 min) — shown as a small line at the top
-    const nowMs=Date.now();
-    const onlineNames=(PROFILES||[]).filter(p=>{
-      if(p.role!=='td'&&p.role!=='admin') return false;
-      const ls=p.last_seen?new Date(p.last_seen).getTime():0;
-      return ls && (nowMs-ls)<5*60000;
-    }).map(p=>p.full_name||'TD');
-    if($('onlineLine')){
-      if(onlineNames.length){ $('onlineLine').innerHTML='🟢 Online now: <b style="color:var(--good)">'+onlineNames.join(', ')+'</b>'; }
-      else { $('onlineLine').innerHTML='<span style="opacity:.6">○ No TDs online right now</span>'; }
-    }
-    $('mFlags').textContent=flags.length;
-    const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', flags.length>0);
-    $('mFlags').style.color = flags.length ? 'var(--amber)' : 'var(--good)';
-    $('mFlagsSub').textContent = flags.length ? 'items to review' : 'all clear';
+    const ownerActionable=(computed.ownerFlags||[]).filter(f=>!f.placeholder).length;
+    const totalCount=flags.length+ownerActionable;
+    $('mFlags').textContent=totalCount;
+    const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', totalCount>0);
+    $('mFlags').style.color = totalCount ? 'var(--amber)' : 'var(--good)';
+    $('mFlagsSub').textContent = totalCount ? 'items to review' : 'all clear';
 
     // opening balance: a starting figure as of a date; only count movements AFTER that date
     const openAmt = OPENING ? (Number(OPENING.amount)||0) : 0;
@@ -459,6 +467,11 @@
     const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    // breakdown of money received by each owner (admin_to_owner movements, grouped by recipient)
+    const ownerRecv={};
+    CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
+    computed.ownerRecvList=Object.keys(ownerRecv).map(k=>({name:k, amt:ownerRecv[k]})).sort((a,b)=>b.amt-a.amt);
+    computed.ownerRecvTotal=Object.values(ownerRecv).reduce((s,x)=>s+x,0);
     const cashHeld=received-cashExp-toOwners;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
@@ -558,6 +571,11 @@
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+        ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
+          '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
+          computed.ownerRecvList.map(o=>'<div class="drow"><span class="l">'+o.name+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>').join('')+
+          '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total to owners</b></span><span class="r"><b>'+money(computed.ownerRecvTotal||0)+'</b></span></div>'
+        ):'')+
         '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
         (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
@@ -569,14 +587,24 @@
         })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
+      const ofl=computed.ownerFlags||[];
       try{
-        b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub">Tap an item to jump straight to the screen where you can clear it.</div>'+(fl.length?fl.map((f,i)=>{
+        const renderRow=(f,i,kind)=>{
           const cta=f.cta||'Open';
-          return '<div class="drow flagrow" data-flag="'+i+'" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:6px">'+
+          const clickable=!f.placeholder;
+          return '<div class="drow '+(clickable?'flagrow':'')+'" '+(clickable?('data-'+kind+'flag="'+i+'"'):'')+' style="'+(clickable?'cursor:pointer;':'opacity:.6;')+'flex-direction:column;align-items:stretch;gap:6px">'+
             '<span class="l"><span style="font-size:16px;margin-right:8px">'+(f.ic||'•')+'</span>'+(f.t||'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+(f.d||'')+'</span></span>'+
-            '<span style="align-self:flex-end;color:var(--blue);font-size:12px;font-weight:600">'+cta+' ›</span>'+
+            '<span style="align-self:flex-end;color:'+(clickable?'var(--blue)':'var(--ink-faint)')+';font-size:12px;font-weight:600">'+cta+(clickable?' ›':'')+'</span>'+
           '</div>';
-        }).join(''):'<div class="comingbox"><div class="ic">✅</div><h3>All clear</h3><p>Nothing needs attention this period.</p></div>');
+        };
+        let html='<div class="dtitle">⚑ Needs action</div>';
+        // Admin section
+        html+='<div class="dsub" style="margin-top:6px;color:var(--gold)">👤 Admin to action</div>';
+        html+= fl.length ? fl.map((f,i)=>renderRow(f,i,'admin')).join('') : '<div class="drow" style="opacity:.7"><span class="l">✅ Nothing for admin right now</span></div>';
+        // Owner section
+        html+='<div class="dsub" style="margin-top:18px;color:var(--blue)">💼 Owner to action</div>';
+        html+= ofl.length ? ofl.map((f,i)=>renderRow(f,i,'owner')).join('') : '<div class="drow" style="opacity:.7"><span class="l">✅ Nothing for owners right now</span></div>';
+        b.innerHTML=html;
       }catch(err){ b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub" style="color:var(--red)">Could not render: '+(err.message||err)+'</div>'; }
     } else if(key==='pnl'){
       const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0,promo:0,sms:0};
@@ -688,8 +716,13 @@
     // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
     b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
     b.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',()=>confirmCash(el.dataset.confirm)));
-    b.querySelectorAll('[data-flag]').forEach(el=>el.addEventListener('click',()=>{
-      const f=(computed.flags||[])[Number(el.dataset.flag)]; if(!f) return;
+    b.querySelectorAll('[data-adminflag]').forEach(el=>el.addEventListener('click',()=>{
+      const f=(computed.flags||[])[Number(el.dataset.adminflag)]; if(!f) return;
+      if(f.link){ window.location.href=f.link; }
+      else if(f.drawer){ openDetail(f.drawer); }
+    }));
+    b.querySelectorAll('[data-ownerflag]').forEach(el=>el.addEventListener('click',()=>{
+      const f=(computed.ownerFlags||[])[Number(el.dataset.ownerflag)]; if(!f) return;
       if(f.link){ window.location.href=f.link; }
       else if(f.drawer){ openDetail(f.drawer); }
     }));

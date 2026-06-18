@@ -98,8 +98,8 @@
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
     let role='';
     try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);
-      isAdmin=Array.isArray(data)&&data.some(r=>r.role==='admin');
-      role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';
+      isAdmin=Array.isArray(data)&&data.some(r=>r.role==='admin'||r.role==='owner');
+      role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin'||r.role==='owner')||data[0]).role):'';
     }catch(e){isAdmin=false;}
     $('roleLbl').textContent=isAdmin?'ADMIN':(role?role.toUpperCase():'(view)');
     const isTD = role==='td';

@@ -136,7 +136,7 @@
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
-    try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';}catch(e){role='';}
+    try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin'||r.role==='owner')||data[0]).role):'';}catch(e){role='';}
     $('roleLbl').textContent=(role||'user').toUpperCase();
     $('oDate')&&($('oDate').valueAsDate=new Date());
     if(role==='admin'){ $('adminView').style.display='block'; }

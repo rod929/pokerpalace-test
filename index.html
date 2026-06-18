@@ -290,14 +290,13 @@
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
     try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';}catch(e){role='';}
-    // admins land straight on the dashboard
-    if(role==='admin'){ window.location.replace('admin_dashboard_live.html'); return; }
+    // admins and owners land straight on the dashboard (owners get the full admin view)
+    if(role==='admin'||role==='owner'){ window.location.replace('admin_dashboard_live.html'); return; }
     $('roleLbl').textContent=(role||'user').toUpperCase();
     $('roleChip').textContent=(role||'user').toUpperCase();
-    startHeartbeat();
-    $('adminTiles').style.display = role==='admin' ? 'block':'none';
+    $('adminTiles').style.display = (role==='admin'||role==='owner') ? 'block':'none';
     $('tdTiles').style.display = role==='td' ? 'block':'none';
-    $('ownerTiles').style.display = role==='owner' ? 'block':'none';
+    $('ownerTiles').style.display = 'none';
     document.body.classList.toggle('td-theme', role==='td');
     if(role==='td') loadTD();
   }
@@ -329,7 +328,7 @@
       TD_PLACINGS = coIds.length ? ((await supabase.from('placings').select('*').in('closeout_id',coIds)).data||[]) : [];
       TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
       TD_PLAYERS = (await supabase.from('players').select('created_at,registered_by')).data||[];
-      TD_ADMINS = ((await supabase.from('profiles').select('user_id,name,role').eq('role','admin')).data)||[];
+      TD_ADMINS = ((await supabase.from('profiles').select('user_id,full_name,role').in('role',['admin','owner'])).data)||[];
       renderEarn(); renderCash(); renderPlayers(); renderActive();
     }catch(e){ /* silent */ }
   }
@@ -449,7 +448,7 @@
   function showCashPanel(){
     const cashRaw = currentCashRaw();
     const pend = (TD_CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
-    const adminOpts = TD_ADMINS.length ? TD_ADMINS.map(a=>'<option value="'+(a.name||a.user_id)+'">'+(a.name||'(admin)')+'</option>').join('') : '<option value="">(no admins found)</option>';
+    const adminOpts = TD_ADMINS.length ? TD_ADMINS.slice().sort((a,b)=>(a.role==='admin'?0:1)-(b.role==='admin'?0:1)).map(a=>{ const nm=a.full_name||'(unnamed)'; const lbl=nm+' ('+(a.role==='owner'?'Owner':'Admin')+')'; return '<option value="'+nm+'">'+lbl+'</option>'; }).join('') : '<option value="">(no recipients found)</option>';
     let pendHtml='';
     if(pend.length){
       pendHtml='<div class="ssec" style="margin-top:14px">⏳ Pending hand-ups (awaiting admin confirmation)</div>'+
@@ -595,10 +594,6 @@
     $('tdPanel').scrollIntoView({behavior:'smooth'});
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');}
-  // heartbeat: stamp last_seen now and every 60s so admins can see who's active
-  let HB_TIMER=null;
-  async function beat(){ if(!user)return; try{ await supabase.from('profiles').update({last_seen:new Date().toISOString()}).eq('user_id',user.id); }catch(e){} }
-  function startHeartbeat(){ beat(); if(HB_TIMER)clearInterval(HB_TIMER); HB_TIMER=setInterval(beat,60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) beat(); }); }
 
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
   async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
