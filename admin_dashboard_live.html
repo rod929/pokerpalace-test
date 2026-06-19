@@ -507,7 +507,7 @@
     CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
     const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
     computed.tdHeldTotal=tdHeldTotal;
-    computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
+    computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
     const movementsSince = cashHeld+tdHeldTotal;
     // cash injections after the opening date add to the float
     const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
@@ -591,7 +591,7 @@
           '<button id="saveInjectBtn" style="width:100%;background:var(--good);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Add injection</button>'+
         '</div>'+
         '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
-        (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+'</span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
+        (tdList.length?tdList.map(t=>'<div class="drow" style="flex-direction:column;align-items:stretch;gap:2px"><div style="display:flex;justify-content:space-between"><span class="l">'+t.name+'</span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+((t.handed||0)>0?'<div style="font-size:10.5px;color:var(--ink-faint);font-family:JetBrains Mono">close-out leftovers '+money(t.leftover)+' − handed up '+money(t.handed)+'</div>':'')+'</div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
