@@ -424,13 +424,14 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[], ALL_STAFF_RATES=[];
-  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null, EDIT_ID=null;
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null, EDIT_ID=null, USER_ROLE='', USER_NAME='', EDIT_WAS_FINAL=false;
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
 
   function showApp(u){
     user=u;
+    supabase.from('profiles').select('role,full_name').eq('user_id',u.id).then(({data})=>{ if(data&&data.length){ USER_ROLE=(data.find(r=>r.role==='admin'||r.role==='owner')||data[0]).role||''; USER_NAME=(data[0].full_name)||''; } });
     $('login').classList.add('hidden'); $('app').classList.remove('hidden');
     $('whoEmail').textContent=u.email;
     $('chipTD').textContent=u.email.split('@')[0];
@@ -948,6 +949,7 @@
       const pls=(await supabase.from('placings').select('*').eq('closeout_id',coId).order('place')).data||[];
       const shs=(await supabase.from('staff_shifts').select('*').eq('closeout_id',coId)).data||[];
       EDIT_ID=co.id; LOCKED_ID=null;
+      EDIT_WAS_FINAL = (co.is_draft!==true); // if it wasn't a draft, this is an admin correction to a finalised close-out
       $('venueSel').value=co.venue_name||'';
       onVenueChange();
       setTimeout(()=>{ const sel=$('gameSel'); if(sel&&sel._games){ const gi=sel._games.findIndex(g=>g.name===co.game_name); if(gi>=0){ sel.value=String(gi); onGameChange(); } } }, 200);
@@ -1074,6 +1076,10 @@
         } else { co=upd.data&&upd.data[0]?upd.data[0]:{id:EDIT_ID}; }
         // remove old placings for this close-out (we re-insert fresh below)
         await supabase.from('placings').delete().eq('closeout_id',EDIT_ID);
+        // audit log: record the admin correction to a finalised close-out
+        if(EDIT_WAS_FINAL && isAdminUser){
+          try{ await supabase.from('closeout_corrections').insert({ closeout_id:EDIT_ID, corrected_by:user.id, corrected_by_name:USER_NAME||user.email, note:correctionNote||'(no note)' }); }catch(e){}
+        }
       } else {
       const ins = await supabase.from('closeouts').insert(row).select();
       if(ins.error){
@@ -1216,6 +1222,13 @@
     if(!LOCKED_ID){ setStatus('Lock the prize pool first.','err'); return; }
     if(!allReconciled()){ setStatus('Confirm cash/ticket payouts and assign transfer winners before finalising.','err'); return; }
     if(!staffEntered()){ setStatus('Enter the staff timesheet before finalising.','err'); return; }
+    // audit: if an admin/owner is editing a previously-finalised close-out, ask for a correction note
+    let correctionNote=null;
+    const isAdminUser=(USER_ROLE==='admin'||USER_ROLE==='owner');
+    if(EDIT_ID && EDIT_WAS_FINAL && isAdminUser){
+      correctionNote=prompt('You are editing a finalised close-out. Briefly note what you are correcting (e.g. "Added missing player from GES, re-imported"):','');
+      if(correctionNote===null){ return; } // cancelled
+    }
     $('submitBtn').disabled=true; setStatus('Finalising...','ok');
     try{
       const validStaff = staff.filter(s => (s.name && s.name.trim()) || effHours(s)>0);

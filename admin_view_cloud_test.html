@@ -113,7 +113,7 @@
   }
   function showLogin(){ $('app').classList.add('hidden'); $('loginCard').classList.remove('hidden'); }
 
-  let CO_DATA=[], PLC_DATA=[], SHF_DATA=[], PROFMAP={}, TKMAP={}, GAMES_D=[], VENUES_D=[], SMS_D=[];
+  let CO_DATA=[], PLC_DATA=[], SHF_DATA=[], PROFMAP={}, TKMAP={}, GAMES_D=[], VENUES_D=[], SMS_D=[], CORR_DATA=[];
   function tdName(uid){ return (uid&&PROFMAP[String(uid).toLowerCase().trim()]) || (uid?('TD '+String(uid).slice(0,6)):'Unknown'); }
   // lightweight net profit for the LIST card — mirrors the Final P&L logic in coDetail
   function cardNet(c){
@@ -147,6 +147,7 @@
       // supporting data for detail + names
       PLC_DATA=(await supabase.from('placings').select('*')).data||[];
       SHF_DATA=(await supabase.from('staff_shifts').select('*')).data||[];
+      try{ CORR_DATA=(await supabase.from('closeout_corrections').select('*')).data||[]; }catch(e){ CORR_DATA=[]; }
       const profs=(await supabase.from('profiles').select('*')).data||[];
       PROFMAP={}; profs.forEach(p=>{ if(p.user_id) PROFMAP[String(p.user_id).toLowerCase().trim()]=p.full_name||p.name||null; });
       const tks=(await supabase.from('tickets').select('*')).data||[];
@@ -307,6 +308,16 @@
       ['Entries|'+entries,'Unique|'+(c.unique_players||0),'Re-entries|'+(c.re_entries||0),'Add-ons|'+addons,
        'Cash in|'+money(c.cash_in),'Transfer in|'+money(c.transfer_in),'Ticket in|'+money(c.ticket_in),'Other in|'+money(c.other_in),
        'Money in|'+money(c.money_in),'Leftover|'+money(c.leftover_cash)].map(x=>{const[k,vv]=x.split('|');return '<div class="dk">'+k+'</div><div class="dv">'+vv+'</div>';}).join('')+'</div></div>';
+    // explicit "cash the TD should be holding" — matches the dashboard's TD-held figure
+    h+='<div class="cobox" style="border-color:#c9b896;margin-top:8px"><div class="dl"><span>💵 Cash '+(tdName(c.submitted_by)||'this TD')+' should be holding</span><span style="color:#5cb88a;font-weight:700">'+money(c.leftover_cash)+'</span></div>'+
+      '<div class="dmut" style="font-size:11px;margin-top:4px">= Cash in '+money(c.cash_in)+' − cash prizes paid out. This is the leftover the TD hands up (matches the Total cash held screen).</div></div>';
+    // admin correction audit trail
+    const corrs=(CORR_DATA||[]).filter(x=>String(x.closeout_id)===String(c.id)).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+    if(corrs.length){
+      h+='<div class="cobox" style="border-color:#7a6a3a;background:rgba(201,184,150,.06);margin-top:8px"><div style="font-size:12px;font-weight:700;color:#c9b896;margin-bottom:6px">✏️ Admin corrections ('+corrs.length+')</div>'+
+        corrs.map(x=>'<div style="font-size:11.5px;color:#cdbf9e;padding:4px 0;border-top:1px solid rgba(201,184,150,.15)"><b>'+(x.corrected_by_name||'admin')+'</b> <span style="color:#8a8270;font-family:JetBrains Mono;font-size:10px">'+((x.created_at||'').slice(0,16).replace('T',' '))+'</span><br>'+(x.note||'')+'</div>').join('')+
+      '</div>';
+    }
 
     // P&L block
     h+='<div class="dsec">💵 Game P&amp;L</div>';
