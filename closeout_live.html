@@ -1163,7 +1163,8 @@
         const tag = tfr ? (p.paid?'<span class="paidtag">&#10003; done</span>':'<span class="pendtag">⏳ transfer pending</span>') : '<span class="paidtag">&#10003; paid</span>';
         return '<div class="rrow '+(tfr&&!p.paid?'pendingtfr':'paid')+'"><div class="rpl">'+p.place+suf+'</div>'+
           '<div class="rmid"><div class="ramt">'+(p.player_name||'(player)')+' — $'+Math.round(p.amount).toLocaleString()+'</div><div class="rmeta">'+label+'</div></div>'+
-          tag+'</div>';
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+tag+
+          '<button class="undobtn" data-undo="'+p.id+'" style="background:none;border:1px solid var(--ink-faint);color:var(--ink-dim);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">↩ undo</button></div></div>';
       }
       // action: needs name + (confirm non-transfer if any) ; transfer portion auto-pending
       const btnLabel = nonT ? (tfr?'Confirm cash/ticket · transfer pending':'Confirm payment') : 'Save (transfer pending)';
@@ -1173,7 +1174,19 @@
         '<button class="'+btnClass+'" data-rec="'+p.id+'">'+btnLabel+'</button></div>';
     }).join('');
     $('reconList').querySelectorAll('[data-rec]').forEach(b=>b.addEventListener('click',()=>reconcilePlace(b.dataset.rec)));
+    $('reconList').querySelectorAll('[data-undo]').forEach(b=>b.addEventListener('click',()=>unreconcilePlace(b.dataset.undo)));
     updateFinaliseGate();
+  }
+  async function unreconcilePlace(id){
+    const r=RECON.find(x=>String(x.id)===String(id));
+    if(!confirm('Undo this placing? It will clear the selected winner and the confirmation, so you can pick the correct player again.')) return;
+    try{
+      const upd={ player_name:null, paid:false, paid_at:null };
+      const { error } = await supabase.from('placings').update(upd).eq('id',id);
+      if(error) throw error;
+      if(r){ r.player_name=null; r.paid=false; r.paid_at=null; }
+      renderRecon();
+    }catch(e){ setStatus('Could not undo: '+(e.message||e),'err'); }
   }
   // a placing is "done" when it has a winner name AND its non-transfer portion is confirmed paid
   // (transfer portion can remain pending for admin — that doesn't block done)
