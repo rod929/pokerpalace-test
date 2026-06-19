@@ -330,11 +330,12 @@
       TD_TICKETS = (await supabase.from('tickets').select('*')).data||[];
       TD_PLAYERS = (await supabase.from('players').select('created_at,registered_by')).data||[];
       TD_ADMINS = ((await supabase.from('profiles').select('user_id,full_name,role').in('role',['admin','owner'])).data)||[];
-      renderEarn(); renderCash(); renderPlayers(); renderActive(); renderToFinish();
+      try{renderEarn();}catch(e){} try{renderCash();}catch(e){} try{renderPlayers();}catch(e){} try{renderActive();}catch(e){} renderToFinish();
     }catch(e){ /* silent */ }
   }
 
   function renderToFinish(){
+    try{
     const box=$('toFinishBox'); if(!box) return;
     const shiftsByCo={}; TD_SHIFTS.forEach(s=>{ (shiftsByCo[s.closeout_id]=shiftsByCo[s.closeout_id]||[]).push(s); });
     const placeByCo={}; TD_PLACINGS.forEach(p=>{ (placeByCo[p.closeout_id]=placeByCo[p.closeout_id]||[]).push(p); });
@@ -363,6 +364,7 @@
       '</div>').join('')+
     '</div>';
     box.querySelectorAll('.tofinish-item').forEach(el=>el.addEventListener('click',()=>{ window.location.href='closeout_live.html#edit='+el.dataset.co; }));
+    }catch(err){ const box=$('toFinishBox'); if(box){ box.style.display='block'; box.innerHTML='<div style="background:rgba(224,173,85,.08);border:1px solid #e0ad55;border-radius:10px;padding:10px;font-size:12px;color:#e0ad55">Could not build to-finish list: '+(err.message||err)+'</div>'; } }
   }
 
   function renderEarn(){
