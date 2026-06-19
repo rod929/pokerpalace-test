@@ -503,11 +503,11 @@
     computed.cashClear=cashHeld-computed.ticketOwed;
     // cash held by each TD = their close-out leftovers − their approved hand-ups (after opening date)
     const byTd={};
-    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].leftover+=Number(c.leftover_cash)||0; });
-    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0}; byTd[uid].handed+=Number(m.amount)||0; });
+    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].leftover+=Number(c.leftover_cash)||0; byTd[uid].games.push({name:c.game_name||'(no name)', date:c.game_date||'', cashIn:Number(c.cash_in)||0, leftover:Number(c.leftover_cash)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}); });
+    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].handed+=Number(m.amount)||0; byTd[uid].handups.push({amount:Number(m.amount)||0, date:m.move_date||'', to:m.to_admin||'', note:m.note||''}); });
     const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
     computed.tdHeldTotal=tdHeldTotal;
-    computed.tdHeldList=Object.keys(byTd).map(uid=>({name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
+    computed.tdHeldList=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed, games:byTd[uid].games.sort((a,b)=>(b.date||'').localeCompare(a.date||'')), handups:byTd[uid].handups.sort((a,b)=>(b.date||'').localeCompare(a.date||''))})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
     const movementsSince = cashHeld+tdHeldTotal;
     // cash injections after the opening date add to the float
     const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
@@ -591,7 +591,18 @@
           '<button id="saveInjectBtn" style="width:100%;background:var(--good);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Add injection</button>'+
         '</div>'+
         '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
-        (tdList.length?tdList.map(t=>'<div class="drow" style="flex-direction:column;align-items:stretch;gap:2px"><div style="display:flex;justify-content:space-between"><span class="l">'+t.name+'</span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+((t.handed||0)>0?'<div style="font-size:10.5px;color:var(--ink-faint);font-family:JetBrains Mono">close-out leftovers '+money(t.leftover)+' − handed up '+money(t.handed)+'</div>':'')+'</div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
+        (tdList.length?tdList.map((t,ti)=>{
+          const gameRows=t.games.map(g=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:'+((g.leftover||0)>=0?'var(--good)':'var(--red)')+'">'+money(g.leftover)+'</span></div>').join('');
+          const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">−'+money(h.amount)+'</span></div>').join('')):'';
+          return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer;border-bottom:1px solid var(--line)"><div class="drow" style="border:none"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">tap for breakdown ›</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
+            '<div class="tdheld-detail" id="tdheld'+ti+'" style="display:none;padding:4px 4px 12px 4px">'+
+              '<div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">Leftover cash by tournament:</div>'+
+              gameRows+
+              handupRows+
+              '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:6px"><span>Currently holding</span><span style="color:var(--good)">'+money(t.held)+'</span></div>'+
+            '</div>'+
+          '</div>';
+        }).join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
@@ -674,7 +685,7 @@
       b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Shared overheads sit at the business level, not here.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
     } else if(key==='rakebd'||key==='overlaybd'||key==='marginbd'||key==='wagesbd'||key==='expbd'||key==='promobd'||key==='smsbd'){
       const cos=computed.cos||[];
-      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:none;background:none;padding:6px 0;margin-bottom:6px"><span class="l" style="color:var(--blue)">‹ back to Net P&amp;L</span></div>';
+      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
       const gl=(name,v,col)=>'<div class="drow"><span class="l">'+name+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
       const gname=c=>(c.game_name||'(no name)')+' · '+(c.venue_name||'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.game_date||'')+'</span>';
       let title='',sub='',rows=[],empty='';
@@ -714,7 +725,7 @@
         (rows.length?rows.map(r=>gl(r.n,r.v,r.col)).join('')+'<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total</b></span><span class="r"><b>'+(total<0?'−':'')+money(Math.abs(total))+'</b></span></div>':'<div class="empty">'+empty+'</div>');
     } else if(key==='clubdetail'){
       const cos=computed.cos||[];
-      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:none;background:none;padding:6px 0;margin-bottom:6px"><span class="l" style="color:var(--blue)">‹ back to Net P&amp;L</span></div>';
+      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
       const earned=earnedClubByVenue(cos);
       const names=Object.keys(earned).sort((a,b)=>earned[b].earned-earned[a].earned);
       const invs=invsForVenues();
@@ -751,22 +762,20 @@
         (players.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">'+players.map(n=>{const w=winNames.has(n.toLowerCase());return '<span style="background:'+(w?'rgba(201,184,150,.13)':'var(--chip)')+';border:1px solid '+(w?'var(--gold)':'var(--line)')+';border-radius:14px;padding:5px 11px;font-size:12.5px;color:'+(w?'var(--gold)':'var(--ink-dim)')+';'+(w?'font-weight:600':'')+'">'+(w?'🏆 ':'')+n+'</span>';}).join('')+'</div>':'<div class="empty">No GES player list for this game (was it imported?).</div>');
     }
     $('detail').classList.add('open');
-    // wire any nested clickable rows (e.g. club money inside the P&L detail, game rows in history)
-    b.querySelectorAll('[data-d]').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.d)));
-    b.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',()=>confirmCash(el.dataset.confirm)));
-    b.querySelectorAll('[data-adminflag]').forEach(el=>el.addEventListener('click',()=>{
-      const f=(computed.flags||[])[Number(el.dataset.adminflag)]; if(!f) return;
-      if(f.link){ window.location.href=f.link; }
-      else if(f.drawer){ openDetail(f.drawer); }
-    }));
-    b.querySelectorAll('[data-ownerflag]').forEach(el=>el.addEventListener('click',()=>{
-      const f=(computed.ownerFlags||[])[Number(el.dataset.ownerflag)]; if(!f) return;
-      if(f.link){ window.location.href=f.link; }
-      else if(f.drawer){ openDetail(f.drawer); }
-    }));
-    const sob=$('saveOpeningBtn'); if(sob) sob.addEventListener('click', saveOpening);
-    const air=$('addInjectRow'); if(air) air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; });
-    const sib=$('saveInjectBtn'); if(sib) sib.addEventListener('click', saveInjection);
+    // delegated handler: any [data-d] inside the drawer navigates (back links, drill-downs). Set once.
+    if(!b.dataset.wired){
+      b.dataset.wired='1';
+      b.addEventListener('click',(ev)=>{
+        const dEl=ev.target.closest('[data-d]'); if(dEl && b.contains(dEl)){ ev.preventDefault(); openDetail(dEl.dataset.d); return; }
+        const cf=ev.target.closest('[data-confirm]'); if(cf){ confirmCash(cf.dataset.confirm); return; }
+        const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
+        const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
+        const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
+      });
+    }
+    const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
+    const air=$('addInjectRow'); if(air && !air.dataset.w){ air.dataset.w='1'; air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
+    const sib=$('saveInjectBtn'); if(sib && !sib.dataset.w){ sib.dataset.w='1'; sib.addEventListener('click', saveInjection); }
   }
   async function saveInjection(){
     const amt=Number($('injAmt').value); const date=$('injDate').value; const note=$('injNote').value.trim();
