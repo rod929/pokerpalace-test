@@ -340,7 +340,11 @@
     const shiftsByCo={}; TD_SHIFTS.forEach(s=>{ (shiftsByCo[s.closeout_id]=shiftsByCo[s.closeout_id]||[]).push(s); });
     const placeByCo={}; TD_PLACINGS.forEach(p=>{ (placeByCo[p.closeout_id]=placeByCo[p.closeout_id]||[]).push(p); });
     const items=[];
+    const seen={};
     TD_CO.forEach(c=>{
+      // de-dupe: if the same venue+game+date appears twice, keep only the most complete/recent one
+      const key=(c.venue_name||'')+'|'+(c.game_name||'')+'|'+(c.game_date||'');
+      if(seen[key]) return; seen[key]=true;
       const isVoid=c.void===true;
       const isCash=c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
       const isDraft=c.is_draft===true;

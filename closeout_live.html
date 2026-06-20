@@ -942,9 +942,22 @@
         await supabase.from('placings').delete().eq('closeout_id',coId);
         await supabase.from('staff_shifts').delete().eq('closeout_id',coId);
       } else {
-        const ins=await supabase.from('closeouts').insert(row).select();
-        if(ins.error) throw ins.error; if(!ins.data||!ins.data.length) throw new Error('Draft saved nothing — likely an RLS issue.');
-        coId=ins.data[0].id;
+        // avoid duplicates: if a close-out already exists for this submitter+venue+game+date, update it
+        let existing=null;
+        try{
+          const ex=await supabase.from('closeouts').select('id').eq('submitted_by',row.submitted_by).eq('venue_name',row.venue_name).eq('game_name',row.game_name).eq('game_date',row.game_date).limit(1);
+          if(ex.data&&ex.data.length) existing=ex.data[0].id;
+        }catch(e){}
+        if(existing){
+          const up=await supabase.from('closeouts').update(row).eq('id',existing).select();
+          if(up.error) throw up.error; coId=existing;
+          await supabase.from('placings').delete().eq('closeout_id',coId);
+          await supabase.from('staff_shifts').delete().eq('closeout_id',coId);
+        } else {
+          const ins=await supabase.from('closeouts').insert(row).select();
+          if(ins.error) throw ins.error; if(!ins.data||!ins.data.length) throw new Error('Draft saved nothing — likely an RLS issue.');
+          coId=ins.data[0].id;
+        }
       }
       // save any placings entered so far (drafts: keep even if winner name not yet assigned)
       const plRows=(places||[]).map((p,idx)=>{
