@@ -1112,10 +1112,6 @@
         } else { co=upd.data&&upd.data[0]?upd.data[0]:{id:EDIT_ID}; }
         // remove old placings for this close-out (we re-insert fresh below)
         await supabase.from('placings').delete().eq('closeout_id',EDIT_ID);
-        // audit log: record the admin correction to a finalised close-out
-        if(EDIT_WAS_FINAL && isAdminUser){
-          try{ await supabase.from('closeout_corrections').insert({ closeout_id:EDIT_ID, corrected_by:user.id, corrected_by_name:USER_NAME||user.email, note:correctionNote||'(no note)' }); }catch(e){}
-        }
       } else {
       const ins = await supabase.from('closeouts').insert(row).select();
       if(ins.error){
@@ -1289,6 +1285,10 @@
         if(sErr) throw new Error('Staff save failed: '+sErr.message);
       }
       clearStatus();
+      // audit log: if an admin/owner corrected a finalised close-out, record it (note gathered above)
+      if(EDIT_ID && EDIT_WAS_FINAL && isAdminUser){
+        try{ await supabase.from('closeout_corrections').insert({ closeout_id:LOCKED_ID, corrected_by:user.id, corrected_by_name:USER_NAME||user.email, note:correctionNote||'(edited)' }); }catch(e){}
+      }
       // also save the parallel rake-free game if the TD marked it ran (skip on edit to avoid dup)
       if(!EDIT_ID) await saveParallelRakeFree();
       const wasEditing=EDIT_ID; EDIT_ID=null;
