@@ -332,6 +332,7 @@
         <div class="s sat"><small>Tickets out</small><b id="satOut">$0</b></div>
         <div class="s tot"><small>Total prizes</small><b id="prizeTot">$0</b></div>
       </div>
+      <div id="prizeMatchBox" style="display:none;margin-top:10px;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600"></div>
       <div class="leftbox" id="leftBox">
         <div class="lh">💵 Cash leftover (auto)</div>
         <div class="lrow"><span>Cash in (incl. other in)</span><span id="lfCashIn">$0</span></div>
@@ -772,6 +773,26 @@
     $('satOut').textContent='$'+sat.toLocaleString();
     $('prizeTot').textContent='$'+tot.toLocaleString();
     updateLeftover(cash);
+    // ===== match check: total prizes entered vs the prize pool =====
+    const box=$('prizeMatchBox');
+    const g=currentGame;
+    if(box){
+      if(g && tot>0){
+        const entries=Number($('totent').value)||0, addons=Number($('addon').value)||0;
+        const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
+        const pool=(buyin-rake)*entries + addonPrice*addons;
+        const targetPool=Math.max(pool, gtee); // guaranteed pool is paid out even on overlay
+        const diff=tot-targetPool;
+        box.style.display='block';
+        if(Math.abs(diff)<0.5){
+          box.style.background='rgba(92,184,138,.12)'; box.style.border='1px solid #3f8c66'; box.style.color='#9fe3c0';
+          box.innerHTML='✓ Prizes match the prize pool ('+money(targetPool)+')'+(gtee>pool?' — guarantee':'');
+        } else {
+          box.style.background='rgba(224,122,95,.12)'; box.style.border='1px solid #e07a5f'; box.style.color='#f0b8a8';
+          box.innerHTML='⚠ Prizes '+(diff>0?'over':'under')+' the prize pool by <b>'+money(Math.abs(diff))+'</b><br><span style="font-weight:400;font-size:11.5px;color:#cdbf9e">Total prizes '+money(tot)+' vs prize pool '+money(targetPool)+(gtee>pool?' (guarantee)':'')+'. Check the placing amounts.</span>';
+        }
+      } else { box.style.display='none'; }
+    }
   }
   function addPlace(){ places.push({splits:[{method:'cash',amount:'',ticket_id:null}]}); renderPlaces(); }
 
