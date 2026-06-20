@@ -489,9 +489,10 @@
 
   async function loadStaffList(){
     try{
-      const { data, error } = await supabase.from('staff').select('*').eq('active', true).order('name');
+      const { data, error } = await supabase.from('staff').select('*').order('name');
       if(error) throw error;
-      ALL_STAFF = data || [];
+      // show anyone who isn't explicitly inactive (active null or true) — a null flag shouldn't hide them
+      ALL_STAFF = (data || []).filter(s=>s.active!==false);
       const { data:rdata } = await supabase.from('staff_rates').select('*');
       ALL_STAFF_RATES = rdata || [];
     }catch(e){ ALL_STAFF=[]; ALL_STAFF_RATES=[]; }
