@@ -492,9 +492,25 @@
       pendHtml='<div class="ssec" style="margin-top:14px">⏳ Pending hand-ups (awaiting admin confirmation)</div>'+
         pend.map(m=>'<div class="sline"><span>'+money(m.amount)+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+'</span></span><span style="color:var(--amber)">pending</span></div>').join('');
     }
+    // per-tournament breakdown of cash held (leftover by close-out, minus approved hand-ups)
+    const handedApproved=TD_CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').sort((a,b)=>(a.move_date||'').localeCompare(b.move_date||''));
+    const games=TD_CO.filter(c=>(Number(c.leftover_cash)||0)!==0).sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
+    let breakdownHtml='<div class="ssec" style="margin-top:14px">💵 Cash held by tournament</div>';
+    if(games.length){
+      breakdownHtml+=games.map(c=>'<div class="sline"><span>'+(c.void?'⛔ ':(((c.is_cash_game===true)||c.game_name==='Rake Free Cash Game')?'🎲 ':'🏆 '))+(c.game_name||'(no name)')+' <span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.game_date||'')+'</span></span><span style="color:var(--good)">'+money(Number(c.leftover_cash)||0)+'</span></div>').join('');
+    } else {
+      breakdownHtml+='<div class="sline"><span style="color:var(--ink-faint)">No outstanding cash from any tournament.</span></div>';
+    }
+    if(handedApproved.length){
+      breakdownHtml+='<div class="ssec" style="margin-top:10px">✓ Handed up &amp; confirmed</div>'+
+        handedApproved.map(m=>'<div class="sline"><span>'+(m.move_date||'')+(m.to_admin?(' → '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span><span style="color:var(--gold)">−'+money(m.amount)+'</span></div>').join('');
+    }
+    breakdownHtml+='<div class="sline" style="border-top:1px solid var(--line);margin-top:6px;font-weight:700"><span>Currently in hand</span><span style="color:var(--good)">'+money(cashRaw)+'</span></div>';
+
     $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">🪙</span> Cash you\'re holding</h2>'+
       '<div class="bigflag">'+money(cashRaw)+' <span style="font-size:12px;color:var(--ink-faint)">in hand</span></div>'+
-      '<div class="handbox">'+
+      breakdownHtml+
+      '<div class="handbox" style="margin-top:14px">'+
         '<div class="hbtitle">Hand cash to Admin</div>'+
         '<label style="font-size:12px;color:var(--ink-dim)">Amount $</label>'+
         '<input id="handAmt" type="number" min="0" placeholder="'+Math.round(cashRaw)+'" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;margin:4px 0 8px">'+
@@ -666,3 +682,5 @@
   $('sheetsBtn')&&$('sheetsBtn').addEventListener('click',showSheets);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
+</body>
+</html>
