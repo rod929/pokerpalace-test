@@ -296,7 +296,8 @@
 
     // VOID tournament: minimal view — just a VOID banner, then straight to the cash game section + day total
     if(isVoid){
-      let hv='<div class="dsec">💵 Game P&amp;L</div>'+
+      let hv='<a href="closeout_live.html#edit='+c.id+'" style="display:inline-block;background:#c9b896;color:#1a1205;font-weight:700;text-decoration:none;border-radius:8px;padding:9px 14px;font-size:13px;margin-bottom:12px">✏️ Edit / correct this close-out ›</a>'+
+        '<div class="dsec">💵 Game P&amp;L</div>'+
         '<div class="pnlbox" style="border-color:#a14b39">'+
         '<div class="dl"><span>⛔ '+(c.game_name||'Tournament')+' — VOID</span><span style="color:#e07a5f">did not run (insufficient players)</span></div>'+
         '</div>';
@@ -304,7 +305,8 @@
       return hv;
     }
 
-    let h='<div class="dsec">📋 Close-out sheet</div><div class="cobox"><div class="dgrid">'+
+    let h='<a href="closeout_live.html#edit='+c.id+'" style="display:inline-block;background:#c9b896;color:#1a1205;font-weight:700;text-decoration:none;border-radius:8px;padding:9px 14px;font-size:13px;margin-bottom:12px">✏️ Edit / correct this close-out ›</a>'+
+      '<div class="dsec">📋 Close-out sheet</div><div class="cobox"><div class="dgrid">'+
       ['Entries|'+entries,'Unique|'+(c.unique_players||0),'Re-entries|'+(c.re_entries||0),'Add-ons|'+addons,
        'Cash in|'+money(c.cash_in),'Transfer in|'+money(c.transfer_in),'Ticket in|'+money(c.ticket_in),'Other in|'+money(c.other_in),
        'Money in|'+money(c.money_in),'Leftover|'+money(c.leftover_cash)].map(x=>{const[k,vv]=x.split('|');return '<div class="dk">'+k+'</div><div class="dv">'+vv+'</div>';}).join('')+'</div></div>';
@@ -501,3 +503,5 @@
 
   (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
 </script>
+</body>
+</html>
