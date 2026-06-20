@@ -424,7 +424,7 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, lastId=null, ALL_GAMES=[], currentGame=null, ALL_STAFF=[], ALL_STAFF_RATES=[];
-  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null, EDIT_ID=null, USER_ROLE='', USER_NAME='', EDIT_WAS_FINAL=false;
+  let LOCKED_ID=null, RECON=[], GES_NAMES=[], GES_TICKET_NAMES=[], RF_GES_NAMES=[], RF_PARALLEL_GAME=null, EDIT_ID=null, USER_ROLE='', USER_NAME='', EDIT_WAS_FINAL=false, ORIG_SUBMITTER=null;
 
   function setStatus(m,k){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
   function clearStatus(){ $('status').className='status'; }
@@ -591,7 +591,7 @@
       const skipped=allNamed.length-shifts.length;
       if(skipped>0){ if(!confirm(skipped+' staff row(s) have no hours/rate and will be skipped. Continue?\n\n(Each staff member needs hours — either start & finish times, or a typed Hours value — and a rate.)')){ if(btn) btn.disabled=false; setStatus('','ok'); return; } }
       const row={
-        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
+        submitted_by:(EDIT_ID&&ORIG_SUBMITTER)?ORIG_SUBMITTER:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
         game_date:$('gameDate').value||null, void:true, is_draft:false,
         entries:0, money_in:null, leftover_cash:0,
         ges_players: GES_NAMES.length ? GES_NAMES.join('\n') : null
@@ -903,7 +903,7 @@
     const btn=$('draftBtn'); btn.disabled=true; setStatus('Saving draft…','ok');
     try{
       const row={
-        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
+        submitted_by:(EDIT_ID&&ORIG_SUBMITTER)?ORIG_SUBMITTER:user.id, venue_name:$('venueSel').value, game_name:currentGame.name,
         game_date:$('gameDate').value||null, is_draft:true, void:false,
         entries:Number($('totent').value)||0, unique_players:Number($('uniq').value)||0, re_entries:Number($('reent').value)||0,
         addons:Number(($('addon')||{}).value)||0, new_players:Number(($('newp')||{}).value)||0,
@@ -949,7 +949,8 @@
       const pls=(await supabase.from('placings').select('*').eq('closeout_id',coId).order('place')).data||[];
       const shs=(await supabase.from('staff_shifts').select('*').eq('closeout_id',coId)).data||[];
       EDIT_ID=co.id; LOCKED_ID=null;
-      EDIT_WAS_FINAL = (co.is_draft!==true); // if it wasn't a draft, this is an admin correction to a finalised close-out
+      ORIG_SUBMITTER=co.submitted_by||null; // preserve the TD who created it
+      EDIT_WAS_FINAL = (co.is_draft!==true);
       $('venueSel').value=co.venue_name||'';
       onVenueChange();
       setTimeout(()=>{ const sel=$('gameSel'); if(sel&&sel._games){ const gi=sel._games.findIndex(g=>g.name===co.game_name); if(gi>=0){ sel.value=String(gi); onGameChange(); } } }, 200);
@@ -1050,7 +1051,7 @@
       let cashPrizes=0; places.forEach(p=>p.splits.forEach(sp=>{ if(sp.method!=='transfer'&&sp.method!=='ticket') cashPrizes+=Number(sp.amount)||0; }));
       const leftover=(cashIn+othIn)-cashPrizes;
       const row={
-        submitted_by:user.id, venue_name:$('venueSel').value, game_name:currentGame?currentGame.name:'',
+        submitted_by:(EDIT_ID&&ORIG_SUBMITTER)?ORIG_SUBMITTER:user.id, venue_name:$('venueSel').value, game_name:currentGame?currentGame.name:'',
         game_date:$('gameDate').value||null, is_draft:false,
         entries:$('totent').value?Number($('totent').value):null,
         unique_players:$('uniq').value?Number($('uniq').value):null,
