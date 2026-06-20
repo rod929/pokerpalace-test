@@ -1031,6 +1031,21 @@
         if($('transferIn')&&(co.transfer_in!=null)) $('transferIn').value=co.transfer_in;
         if($('ticketIn')&&(co.ticket_in!=null)) $('ticketIn').value=co.ticket_in;
         recalcMoneyIn();
+        // If this close-out was already finalised (not a draft) and has placings, restore the LOCKED state
+        // so the user lands straight on reconciliation + staff/wages without having to re-lock the prize pool.
+        if(co.void!==true && co.is_draft!==true && pls.length){
+          LOCKED_ID = co.id;
+          RECON = pls.slice();
+          const lb=$('lockBtn'); if(lb){ lb.textContent='🔒 Prize pool locked & saved'; lb.disabled=true; }
+          if($('addPlace')) $('addPlace').style.display='none';
+          if($('placeBody')) $('placeBody').querySelectorAll('input,select,button').forEach(el=>el.disabled=true);
+          ['totent','addon','otherIn','otherInNote','gesFile','cashIn','transferIn','ticketIn'].forEach(id=>{ if($(id)) $(id).disabled=true; });
+          if($('reconCard')) $('reconCard').style.display='block';
+          if($('phase2')) $('phase2').style.display='block';
+          renderRecon();
+          // jump to the staff section so admin can fix wages immediately
+          setTimeout(()=>{ const st=$('secStaff'); if(st) st.scrollIntoView({behavior:'smooth',block:'start'}); }, 250);
+        }
       }, 320);
       showEditBanner(co);
       window.scrollTo({top:0,behavior:'smooth'});
