@@ -211,7 +211,7 @@
         <div class="pcard clickable" id="earnCard">
           <h2><span class="ico">💰</span> Your earnings <span class="pchip" id="tdEarnChip">this week</span></h2>
           <div class="big gold" id="tdEarn">$0</div>
-          <div class="psub" id="tdEarnSub">your wages this period <span class="taphint">· tap for day-by-day</span></div>
+          <div class="psub" id="tdEarnSub">your wages this period <span class="taphint">· tap for breakdown by tournament</span></div>
         </div>
         <!-- cash held -->
         <div class="pcard clickable" id="cashCard">
@@ -282,7 +282,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,role='';
+  let user=null,role='',MY_NAME='';
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   function setStatus(m,k){const s=$('status');s.className='status show '+(k||'');s.innerHTML=m;}
@@ -290,7 +290,7 @@
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
-    try{const{data}=await supabase.from('profiles').select('role').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';}catch(e){role='';}
+    try{const{data}=await supabase.from('profiles').select('role,full_name').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';MY_NAME=(Array.isArray(data)&&data.length)?(data[0].full_name||''):'';}catch(e){role='';}
     // admins and owners land straight on the dashboard (owners get the full admin view)
     if(role==='admin'||role==='owner'){ window.location.replace('admin_dashboard_live.html'); return; }
     $('roleLbl').textContent=(role||'user').toUpperCase();
@@ -303,7 +303,7 @@
   }
 
   // ===== TD dashboard =====
-  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], TD_ADMINS=[], earnPeriod='week';
+  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], TD_ADMINS=[], TD_WAGE_CO=[], earnPeriod='week';
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; }
   function periodStart(p){
@@ -318,11 +318,22 @@
 
   async function loadTD(){
     try{
-      // my close-outs
+      // close-outs I created (for cash held, players, to-finish — these are about MY close-outs)
       TD_CO=(await supabase.from('closeouts').select('*').eq('submitted_by',user.id).order('game_date',{ascending:false})).data||[];
-      // my staff shifts (via my close-outs) — wages
       const coIds=TD_CO.map(c=>c.id);
-      TD_SHIFTS = coIds.length ? ((await supabase.from('staff_shifts').select('*').in('closeout_id',coIds)).data||[]) : [];
+      // MY wages = staff shifts where I am the staff member (by name), regardless of who created the close-out
+      let myShifts=[];
+      if(MY_NAME){
+        myShifts=((await supabase.from('staff_shifts').select('*').ilike('staff_name',MY_NAME)).data)||[];
+      }
+      TD_SHIFTS = myShifts;
+      // make sure we have the close-outs those shifts belong to (may be created by another TD) for dates/names
+      const shiftCoIds=[...new Set(TD_SHIFTS.map(s=>s.closeout_id).filter(Boolean))];
+      const missingCoIds=shiftCoIds.filter(id=>!coIds.includes(id));
+      if(missingCoIds.length){
+        const extra=((await supabase.from('closeouts').select('*').in('id',missingCoIds)).data)||[];
+        TD_WAGE_CO = TD_CO.concat(extra);
+      } else { TD_WAGE_CO = TD_CO; }
       // cash I'm holding (from cash custody): my leftover close-outs minus what I handed up & got approved
       TD_CASH = (await supabase.from('cash_movements').select('*').eq('from_user',user.id)).data||[];
       // placings for biggest winners (my close-outs)
@@ -373,7 +384,7 @@
 
   function renderEarn(){
     const start=periodStart(earnPeriod);
-    const coById={}; TD_CO.forEach(c=>coById[c.id]=c);
+    const coById={}; (TD_WAGE_CO||TD_CO).forEach(c=>coById[c.id]=c);
     let wage=0;
     TD_SHIFTS.forEach(s=>{ const co=coById[s.closeout_id]; if(!co)return; const d=co.game_date?new Date(co.game_date):null; if(d && d>=start) wage+=(Number(s.hours)||0)*(Number(s.rate)||0); });
     $('tdEarn').textContent=money(wage);
@@ -463,24 +474,23 @@
   }
   function showEarnDays(){
     const start=periodStart(earnPeriod);
-    const coById={}; TD_CO.forEach(c=>coById[c.id]=c);
-    // group shifts by date
-    const byDay={};
+    const coById={}; (TD_WAGE_CO||TD_CO).forEach(c=>coById[c.id]=c);
+    // one row per tournament (close-out) the TD worked, in this period
+    const rowsData=[];
     TD_SHIFTS.forEach(s=>{ const co=coById[s.closeout_id]; if(!co)return; const d=co.game_date; if(!d) return; if(new Date(d)<start) return;
       const pay=(Number(s.hours)||0)*(Number(s.rate)||0);
-      if(!byDay[d]) byDay[d]={total:0,items:[]};
-      byDay[d].total+=pay; byDay[d].items.push({game:co.game_name||'', role:s.role||'', hours:Number(s.hours)||0, rate:Number(s.rate)||0, pay});
+      rowsData.push({ game:co.game_name||'(no name)', date:d, role:s.role||'', hours:Number(s.hours)||0, rate:Number(s.rate)||0, pay, isVoid:co.void===true, isCash:(co.is_cash_game===true||co.game_name==='Rake Free Cash Game') });
     });
-    const days=Object.keys(byDay).sort((a,b)=>b.localeCompare(a));
+    rowsData.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const lbl = earnPeriod==='week'?'this week':earnPeriod==='month'?'this month':'year to date';
-    const rows = days.length ? days.map(d=>{
-      const day=byDay[d];
-      const detail=day.items.map(it=>it.game+(it.role?(' · '+it.role):'')+' — '+it.hours+'h × $'+it.rate).join('<br>');
-      return '<div class="dayrow pos"><span class="dl">'+fmtD(d)+'<small>'+detail+'</small></span><span class="dr">'+money(day.total)+'</span></div>';
+    const rows = rowsData.length ? rowsData.map(it=>{
+      const icon=it.isVoid?'⛔ ':(it.isCash?'🎲 ':'🏆 ');
+      const detail=(it.role?(it.role+' · '):'')+it.hours+'h × $'+it.rate+'/h';
+      return '<div class="dayrow pos"><span class="dl">'+icon+it.game+' <small style="opacity:.7">'+fmtD(it.date)+'</small><small>'+detail+'</small></span><span class="dr">'+money(it.pay)+'</span></div>';
     }).join('') : '<div class="muted">No shifts in this period.</div>';
-    const tot=days.reduce((s,d)=>s+byDay[d].total,0);
-    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">💰</span> Your earnings — day by day <span class="pchip">'+lbl+'</span></h2><div class="daylist">'+rows+
-      (days.length?'<div class="dayrow bal"><span class="dl">Total</span><span class="dr gold">'+money(tot)+'</span></div>':'')+'</div></div>';
+    const tot=rowsData.reduce((s,r)=>s+r.pay,0);
+    $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">💰</span> Your earnings — by tournament <span class="pchip">'+lbl+'</span></h2><div class="daylist">'+rows+
+      (rowsData.length?'<div class="dayrow bal"><span class="dl">Total</span><span class="dr gold">'+money(tot)+'</span></div>':'')+'</div></div>';
     $('tdPanel').scrollIntoView({behavior:'smooth'});
   }
   function showCashPanel(){
