@@ -128,6 +128,47 @@
   let user=null, isAdmin=false, VENUES=[], GAMES=[], USED_NAMES=new Set();
   let BLIND_TEMPLATES=[];     // saved templates from blind_templates table
   let BLINDS={};              // per-game working blind levels, keyed by game id
+  let PAYOUTS={};             // per-game working payout % structure, keyed by game id
+
+  // Standard payout table: number of places paid by field size, and the % each place gets.
+  // Returns an array of percentages (summing to 100) for a given entry count.
+  function standardPayout(entries){
+    const n=Math.max(1,Math.round(Number(entries)||0));
+    // places paid scales ~ with field size
+    let pcts;
+    if(n<=6)        pcts=[100];
+    else if(n<=9)   pcts=[65,35];
+    else if(n<=15)  pcts=[50,30,20];
+    else if(n<=24)  pcts=[45,27,18,10];
+    else if(n<=35)  pcts=[40,24,15,12,9];
+    else if(n<=49)  pcts=[38,22,14,10,9,7];
+    else if(n<=74)  pcts=[35,21,13,9,7,5.5,5,4.5];
+    else if(n<=99)  pcts=[32,19.5,12.5,8.5,6.5,5,4,3.5,3,2.5,3]; // ~11 places... last balances
+    else            pcts=[30,18,11.5,8,6,4.6,3.6,3,2.5,2.2,2,1.8,1.6,1.4,1.8]; // ~15 places
+    // normalise to exactly 100
+    const sum=pcts.reduce((a,b)=>a+b,0);
+    return pcts.map(p=>+( p*100/sum ).toFixed(3));
+  }
+  // Calculate $ payouts from a % structure + pool, rounded to nearest $5, leftover spread so total == pool.
+  function calcPayouts(pcts, pool){
+    pool=Math.round(Number(pool)||0);
+    if(!pcts||!pcts.length||pool<=0) return pcts? pcts.map(()=>0):[];
+    // raw amounts
+    let raw=pcts.map(p=>pool*(Number(p)||0)/100);
+    // round each to nearest 5
+    let rounded=raw.map(a=>Math.round(a/5)*5);
+    // fix difference so sum matches pool, adjusting in $5 steps from the top places down
+    let diff=pool-rounded.reduce((a,b)=>a+b,0);
+    let i=0, guard=0;
+    while(diff!==0 && guard<10000){
+      const step = diff>0?5:-5;
+      // apply to place i (cycle through places, prefer top places for positive leftover)
+      const idx = i % rounded.length;
+      if(rounded[idx]+step>=0){ rounded[idx]+=step; diff-=step; }
+      i++; guard++;
+    }
+    return rounded;
+  }
 
   const now=new Date(); const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -158,6 +199,8 @@
       try{ BLIND_TEMPLATES=((await supabase.from('blind_templates').select('*').order('name')).data)||[]; }catch(e){ BLIND_TEMPLATES=[]; }
       // seed working blind levels per game from its stored blind_levels
       BLINDS={}; GAMES.forEach(g=>{ BLINDS[g.id]=Array.isArray(g.blind_levels)?JSON.parse(JSON.stringify(g.blind_levels)):[]; });
+      // seed payout structure per game (null = use standard table)
+      PAYOUTS={}; GAMES.forEach(g=>{ PAYOUTS[g.id]=Array.isArray(g.payout_structure)?JSON.parse(JSON.stringify(g.payout_structure)):null; });
       // which game NAMES have close-outs (so we can block deleting games with history)
       try{ const { data:cos } = await supabase.from('closeouts').select('game_name'); USED_NAMES=new Set((cos||[]).map(c=>(c.game_name||'').trim()).filter(Boolean)); }catch(e){ USED_NAMES=new Set(); }
       renderGames();
@@ -185,6 +228,33 @@
     }).join('');
     body.querySelectorAll('input[data-bg]').forEach(inp=>inp.addEventListener('input',()=>{ const g=inp.dataset.bg, i=+inp.dataset.bi, f=inp.dataset.bf; if(BLINDS[g]&&BLINDS[g][i]){ BLINDS[g][i][f]= (f==='breakName')?inp.value:(Number(inp.value)||0); } }));
     body.querySelectorAll('[data-bdel]').forEach(b=>b.addEventListener('click',()=>{ const g=b.dataset.bdel; (BLINDS[g]||[]).splice(+b.dataset.bdi,1); renumberBlinds(g); renderBlindEditor(g); }));
+  }
+  function getPayoutPcts(gid, entries){
+    // use saved/edited structure if present, else standard for the entry count
+    if(PAYOUTS[gid] && PAYOUTS[gid].length) return PAYOUTS[gid];
+    return standardPayout(entries);
+  }
+  function renderPayoutEditor(gid){
+    const body=document.querySelector('[data-paybody="'+gid+'"]'); if(!body) return;
+    const entInp=document.querySelector('[data-payentries="'+gid+'"]');
+    const poolInp=document.querySelector('[data-paypool="'+gid+'"]');
+    const entries=Number(entInp&&entInp.value)||0;
+    const pool=Number(poolInp&&poolInp.value)||0;
+    const pcts=getPayoutPcts(gid, entries);
+    const amts=calcPayouts(pcts, pool);
+    body.innerHTML=pcts.map((p,i)=>'<div style="display:grid;grid-template-columns:46px 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:5px">'+
+      '<div style="text-align:center;font-size:13px;color:var(--gold);font-weight:700">'+(i+1)+(i===0?'st':i===1?'nd':i===2?'rd':'th')+'</div>'+
+      '<input data-pg="'+gid+'" data-pi="'+i+'" type="number" step="0.1" value="'+(+Number(p).toFixed(2))+'" style="padding:7px;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:7px;color:var(--ink);text-align:center">'+
+      '<div style="text-align:center;font-size:14px;font-weight:700;color:var(--good);font-family:JetBrains Mono,monospace">$'+(amts[i]||0).toLocaleString()+'</div>'+
+      '<button data-pdel="'+gid+'" data-pdi="'+i+'" type="button" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer">&times;</button></div>'
+    ).join('');
+    const totPct=pcts.reduce((a,b)=>a+(Number(b)||0),0);
+    const totAmt=amts.reduce((a,b)=>a+(Number(b)||0),0);
+    const tEl=document.querySelector('[data-paytotal="'+gid+'"]');
+    if(tEl) tEl.innerHTML=pcts.length+' places paid · % total: <b style="color:'+(Math.abs(totPct-100)<0.5?'var(--good)':'var(--amber)')+'">'+totPct.toFixed(1)+'%</b> · payout total: <b style="color:'+(totAmt===Math.round(pool)?'var(--good)':'var(--amber)')+'">$'+totAmt.toLocaleString()+'</b>'+(totAmt===Math.round(pool)?' ✓ matches pool':' (pool $'+Math.round(pool).toLocaleString()+')');
+    // wire % edits
+    body.querySelectorAll('input[data-pg]').forEach(inp=>inp.addEventListener('input',()=>{ const g=inp.dataset.pg, i=+inp.dataset.pi; if(!PAYOUTS[g]) PAYOUTS[g]=getPayoutPcts(g, entries).slice(); PAYOUTS[g][i]=Number(inp.value)||0; renderPayoutEditor(g); }));
+    body.querySelectorAll('[data-pdel]').forEach(b=>b.addEventListener('click',()=>{ const g=b.dataset.pdel; if(!PAYOUTS[g]) PAYOUTS[g]=getPayoutPcts(g, entries).slice(); PAYOUTS[g].splice(+b.dataset.pdi,1); renderPayoutEditor(g); }));
   }
 
   function venueOptions(sel){ return ['<option value="">- venue -</option>'].concat(VENUES.map(v=>'<option'+(v===sel?' selected':'')+'>'+v+'</option>')).join(''); }
@@ -247,6 +317,16 @@
         '<div data-blindbody="'+(g.id||'')+'"></div>'+
         '<div class="row2" style="display:flex;gap:8px;margin-top:8px"><button class="actbtn" data-addlvl="'+(g.id||'')+'" type="button" style="flex:1">+ Level</button><button class="actbtn" data-addbreak="'+(g.id||'')+'" type="button" style="flex:1">+ Break</button></div>'+
       '</div>'+
+      // ===== Prize pool / payout structure =====
+      '<div class="rfpromo" style="border-color:var(--good)"><div class="rfpromoh" style="color:var(--good)">💰 Prize pool payouts</div>'+
+        '<div class="hint" style="margin-bottom:8px">Standard payout table auto-scales places paid with entries. Enter a test prize pool to preview $ amounts (rounded to nearest $5). Edit %s or add/remove places — they save with the game.</div>'+
+        '<div class="row2" style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><label>Test entries</label><input data-payentries="'+(g.id||'')+'" type="number" value="50" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink)"></div>'+
+        '<div style="flex:1"><label>Test prize pool $</label><input data-paypool="'+(g.id||'')+'" type="number" value="5000" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink)"></div></div>'+
+        '<div class="row2" style="display:flex;gap:8px;margin-bottom:8px"><button class="actbtn" data-payreset="'+(g.id||'')+'" type="button" style="flex:1">↺ Reset to standard</button><button class="actbtn" data-payadd="'+(g.id||'')+'" type="button" style="flex:1">+ Add place</button></div>'+
+        '<div class="payhead" style="display:grid;grid-template-columns:46px 1fr 1fr 28px;gap:6px;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><div style="text-align:center">Place</div><div style="text-align:center">% of pool</div><div style="text-align:center">Payout $</div><div></div></div>'+
+        '<div data-paybody="'+(g.id||'')+'"></div>'+
+        '<div data-paytotal="'+(g.id||'')+'" style="font-size:12px;color:var(--ink-dim);margin-top:8px;text-align:right"></div>'+
+      '</div>'+
       '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
       '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
       '<button class="delbtn" data-delete type="button">🗑 Delete</button>'+
@@ -270,6 +350,12 @@
       const addL=card.querySelector('[data-addlvl="'+gid+'"]'); if(addL) addL.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; const last=BLINDS[gid].filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round(last.bb||100):100; BLINDS[gid].push({level:0,sb:sb,bb:sb*2,ante:0,minutes:20,isBreak:false}); renumberBlinds(gid); renderBlindEditor(gid); });
       const addB=card.querySelector('[data-addbreak="'+gid+'"]'); if(addB) addB.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; BLINDS[gid].push({isBreak:true,breakName:'Break',minutes:10}); renderBlindEditor(gid); });
       const loadT=card.querySelector('[data-loadtmpl="'+gid+'"]'); if(loadT) loadT.addEventListener('click',()=>{ const sel=card.querySelector('[data-blindtmpl="'+gid+'"]'); const tid=sel?sel.value:''; const t=BLIND_TEMPLATES.find(x=>String(x.id)===String(tid)); if(!t){ alert('Pick a template first.'); return; } if((BLINDS[gid]||[]).length && !confirm('Replace the current blind levels with template "'+t.name+'"?')) return; BLINDS[gid]=JSON.parse(JSON.stringify(t.levels||[])); renumberBlinds(gid); renderBlindEditor(gid); });
+      // payout structure editor
+      renderPayoutEditor(gid);
+      const pe=card.querySelector('[data-payentries="'+gid+'"]'); if(pe) pe.addEventListener('input',()=>renderPayoutEditor(gid));
+      const pp=card.querySelector('[data-paypool="'+gid+'"]'); if(pp) pp.addEventListener('input',()=>renderPayoutEditor(gid));
+      const pr=card.querySelector('[data-payreset="'+gid+'"]'); if(pr) pr.addEventListener('click',()=>{ PAYOUTS[gid]=null; renderPayoutEditor(gid); });
+      const pa=card.querySelector('[data-payadd="'+gid+'"]'); if(pa) pa.addEventListener('click',()=>{ const entInp=card.querySelector('[data-payentries="'+gid+'"]'); const ent=Number(entInp&&entInp.value)||0; if(!PAYOUTS[gid]) PAYOUTS[gid]=getPayoutPcts(gid,ent).slice(); PAYOUTS[gid].push(1); renderPayoutEditor(gid); });
     });
   }
   async function deleteGame(gid){
@@ -307,6 +393,8 @@
     const fields={}; card.querySelectorAll('[data-f]').forEach(el=>{ const f=el.dataset.f; let v= el.type==='checkbox'?el.checked:el.value; if(['buy_in','rake','addon_price','guarantee','promo_default','cash_promo_default'].includes(f)) v = v===''?null:Number(v); fields[f]=v; });
     // include the blind structure for the clock
     fields.blind_levels = BLINDS[gid]||[];
+    // include the payout structure (null = use standard table)
+    fields.payout_structure = (PAYOUTS[gid] && PAYOUTS[gid].length) ? PAYOUTS[gid] : null;
     const saveBtn=card.querySelector('[data-save]'); saveBtn.disabled=true; clearStatus();
     try{
       const { error: gErr } = await supabase.from('games').update(fields).eq('id', gid);
