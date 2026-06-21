@@ -212,6 +212,7 @@
           <h2><span class="ico">💰</span> Your earnings <span class="pchip" id="tdEarnChip">this week</span></h2>
           <div class="big gold" id="tdEarn">$0</div>
           <div class="psub" id="tdEarnSub">your wages this period <span class="taphint">· tap for breakdown by tournament</span></div>
+          <div id="earnDbg" style="display:none"></div>
         </div>
         <!-- cash held -->
         <div class="pcard clickable" id="cashCard">
@@ -330,6 +331,7 @@
       if(user.email) myNames.add(norm(user.email.split('@')[0]));
       let allShifts=[];
       try{ allShifts=((await supabase.from('staff_shifts').select('*')).data)||[]; }catch(e){ allShifts=[]; }
+      window.__ALLSH=allShifts;
       TD_SHIFTS = allShifts.filter(s=>myNames.has(norm(s.staff_name)));
       // make sure we have the close-outs those shifts belong to (may be created by another TD) for dates/names
       const shiftCoIds=[...new Set(TD_SHIFTS.map(s=>s.closeout_id).filter(Boolean))];
@@ -395,6 +397,16 @@
     const lbl = earnPeriod==='week'?'this week':earnPeriod==='month'?'this month':'year to date';
     $('tdEarnChip').textContent = earnPeriod==='week'?'this week':earnPeriod==='month'?'this month':'YTD';
     $('tdEarnSub').textContent = 'your wages — '+lbl;
+    // diagnostic: if zero wages, show why (name match) right on the card
+    const dbg=$('earnDbg');
+    if(dbg){
+      if(wage===0){
+        const allNames=[...new Set((window.__ALLSH||[]).map(s=>s.staff_name))];
+        const mineCount=TD_SHIFTS.length;
+        dbg.style.display='block';
+        dbg.innerHTML='<div style="font-size:10.5px;color:#e0ad55;font-family:JetBrains Mono;margin-top:6px;line-height:1.5">debug · your profile name: "'+(MY_NAME||'(blank)')+'" · matched shifts: '+mineCount+'<br>staff names on file: '+(allNames.length?allNames.map(n=>'"'+n+'"').join(', '):'(none loaded)')+'</div>';
+      } else { dbg.style.display='none'; }
+    }
   }
   function renderCash(){
     const leftover=TD_CO.reduce((s,c)=>s+(Number(c.leftover_cash)||0),0);
