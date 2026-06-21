@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Poker Palace — Admin Command Centre</title>
+<title>Poker Palace - Admin Command Centre</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
   :root{--bg:#16161a;--line:#34343a;--line-soft:#26262b;--ink:#ecebe9;--ink-dim:#a5a4a8;--ink-faint:#76757a;
@@ -93,7 +93,7 @@
     <div class="right"><div id="dt">-</div><div class="role" id="roleLbl"></div></div>
   </div>
   
-  <a href="index.html" onclick="if(history.length>1){history.back();return false;}" style="color:#7fa0c4;text-decoration:none;font-size:13px;display:inline-block;margin:8px 0 2px">‹ Back</a>
+  <a href="index.html" onclick="if(history.length>1){history.back();return false;}" style="color:#7fa0c4;text-decoration:none;font-size:13px;display:inline-block;margin:8px 0 2px">< Back</a>
   <div id="status" class="status"></div>
 
   <div class="loginwrap" id="login">
@@ -108,22 +108,22 @@
     <div class="hero"><h1 id="greet">Command Centre</h1><p>Tap any box for the full detail.</p></div>
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
     <div id="adminArea">
-      <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
-      <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ›</span></a>
+      <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ></span></a>
+      <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ></span></a>
       <div class="toggle" id="periodToggle">
         <button data-p="week" class="on">This week</button><button data-p="month">This month</button>
         <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
       </div>
       <div class="metrics">
-        <div class="metric flags" data-d="flags"><div class="ml">⚑ Needs action</div><div class="mv" id="mFlags">0</div><div class="md" id="mFlagsSub">items to review</div><span class="arrow">›</span></div>
-        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric wages" data-d="wages"><div class="ml">💵 Wages — outstanding</div><div class="mv" id="mWages" style="color:var(--amber)">$0</div><div class="md" id="mWagesSub">cash · transfer · invoice</div><span class="arrow">›</span></div>
-        <div class="metric cash" data-d="cash"><div class="ml">🪙 Total cash held</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">all TDs + admin</div><span class="arrow">›</span></div>
-        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">›</span></div>
-        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
-        <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">—</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">›</span></div>
-        <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">—</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">›</span></div>
+        <div class="metric flags" data-d="flags"><div class="ml">⚑ Needs action</div><div class="mv" id="mFlags">0</div><div class="md" id="mFlagsSub">items to review</div><span class="arrow">></span></div>
+        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">-</div><span class="arrow">></span></div>
+        <div class="metric wages" data-d="wages"><div class="ml">💵 Wages - outstanding</div><div class="mv" id="mWages" style="color:var(--amber)">$0</div><div class="md" id="mWagesSub">cash · transfer · invoice</div><span class="arrow">></span></div>
+        <div class="metric cash" data-d="cash"><div class="ml">🪙 Total cash held</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">all TDs + admin</div><span class="arrow">></span></div>
+        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">-</div><span class="arrow">></span></div>
+        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">></span></div>
+        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">-</div><span class="arrow">></span></div>
+        <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">-</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">></span></div>
+        <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">-</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">></span></div>
         <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
         <div class="metric bank coming" data-d="bank"><div class="ml">🏦 Money in bank<span class="ctag">COMING</span></div><div class="mv">needs bank + overheads</div></div>
       </div>
@@ -176,7 +176,7 @@
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
   let user=null,isAdmin=false,MY_NAME='',CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null,INJECTIONS=[];
-  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
+  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'-'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -255,11 +255,11 @@
     return {prizes,outstanding,outN,count:cos.length};
   }
   function trendHtml(cur,prev){
-    if(prev===0){ return cur>0?'<span class="up">▲ new</span>':'<span class="flat">— no prior</span>'; }
+    if(prev===0){ return cur>0?'<span class="up">▲ new</span>':'<span class="flat">- no prior</span>'; }
     const pct=Math.round((cur-prev)/Math.abs(prev)*100);
     if(pct>0) return '<span class="up">▲ '+pct+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
     if(pct<0) return '<span class="down">▼ '+Math.abs(pct)+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
-    return '<span class="flat">— flat</span>';
+    return '<span class="flat">- flat</span>';
   }
 
   // find the game setup for a close-out (match by game name + venue)
@@ -267,7 +267,7 @@
     return GAMES.find(g=>(g.name||'')===(c.game_name||'') && (g.venue_name||'')===(c.venue_name||''))
         || GAMES.find(g=>(g.name||'')===(c.game_name||''));
   }
-  // per-close-out gaming margin = rake collected − overlay
+  // per-close-out gaming margin = rake collected - overlay
   function gamingMargin(c){
     if(c.void===true) return {rake:0,overlay:0,margin:0,known:true}; // void: no rake, no overlay liability
     const g=gameFor(c); if(!g) return {rake:0,overlay:0,margin:0,known:false};
@@ -302,7 +302,7 @@
     const t=new Date(ds); return t>=r.start && (!r.end||t<r.end);
   }
 
-  // earned club money per venue — counts QUALIFYING NIGHTS, not raw games.
+  // earned club money per venue - counts QUALIFYING NIGHTS, not raw games.
   // A night (venue+date) qualifies if a non-void tournament ran, OR a rake-free game ran.
   // A void tournament alone does NOT qualify. One club fee per qualifying night (per_game) or monthly (fixed).
   function gameIsRakeFree(name){ const g=(GAMES||[]).find(x=>x.name===name); return g && g.rake_free===true; }
@@ -329,7 +329,7 @@
     return out;
   }
   function earnedClubTotal(cos){ const e=earnedClubByVenue(cos); return Object.values(e).reduce((s,x)=>s+x.earned,0); }
-  // outstanding ticket money across all close-outs (won tickets not yet redeemed) — same logic as ticket register
+  // outstanding ticket money across all close-outs (won tickets not yet redeemed) - same logic as ticket register
   function outstandingTicketMoneyAll(){
     const coById={}; CLOSEOUTS.forEach(c=>coById[c.id]=c);
     const tkById={}; TICKETS.forEach(t=>tkById[t.id]=t);
@@ -362,7 +362,7 @@
     const ids=new Set(cos.map(c=>c.id));
     let prizes=0,outstanding=0,outN=0;
     PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
-    // per venue: gaming margin + club money − venue wages − venue-tagged expenses
+    // per venue: gaming margin + club money - venue wages - venue-tagged expenses
     const byV={};
     cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0,promo:0,sms:0});
       const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin; byV[v].promo+=Number(c.promo_cost)||0;});
@@ -370,7 +370,7 @@
     STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
     // SMS per venue (from sms charges on that venue's close-outs)
     (SMS||[]).forEach(x=>{const c=cos.find(cc=>cc.id===x.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].sms+=Number(x.amount)||0;}});
-    // club money per venue — use EARNED club money (rate × nights from venue config), not just generated invoices
+    // club money per venue - use EARNED club money (rate × nights from venue config), not just generated invoices
     const earnedClub=earnedClubByVenue(cos);
     Object.keys(earnedClub).forEach(v=>{ if(byV[v]) byV[v].club+=earnedClub[v].earned; });
     // venue-tagged expenses this period
@@ -378,7 +378,7 @@
     const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo-byV[v].sms})).sort((a,b)=>b.profit-a.profit);
     computed={cos,prizes,outstanding,outN,vlist,byV};
 
-    // invoices — outstanding club money (status not paid) for the relevant period
+    // invoices - outstanding club money (status not paid) for the relevant period
     const invs=INVOICES.filter(invInPeriod);
     let invOut=0, invOutN=0, invTotal=0;
     invs.forEach(i=>{ const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; invTotal+=amt; if(i.status!=='paid'){ invOut+=amt; invOutN++; } });
@@ -386,7 +386,7 @@
     $('mInv').textContent=money(invOut);
     $('mInvSub').textContent=invOutN+' unpaid · '+money(invTotal)+' invoiced';
 
-    // Net P&L (overlay-aware): gaming margin + club money − wages − expenses
+    // Net P&L (overlay-aware): gaming margin + club money - wages - expenses
     const expsCur=EXPENSES.filter(expInPeriod);
     const pnl=pnlFor(cos, expsCur);
     computed.pnl=pnl;
@@ -415,7 +415,7 @@
       const w=vlist[0], l=vlist[vlist.length-1];
       $('mVenWin').textContent=w.name; $('mVenWinSub').textContent=money(w.profit)+' profit';
       $('mVenLoss').textContent=l.name; $('mVenLossSub').textContent=money(l.profit)+' profit';
-    } else { $('mVenWin').textContent='—'; $('mVenLoss').textContent='—'; $('mVenWinSub').textContent='no data'; $('mVenLossSub').textContent='no data'; }
+    } else { $('mVenWin').textContent='-'; $('mVenLoss').textContent='-'; $('mVenWinSub').textContent='no data'; $('mVenLossSub').textContent='no data'; }
 
     // ---- needs action flags ----
     const flags=[];
@@ -424,11 +424,11 @@
     if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation',link:'payment_reconciliation_live.html',cta:'Open Payment Reconciliation'}); }
     // ===== OWNER actions (separate section) =====
     const ownerFlags=[];
-    // owner payments pending approval — owners confirm they've received the payment
+    // owner payments pending approval - owners confirm they've received the payment
     const pend=OWNERPAY.filter(o=>o.status==='pending');
-    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); ownerFlags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' to confirm',d:money(amt)+' — confirm you\'ve received this cash on the Owner Payments screen',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
-    // bank transactions that can't be allocated — placeholder (feature coming)
-    ownerFlags.push({ic:'🏦',t:'Unallocated bank transactions',d:'Coming soon — bank transactions that can\'t be matched to a game/venue will appear here for owners to review',placeholder:true,cta:'Coming soon'});
+    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); ownerFlags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' to confirm',d:money(amt)+' - confirm you\'ve received this cash on the Owner Payments screen',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
+    // bank transactions that can't be allocated - placeholder (feature coming)
+    ownerFlags.push({ic:'🏦',t:'Unallocated bank transactions',d:'Coming soon - bank transactions that can\'t be matched to a game/venue will appear here for owners to review',placeholder:true,cta:'Coming soon'});
     computed.ownerFlags=ownerFlags;
     // 3. invoices not yet sent/paid (this period)
     const draftInv=invsForVenues().filter(i=>i.status==='draft');
@@ -436,25 +436,25 @@
     // 4. close-outs whose game has no setup (breaks P&L)
     const noSetup=cos.filter(c=>{const g=gameFor(c); return !g || (!(Number(g.buy_in))&&!(Number(g.rake))&&!(Number(g.guarantee)));});
     if(noSetup.length){ const nsLink = noSetup.length===1 ? ('admin_view_cloud_test.html#co='+noSetup[0].id) : 'game_setup_live.html';
-      flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these',link:nsLink,cta:noSetup.length===1?'Open this tournament':'Open Game Setup'}); }
-    // 5. overlay games (lost on the guarantee) — excluding ones already acknowledged
+      flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set - P&L can\'t be accurate for these',link:nsLink,cta:noSetup.length===1?'Open this tournament':'Open Game Setup'}); }
+    // 5. overlay games (lost on the guarantee) - excluding ones already acknowledged
     const overlays=cos.filter(c=>gamingMargin(c).overlay>0 && c.overlay_ack!==true);
     if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0);
       const olLink = overlays.length===1 ? ('admin_view_cloud_test.html#co='+overlays[0].id) : 'admin_view_cloud_test.html#overlays';
-      flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — open the report to acknowledge',link:olLink,cta:overlays.length===1?'Open this tournament':'Open Tournament Report'}); }
+      flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays - open the report to acknowledge',link:olLink,cta:overlays.length===1?'Open this tournament':'Open Tournament Report'}); }
     // 6. acknowledged-but-unpaid wages (transfer/invoice committed, not yet confirmed paid)
     const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
     if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
-      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen',link:'wages_live.html',cta:'Open Wages'}); }
+      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice - confirm once paid on the Wages screen',link:'wages_live.html',cta:'Open Wages'}); }
     // 7. incoming cash hand-ups from TDs awaiting confirmation
     const incoming=(CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
     if(incoming.length){ const amt=incoming.reduce((s,m)=>s+(Number(m.amount)||0),0);
-      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held',drawer:'cash',cta:'Open Cash held'}); }
+      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs - confirm receipt in Cash held',drawer:'cash',cta:'Open Cash held'}); }
     // 8. opening cash balance not yet set
     if(!(OPENING && OPENING.as_of)){
-      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
+      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded - tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
     }
-    // 9. incomplete close-outs (missing staff or placings) — any TD, this period
+    // 9. incomplete close-outs (missing staff or placings) - any TD, this period
     const shByCo={}; (STAFF||[]).forEach(s=>{ (shByCo[s.closeout_id]=shByCo[s.closeout_id]||0); shByCo[s.closeout_id]++; });
     const plByCo={}; (PLACINGS||[]).forEach(p=>{ (plByCo[p.closeout_id]=plByCo[p.closeout_id]||0); plByCo[p.closeout_id]++; });
     const incomplete=cosAll.filter(c=>{
@@ -467,7 +467,7 @@
     if(incomplete.length){
       const drafts=incomplete.filter(c=>c.is_draft===true).length;
       const one=incomplete.length===1;
-      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s')+(drafts?(' ('+drafts+' draft'+(drafts>1?'s':'')+')'):''),d:'missing staff/placings or saved as draft — '+(one?'open it':'review them')+' on the Tournament Report',
+      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s')+(drafts?(' ('+drafts+' draft'+(drafts>1?'s':'')+')'):''),d:'missing staff/placings or saved as draft - '+(one?'open it':'review them')+' on the Tournament Report',
         link: one ? ('admin_view_cloud_test.html#co='+incomplete[0].id) : 'admin_view_cloud_test.html',
         cta: one ? 'Open this tournament' : 'Open Tournament Report'});
     }
@@ -484,7 +484,7 @@
     const openDate = OPENING && OPENING.as_of ? OPENING.as_of : null;
     computed.openAmt=openAmt; computed.openDate=openDate;
     const afterOpen = (d)=> !openDate || (d && String(d) > String(openDate)); // strictly after the opening date
-    // cash held by admin = approved received from TDs − cash expenses − given to owners (movements after opening date)
+    // cash held by admin = approved received from TDs - cash expenses - given to owners (movements after opening date)
     const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
@@ -503,7 +503,7 @@
     CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
     computed.ownerRecvList=Object.keys(ownerRecv).map(k=>({name:k, amt:ownerRecv[k]})).sort((a,b)=>b.amt-a.amt);
     computed.ownerRecvTotal=Object.values(ownerRecv).reduce((s,x)=>s+x,0);
-    // tickets allocated to players (satellite/seat prizes won) — value held but owed out as seats
+    // tickets allocated to players (satellite/seat prizes won) - value held but owed out as seats
     let ticketsAllocated=0;
     PLACINGS.forEach(p=>{
       [p.ticket_value, p.ticket_value_2, p.ticket_value_3].forEach(tv=>{ ticketsAllocated+=Number(tv)||0; });
@@ -511,7 +511,7 @@
     computed.ticketsAllocated=ticketsAllocated;
     const cashHeld=received-cashExp-toOwners-wagesCash;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
-    // detail lists (for expandable date-filtered breakdowns) — name, date, amount, sub
+    // detail lists (for expandable date-filtered breakdowns) - name, date, amount, sub
     const tdNm=(uid)=>tdName(uid);
     computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date))
       .map(m=>({name:tdNm(m.from_user), date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.to_admin?('→ '+m.to_admin):'')+(m.note?(' · '+m.note):'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -521,7 +521,7 @@
       .map(m=>({name:m.to_admin||'(owner)', date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.note?m.note:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
-    // cash held by each TD = their close-out leftovers − their approved hand-ups (after opening date)
+    // cash held by each TD = their close-out leftovers - their approved hand-ups (after opening date)
     const byTd={};
     (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].leftover+=Number(c.leftover_cash)||0; byTd[uid].games.push({name:c.game_name||'(no name)', date:c.game_date||'', cashIn:Number(c.cash_in)||0, leftover:Number(c.leftover_cash)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}); });
     CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].handed+=Number(m.amount)||0; byTd[uid].handups.push({amount:Number(m.amount)||0, date:m.move_date||'', to:m.to_admin||'', note:m.note||''}); });
@@ -570,7 +570,7 @@
 
   // ---- detail overlay ----
   const COMING={
-    bank:{ic:'🏦',t:'Money in bank',p:'A rolling bank balance: opening balance + transfers in (at games) − player payments − overhead costs and expenses. It needs a starting bank figure plus the overheads/expenses feeders and a record of transfers, none of which are in the system yet.',need:'Build: Bank balance + Overheads/Expenses + Transfers'}
+    bank:{ic:'🏦',t:'Money in bank',p:'A rolling bank balance: opening balance + transfers in (at games) - player payments - overhead costs and expenses. It needs a starting bank figure plus the overheads/expenses feeders and a record of transfers, none of which are in the system yet.',need:'Build: Bank balance + Overheads/Expenses + Transfers'}
   };
   async function confirmCash(id){
     try{
@@ -593,18 +593,18 @@
           '<div class="drow"><span class="l">Movements since</span><span class="r">'+money(computed.movementsSince||0)+'</span></div>'
         : '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.07);flex-direction:column;align-items:stretch;gap:8px">'+
             '<div style="color:var(--amber);font-weight:600">⚑ Set opening cash balance</div>'+
-            '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash already held as of a date. This locks once saved — only the owner can change it later in Supabase.</div>'+
+            '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash already held as of a date. This locks once saved - only the owner can change it later in Supabase.</div>'+
             '<div style="display:flex;gap:8px"><input id="openAmtIn" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="openDateIn" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
-            '<input id="openNoteIn" placeholder="Note (optional) — e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
+            '<input id="openNoteIn" placeholder="Note (optional) - e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
             '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
           '</div>';
-      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
+      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation - admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
         openingBlock+
         '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
         ((computed.injectAmt||0)>0?'<div class="drow"><span class="l">Cash injections</span><span class="r" style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
-        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Add cash injection</span><span class="r" style="color:var(--blue)">›</span></div>'+
+        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Add cash injection</span><span class="r" style="color:var(--blue)">></span></div>'+
         '<div id="injectForm" style="display:none;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:8px">'+
           '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Add cash to the float (e.g. you put cash in). Increases total cash held from the date.</div>'+
           '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="injAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="injDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
@@ -614,8 +614,8 @@
         '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
         (tdList.length?tdList.map((t,ti)=>{
           const gameRows=t.games.map(g=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:'+((g.leftover||0)>=0?'var(--good)':'var(--red)')+'">'+money(g.leftover)+'</span></div>').join('');
-          const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">−'+money(h.amount)+'</span></div>').join('')):'';
-          return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer;border-bottom:1px solid var(--line)"><div class="drow" style="border:none"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">tap for breakdown ›</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
+          const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">-'+money(h.amount)+'</span></div>').join('')):'';
+          return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer;border-bottom:1px solid var(--line)"><div class="drow" style="border:none"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">tap for breakdown ></span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
             '<div class="tdheld-detail" id="tdheld'+ti+'" style="display:none;padding:4px 4px 12px 4px">'+
               '<div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">Leftover cash by tournament:</div>'+
               gameRows+
@@ -626,20 +626,20 @@
         }).join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         expandableCashLine({id:'cdReceived', label:'Received from TDs (approved)', amount:computed.cashReceived||0, color:'var(--good)', sign:'+'})+
-        expandableCashLine({id:'cdExp', label:'Less: cash expenses', amount:computed.cashExp||0, color:'var(--red)', sign:'−'})+
-        ((computed.wagesCash||0)>0?expandableCashLine({id:'cashWage', label:'Less: wages paid in cash', amount:computed.wagesCash, color:'var(--red)', sign:'−'}):'')+
-        expandableCashLine({id:'cdOwners', label:'Less: given to owners', amount:computed.cashToOwners||0, color:'var(--gold)', sign:'−'})+
+        expandableCashLine({id:'cdExp', label:'Less: cash expenses', amount:computed.cashExp||0, color:'var(--red)', sign:'-'})+
+        ((computed.wagesCash||0)>0?expandableCashLine({id:'cashWage', label:'Less: wages paid in cash', amount:computed.wagesCash, color:'var(--red)', sign:'-'}):'')+
+        expandableCashLine({id:'cdOwners', label:'Less: given to owners', amount:computed.cashToOwners||0, color:'var(--gold)', sign:'-'})+
         ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
           '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
           computed.ownerRecvList.map(o=>{ const mine=(MY_NAME&&o.name&&o.name.toLowerCase().trim()===MY_NAME.toLowerCase().trim()); return '<div class="drow"'+(mine?' style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"':'')+'><span class="l">'+(mine?'⭐ ':'')+o.name+(mine?' <span style="font-size:11px;color:var(--gold)">(you)</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>'; }).join('')+
           '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total to owners</b></span><span class="r"><b>'+money(computed.ownerRecvTotal||0)+'</b></span></div>'
         ):'')+
-        '<div class="cashexp-toggle" data-listid="cdAdminHeld" style="cursor:pointer"><div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b> <span style="font-size:11px;color:var(--ink-faint)">tap ›</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+        '<div class="cashexp-toggle" data-listid="cdAdminHeld" style="cursor:pointer"><div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b> <span style="font-size:11px;color:var(--ink-faint)">tap ></span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
           '<div id="cdAdminHeld_wrap" style="display:none;padding:6px 2px 10px 2px">'+
             '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Received from TDs</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
-            ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>':'')+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: given to owners</span><span style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp||0)+'</span></div>'+
+            ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash)+'</span></div>':'')+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: given to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners||0)+'</span></div>'+
             '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= Admin cash held</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
           '</div>'+
         '</div>'+
@@ -647,18 +647,19 @@
         (function(){
           const owners=(PROFILES||[]).filter(p=>p.role==='owner');
           const opts=owners.length?owners.map(o=>'<option value="'+(o.full_name||o.name||'')+'">'+(o.full_name||o.name||'(owner)')+'</option>').join(''):'<option value="">(no owners found)</option>';
-          return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer;margin-top:10px" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">›</span></div>'+
+          return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer;margin-top:10px" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">></span></div>'+
             '<div id="handOwnerForm" style="display:none;background:var(--chip);border:1px solid var(--gold);border-radius:9px;padding:12px;margin-bottom:8px">'+
               '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Record cash you have handed to an owner. This reduces the admin cash held and shows on the owner\'s app.</div>'+
               '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="hoAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="hoDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
               '<label style="font-size:12px;color:var(--ink-dim)">Owner</label>'+
               '<select id="hoOwner" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin:4px 0 8px">'+opts+'</select>'+
-              '<input id="hoNote" placeholder="Note (optional) — e.g. profit distribution" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+              '<input id="hoNote" placeholder="Note (optional) - e.g. profit distribution" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
               '<button id="hoSaveBtn" style="width:100%;background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Record cash to owner</button>'+
               '<div id="hoMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
-            '</div>'+
+            '</div>';
+        })()+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
-        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
+        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'-')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
         (function(){
           const pend=(CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
           if(!pend.length) return '';
@@ -673,10 +674,10 @@
           return '<div class="dsub" style="margin-top:18px">🧮 Cash leftover after tickets</div>'+
             '<div class="pnlbox" style="border-color:#c9b896">'+
               '<div class="drow"><span class="l">Current cash held</span><span class="r" style="color:var(--gold)">'+money(held)+'</span></div>'+
-              '<div class="drow"><span class="l">Less: ticket money required <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'−'+money(tk):money(0))+'</span></div>'+
+              '<div class="drow"><span class="l">Less: ticket money required <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'-'+money(tk):money(0))+'</span></div>'+
               '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>CASH LEFTOVER AFTER TICKETS</span><span class="npval">'+money(free)+'</span></div>'+
             '</div>'+
-            '<div class="dmut" style="margin-top:6px;font-size:11px">This is the cash genuinely free to use — total cash held minus the ticket/satellite seat money set aside for players who won seats (owed out as future entries).</div>';
+            '<div class="dmut" style="margin-top:6px;font-size:11px">This is the cash genuinely free to use - total cash held minus the ticket/satellite seat money set aside for players who won seats (owed out as future entries).</div>';
         })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
@@ -686,8 +687,8 @@
           const cta=f.cta||'Open';
           const clickable=!f.placeholder;
           return '<div class="drow '+(clickable?'flagrow':'')+'" '+(clickable?('data-'+kind+'flag="'+i+'"'):'')+' style="'+(clickable?'cursor:pointer;':'opacity:.6;')+'flex-direction:column;align-items:stretch;gap:6px">'+
-            '<span class="l"><span style="font-size:16px;margin-right:8px">'+(f.ic||'•')+'</span>'+(f.t||'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+(f.d||'')+'</span></span>'+
-            '<span style="align-self:flex-end;color:'+(clickable?'var(--blue)':'var(--ink-faint)')+';font-size:12px;font-weight:600">'+cta+(clickable?' ›':'')+'</span>'+
+            '<span class="l"><span style="font-size:16px;margin-right:8px">'+(f.ic||'*')+'</span>'+(f.t||'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+(f.d||'')+'</span></span>'+
+            '<span style="align-self:flex-end;color:'+(clickable?'var(--blue)':'var(--ink-faint)')+';font-size:12px;font-weight:600">'+cta+(clickable?' >':'')+'</span>'+
           '</div>';
         };
         let html='<div class="dtitle">⚑ Needs action</div>';
@@ -701,75 +702,75 @@
       }catch(err){ b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub" style="color:var(--red)">Could not render: '+(err.message||err)+'</div>'; }
     } else if(key==='pnl'){
       const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0,promo:0,sms:0};
-      const dline=(l,v,col,dest)=>'<div class="drow" data-d="'+dest+'" style="cursor:pointer"><span class="l">'+l+' <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      const dline=(l,v,col,dest)=>'<div class="drow" data-d="'+dest+'" style="cursor:pointer"><span class="l">'+l+' <span style="color:var(--blue);font-size:11px">></span></span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'-':'')+money(Math.abs(v))+'</span></div>';
       b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Tap any line for its game-by-game breakdown.</div>'+
         dline('Rake collected', p.rakeTot, 'var(--good)','rakebd')+
         dline('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)','overlaybd')+
-        '<div class="drow" data-d="marginbd" style="cursor:pointer;border-color:var(--line)"><span class="l"><b>Gaming margin</b> <span style="color:var(--blue);font-size:11px">›</span></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
-        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
+        '<div class="drow" data-d="marginbd" style="cursor:pointer;border-color:var(--line)"><span class="l"><b>Gaming margin</b> <span style="color:var(--blue);font-size:11px">></span></span><span class="r"><b>'+(p.margin<0?'-':'')+money(Math.abs(p.margin))+'</b></span></div>'+
+        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">></span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
         dline('Less: wages', -p.wages, 'var(--red)','wagesbd')+
         dline('Less: overheads & expenses', -p.exp, 'var(--red)','expbd')+
         dline('Less: promotions', -(p.promo||0), 'var(--red)','promobd')+
         dline('Less: SMS charges', -(p.sms||0), 'var(--red)','smsbd')+
-        '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'−':'')+money(Math.abs(p.net))+'</b></span></div>'+
+        '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'-':'')+money(Math.abs(p.net))+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period.</div>';
     } else if(key==='prize'){
       const rows=computed.cos.map(c=>{const pr=PLACINGS.filter(p=>p.closeout_id===c.id).reduce((s,p)=>s+(Number(p.amount)||0),0);return {n:(c.game_name||'(no name)')+' · '+(c.venue_name||''),v:pr};}).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
       b.innerHTML='<div class="dtitle">🏆 Prizepools</div><div class="dsub">Total prize money by game, this period</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--blue)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">No prizes in this period.</div>');
     } else if(key==='payouts'){
       const rows=PLACINGS.filter(p=>!p.paid&&computed.cos.some(c=>c.id===p.closeout_id)).map(p=>{const c=computed.cos.find(x=>x.id===p.closeout_id);return {n:(p.player_name||'(no name)')+' · place '+(p.place||'')+' · '+(c?c.game_name:''),v:p.amount};}).sort((a,b)=>b.v-a.v);
-      b.innerHTML='<div class="dtitle">⏳ Outstanding payouts</div><div class="dsub">Unpaid placings — reconcile these on the Payment Reconciliation screen</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--amber)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">Everything\'s paid. 🎉</div>');
+      b.innerHTML='<div class="dtitle">⏳ Outstanding payouts</div><div class="dsub">Unpaid placings - reconcile these on the Payment Reconciliation screen</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--amber)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">Everything\'s paid. 🎉</div>');
     } else if(key==='inv'){
       const invs=(computed.invs||[]).slice().sort((a,b)=>{const av=(a.override_amount!=null?a.override_amount:a.calculated_amount)||0;const bv=(b.override_amount!=null?b.override_amount:b.calculated_amount)||0;return bv-av;});
-      b.innerHTML='<div class="dtitle">🧾 Outstanding invoices</div><div class="dsub">Club-money invoices for this period — manage on the Venues &amp; Invoicing screen</div>'+(invs.length?invs.map(i=>{const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0;const col=i.status==='paid'?'var(--good)':'var(--amber)';return '<div class="drow"><span class="l">'+i.venue_name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+i.period+' · '+i.status+(i.games_count?(' · '+i.games_count+' games'):'')+'</span></span><span class="r" style="color:'+col+'">'+money(amt)+'</span></div>';}).join(''):'<div class="empty">No invoices saved for this period yet. Generate them on the Venues &amp; Invoicing screen.</div>');
+      b.innerHTML='<div class="dtitle">🧾 Outstanding invoices</div><div class="dsub">Club-money invoices for this period - manage on the Venues &amp; Invoicing screen</div>'+(invs.length?invs.map(i=>{const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0;const col=i.status==='paid'?'var(--good)':'var(--amber)';return '<div class="drow"><span class="l">'+i.venue_name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+i.period+' · '+i.status+(i.games_count?(' · '+i.games_count+' games'):'')+'</span></span><span class="r" style="color:'+col+'">'+money(amt)+'</span></div>';}).join(''):'<div class="empty">No invoices saved for this period yet. Generate them on the Venues &amp; Invoicing screen.</div>');
     } else if(key==='venwin'||key==='venloss'){
       const vl=computed.vlist||[];
       const v = key==='venwin' ? vl[0] : vl[vl.length-1];
       if(!v){ b.innerHTML='<div class="dtitle">'+(key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue')+'</div><div class="empty">No venue data in this period.</div>'; $('detail').classList.add('open'); return; }
       const title = key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue';
       const cosV=(computed.cos||[]).filter(c=>(c.venue_name||'(no venue)')===v.name);
-      const row=(k,val,col,sign)=>'<div class="drow"><span class="l">'+k+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(sign&&val>0?sign:'')+(val<0?'−':'')+money(Math.abs(val))+'</span></div>';
+      const row=(k,val,col,sign)=>'<div class="drow"><span class="l">'+k+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(sign&&val>0?sign:'')+(val<0?'-':'')+money(Math.abs(val))+'</span></div>';
       // per-tournament margin breakdown
       const gameRows=cosV.map(c=>{ const m=gamingMargin(c); return {name:(c.game_name||'(no name)'), date:c.game_date||'', margin:m.margin, void:c.void===true, cash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}; }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-      let h='<div class="dtitle">'+title+'</div><div class="dsub" style="font-size:15px;color:var(--ink)"><b>'+v.name+'</b> — '+v.games+' game'+(v.games===1?'':'s')+' this period</div>';
+      let h='<div class="dtitle">'+title+'</div><div class="dsub" style="font-size:15px;color:var(--ink)"><b>'+v.name+'</b> - '+v.games+' game'+(v.games===1?'':'s')+' this period</div>';
       h+='<div class="pnlbox" style="border-color:#c9b896;margin-top:8px">'+
-        row('Gaming margin (rake − overlay)', v.margin, 'var(--good)', '+')+
+        row('Gaming margin (rake - overlay)', v.margin, 'var(--good)', '+')+
         row('Club money', v.club, 'var(--good)', '+')+
         row('Less: staff wages', -v.wages, v.wages>0?'var(--red)':'var(--ink)')+
         row('Less: promotions', -v.promo, v.promo>0?'var(--red)':'var(--ink)')+
         row('Less: SMS charges', -v.sms, v.sms>0?'var(--red)':'var(--ink)')+
         row('Less: venue expenses', -v.exp, v.exp>0?'var(--red)':'var(--ink)')+
-        '<div class="netprofit '+(v.profit>=0?'pos':'neg')+'"><span>VENUE PROFIT</span><span class="npval">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>'+
+        '<div class="netprofit '+(v.profit>=0?'pos':'neg')+'"><span>VENUE PROFIT</span><span class="npval">'+(v.profit<0?'-':'')+money(Math.abs(v.profit))+'</span></div>'+
       '</div>';
       h+='<div class="dsub" style="margin-top:14px">🏆 Gaming margin by tournament</div>';
-      h+= gameRows.length ? gameRows.map(g=>'<div class="drow"><span class="l">'+(g.void?'⛔ ':(g.cash?'🎲 ':'🏆 '))+g.name+' <span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+g.date+'</span></span><span class="r" style="color:'+(g.margin>=0?'var(--good)':'var(--red)')+'">'+(g.margin<0?'−':'')+money(Math.abs(g.margin))+'</span></div>').join('') : '<div class="empty">No games.</div>';
-      h+='<div class="dmut" style="margin-top:10px;font-size:11px">Venue profit = gaming margin + club money − wages − promotions − SMS − venue expenses. Shared business overheads (not tied to a venue) are accounted for separately at the P&amp;L level, so this is the venue\'s standalone contribution.</div>';
-      h+='<div class="drow" data-d="venues" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-top:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">🏛 Compare all venues ›</span></div>';
+      h+= gameRows.length ? gameRows.map(g=>'<div class="drow"><span class="l">'+(g.void?'⛔ ':(g.cash?'🎲 ':'🏆 '))+g.name+' <span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+g.date+'</span></span><span class="r" style="color:'+(g.margin>=0?'var(--good)':'var(--red)')+'">'+(g.margin<0?'-':'')+money(Math.abs(g.margin))+'</span></div>').join('') : '<div class="empty">No games.</div>';
+      h+='<div class="dmut" style="margin-top:10px;font-size:11px">Venue profit = gaming margin + club money - wages - promotions - SMS - venue expenses. Shared business overheads (not tied to a venue) are accounted for separately at the P&amp;L level, so this is the venue\'s standalone contribution.</div>';
+      h+='<div class="drow" data-d="venues" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-top:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">🏛 Compare all venues ></span></div>';
       b.innerHTML=h;
     } else if(key==='venues'){
-      const title = '🏛 All venues — by profit';
+      const title = '🏛 All venues - by profit';
       let vl=computed.vlist||[];
-      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Tap the venue boxes for a full breakdown.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
+      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money - wages - venue-tagged expenses. Tap the venue boxes for a full breakdown.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'-':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
     } else if(key==='rakebd'||key==='overlaybd'||key==='marginbd'||key==='wagesbd'||key==='expbd'||key==='promobd'||key==='smsbd'){
       const cos=computed.cos||[];
-      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
-      const gl=(name,v,col)=>'<div class="drow"><span class="l">'+name+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">< Back to Net P&amp;L</span></div>';
+      const gl=(name,v,col)=>'<div class="drow"><span class="l">'+name+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'-':'')+money(Math.abs(v))+'</span></div>';
       const gname=c=>(c.game_name||'(no name)')+' · '+(c.venue_name||'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.game_date||'')+'</span>';
       let title='',sub='',rows=[],empty='';
       if(key==='rakebd'){
-        title='💵 Rake collected — by game'; sub='Rake × entries for each game this period.';
+        title='💵 Rake collected - by game'; sub='Rake × entries for each game this period.';
         rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).rake,col:'var(--good)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
         empty='No rake this period.';
       } else if(key==='overlaybd'){
-        title='📉 Overlay — by game'; sub='Guarantee top-ups paid when the prize pool fell short.';
+        title='📉 Overlay - by game'; sub='Guarantee top-ups paid when the prize pool fell short.';
         rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).overlay,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
         empty='No overlays this period. 🎉';
       } else if(key==='marginbd'){
-        title='📊 Gaming margin — by game'; sub='Rake collected − overlay, per game.';
+        title='📊 Gaming margin - by game'; sub='Rake collected - overlay, per game.';
         rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).margin,col:gamingMargin(c).margin>=0?'var(--good)':'var(--red)'})).filter(r=>Math.abs(r.v)>0.5).sort((a,b)=>b.v-a.v);
         empty='No gaming margin this period.';
       } else if(key==='wagesbd'){
-        title='💵 Wages — by game'; sub='Staff pay recorded against each game this period.';
+        title='💵 Wages - by game'; sub='Staff pay recorded against each game this period.';
         const byco={}; STAFF.forEach(s=>{ const c=cos.find(x=>x.id===s.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(s.hours)||0)*(Number(s.rate)||0); } });
         rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
         empty='No wages this period.';
@@ -778,25 +779,25 @@
         rows=(EXPENSES||[]).filter(expInPeriod).map(e=>({n:(e.note||e.category||'Expense')+(e.venue_name?(' · '+e.venue_name):'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.expense_date||e.date||'')+'</span>',v:Number(e.amount)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
         empty='No expenses this period.';
       } else if(key==='promobd'){
-        title='🎁 Promotions — by game'; sub='Promo costs recorded on each game this period.';
+        title='🎁 Promotions - by game'; sub='Promo costs recorded on each game this period.';
         rows=cos.map(c=>({n:gname(c),v:Number(c.promo_cost)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
         empty='No promotions this period.';
       } else if(key==='smsbd'){
-        title='📲 SMS charges — by game'; sub='SMS marketing spend linked to each game this period.';
+        title='📲 SMS charges - by game'; sub='SMS marketing spend linked to each game this period.';
         const byco={}; (SMS||[]).forEach(x=>{ const c=cos.find(cc=>cc.id===x.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(x.amount)||0); } });
         rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
         empty='No SMS charges linked this period.';
       }
       const total=rows.reduce((s,r)=>s+r.v,0);
       b.innerHTML=back+'<div class="dtitle">'+title+'</div><div class="dsub">'+sub+'</div>'+
-        (rows.length?rows.map(r=>gl(r.n,r.v,r.col)).join('')+'<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total</b></span><span class="r"><b>'+(total<0?'−':'')+money(Math.abs(total))+'</b></span></div>':'<div class="empty">'+empty+'</div>');
+        (rows.length?rows.map(r=>gl(r.n,r.v,r.col)).join('')+'<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total</b></span><span class="r"><b>'+(total<0?'-':'')+money(Math.abs(total))+'</b></span></div>':'<div class="empty">'+empty+'</div>');
     } else if(key==='clubdetail'){
       const cos=computed.cos||[];
-      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
+      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">< Back to Net P&amp;L</span></div>';
       const earned=earnedClubByVenue(cos);
       const names=Object.keys(earned).sort((a,b)=>earned[b].earned-earned[a].earned);
       const invs=invsForVenues();
-      b.innerHTML=backLink+'<div class="dtitle">💰 Club money — earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
+      b.innerHTML=backLink+'<div class="dtitle">💰 Club money - earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
         (names.length?names.map(n=>{
           const e=earned[n];
           const inv=invs.find(i=>i.venue_name===n);
@@ -804,17 +805,17 @@
           return '<div class="drow"><span class="l">'+n+invMark+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.basis==='fixed_monthly'?'fixed monthly':money(e.rate)+' × '+e.games+' games')+'</span></span><span class="r" style="color:var(--good)">'+money(e.earned)+'</span></div>';
         }).join(''):'<div class="empty">No club money earned this period.</div>');
     } else if(key==='wages'){
-      b.innerHTML='<div class="dtitle">💵 Wages — outstanding payments</div><div class="dsub">All staff pay not yet confirmed paid, by payment type.</div>'+
+      b.innerHTML='<div class="dtitle">💵 Wages - outstanding payments</div><div class="dsub">All staff pay not yet confirmed paid, by payment type.</div>'+
         '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l"><b>Total outstanding</b></span><span class="r" style="color:var(--amber)"><b>'+money(computed.wagesOwed||0)+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Breakdown</div>'+
         '<div class="drow"><span class="l">⏳ Transfer pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wTransfer||0)+'</span></div>'+
         '<div class="drow"><span class="l">🧾 Invoice pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wInvoice||0)+'</span></div>'+
-        '<div class="drow"><span class="l">• Not yet actioned (no method)</span><span class="r">'+money(computed.wNone||0)+'</span></div>'+
+        '<div class="drow"><span class="l">* Not yet actioned (no method)</span><span class="r">'+money(computed.wNone||0)+'</span></div>'+
         '<div style="margin-top:12px"><a href="wages_live.html" style="display:block;text-align:center;background:var(--blue);color:#0e1a26;font-weight:700;border-radius:9px;padding:12px;text-decoration:none">Open Wages screen →</a></div>';
     } else if(key==='history'){
       const cos=[...(computed.cos||[])].sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
-      b.innerHTML='<div class="dtitle">🗂 Tournament History</div><div class="dsub">Games this period — tap one for its players &amp; winners.</div>'+
-        (cos.length?cos.map(c=>'<div class="drow" data-d="game:'+c.id+'" style="cursor:pointer"><span class="l">'+(c.game_name||'(game)')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="r" style="color:var(--blue)">'+(c.entries||0)+' entries ›</span></div>').join(''):'<div class="empty">No tournaments in this period.</div>');
+      b.innerHTML='<div class="dtitle">🗂 Tournament History</div><div class="dsub">Games this period - tap one for its players &amp; winners.</div>'+
+        (cos.length?cos.map(c=>'<div class="drow" data-d="game:'+c.id+'" style="cursor:pointer"><span class="l">'+(c.game_name||'(game)')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="r" style="color:var(--blue)">'+(c.entries||0)+' entries ></span></div>').join(''):'<div class="empty">No tournaments in this period.</div>');
     } else if(key.indexOf('game:')===0){
       const id=key.slice(5);
       const c=(CLOSEOUTS||[]).find(x=>String(x.id)===String(id))||{};
@@ -822,7 +823,7 @@
       const winNames=new Set(wins.map(w=>(w.player_name||'').toLowerCase()).filter(Boolean));
       const players=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).sort();
       const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
-      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries · TD: '+tdName(c.submitted_by)+' &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">‹ back to history</span></div>'+
+      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries · TD: '+tdName(c.submitted_by)+' &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">< back to history</span></div>'+
         '<div class="dsub" style="margin-top:6px">🏆 Winners</div>'+
         (wins.length?wins.map(w=>'<div class="drow"><span class="l"><b style="color:var(--gold)">'+w.place+suf(w.place)+'</b> &nbsp; '+(w.player_name||'(unassigned)')+'<span style="font-size:11px;color:var(--ink-faint)"> · '+(w.paid_by||'')+'</span></span><span class="r" style="color:var(--gold)">'+money(w.amount)+'</span></div>').join(''):'<div class="empty">No winners recorded.</div>')+
         '<div class="dsub" style="margin-top:14px">👥 All players ('+players.length+')</div>'+
@@ -856,7 +857,7 @@
   // generic: build an expandable cash-detail line (label + amount, with date-range buttons + rows container)
   function expandableCashLine(opts){
     // opts: id, label, amount, color, sign
-    return '<div class="cashexp-toggle" data-listid="'+opts.id+'" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">'+opts.label+' <span style="font-size:11px;color:var(--ink-faint)">tap for list ›</span></span><span class="r" style="color:'+(opts.color||'var(--ink)')+'">'+(opts.sign||'')+money(opts.amount||0)+'</span></div>'+
+    return '<div class="cashexp-toggle" data-listid="'+opts.id+'" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">'+opts.label+' <span style="font-size:11px;color:var(--ink-faint)">tap for list ></span></span><span class="r" style="color:'+(opts.color||'var(--ink)')+'">'+(opts.sign||'')+money(opts.amount||0)+'</span></div>'+
       '<div id="'+opts.id+'_wrap" style="display:none;padding:2px 2px 10px 2px">'+
         '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+
           [['14','Last 2 weeks'],['30','30 days'],['90','90 days'],['9999','All']].map((p,i)=>'<button class="cdrange" data-listid="'+opts.id+'" data-days="'+p[0]+'" style="background:'+(i===0?'var(--gold)':'none')+';color:'+(i===0?'#1a1205':'var(--ink-dim)')+';border:'+(i===0?'none':'1px solid var(--line)')+';border-radius:6px;padding:5px 10px;font-size:11px;font-weight:'+(i===0?'600':'400')+';cursor:pointer">'+p[1]+'</button>').join('')+
@@ -884,7 +885,7 @@
     try{
       const { data, error } = await supabase.from('cash_movements').insert({ movement_type:'admin_to_owner', amount:amt, move_date:date, from_user:user.id, to_admin:owner, note:note, recorded_by:user.id, status:'approved' }).select();
       if(error) throw error;
-      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_movements.');
+      if(!data||!data.length) throw new Error('Saved nothing - likely an RLS permission issue on cash_movements.');
       CASH.push(data[0]); show('✓ Recorded '+money(amt)+' to '+owner,true);
       setTimeout(()=>{ compute(); openDetail('cash'); }, 700);
     }catch(e){ show('Could not save: '+(e.message||e),false); btn.disabled=false; btn.textContent='Record cash to owner'; }
@@ -897,7 +898,7 @@
     try{
       const { data, error } = await supabase.from('cash_injections').insert({ amount:amt, inject_date:date, note:note||null, added_by:user.id }).select();
       if(error) throw error;
-      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_injections.');
+      if(!data||!data.length) throw new Error('Saved nothing - likely an RLS permission issue on cash_injections.');
       INJECTIONS.push(data[0]); compute(); openDetail('cash');
     }catch(e){ alert('Could not save injection: '+(e.message||e)); btn.disabled=false; btn.textContent='Add injection'; }
   }
@@ -906,14 +907,14 @@
     const note=($('openNoteIn')&&$('openNoteIn').value.trim())||null;
     if($('openAmtIn').value===''||isNaN(amt)){ alert('Enter an amount.'); return; }
     if(!date){ alert('Pick an as-of date.'); return; }
-    if(!confirm('Set opening balance to '+money(amt)+' as of '+date+'?\n\nThis LOCKS — only the owner can change it later in Supabase.')) return;
+    if(!confirm('Set opening balance to '+money(amt)+' as of '+date+'?\n\nThis LOCKS - only the owner can change it later in Supabase.')) return;
     const btn=$('saveOpeningBtn'); btn.disabled=true; btn.textContent='Saving…';
     try{
       const { error } = await supabase.from('cash_opening').insert({ id:1, amount:amt, as_of:date, set_by:user.id, note:note });
       if(error) throw error;
       OPENING={ id:1, amount:amt, as_of:date, set_by:user.id, note:note };
       compute(); openDetail('cash');
-    }catch(e){ alert('Could not save: '+(e.message||e)+'\n\n(If it says duplicate key, an opening balance already exists — only the owner can change it in Supabase.)'); btn.disabled=false; btn.textContent='Save opening balance (locks it)'; }
+    }catch(e){ alert('Could not save: '+(e.message||e)+'\n\n(If it says duplicate key, an opening balance already exists - only the owner can change it in Supabase.)'); btn.disabled=false; btn.textContent='Save opening balance (locks it)'; }
   }
 
   document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
