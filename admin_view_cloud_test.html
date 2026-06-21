@@ -175,6 +175,7 @@
         '<div class="cometa">'+(c.venue_name||'')+' · '+(c.entries||0)+' entries · money in $'+(c.money_in||0)+' · leftover $'+(c.leftover_cash||0)+'</div>'+
         '<div class="conet" style="font-family:JetBrains Mono;font-weight:700;font-size:26px;color:'+netCol+';margin:8px 0 2px">'+netStr+'<span style="font-size:11px;color:#76757a;font-weight:400;margin-left:8px">net for the day</span></div>'+
         '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
+        '<div style="text-align:right;margin-top:6px"><button class="codelete" data-coid="'+c.id+'" data-coname="'+(c.game_name||'this report').replace(/"/g,'')+'" data-codate="'+(c.game_date||'')+'" style="background:none;border:1px solid #6a3a3a;color:#c98a8a;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">🗑 delete report</button></div>'+
         '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
       }).join('');
       // also render any ORPHAN cash games (cash game with no matching tournament that night) as their own card
@@ -187,8 +188,9 @@
           '<div class="cometa">'+(c.venue_name||'')+' · cash game only</div>'+
           '<div class="conet" style="font-family:JetBrains Mono;font-weight:700;font-size:26px;color:'+ocol+';margin:8px 0 2px">'+ostr+'<span style="font-size:11px;color:#76757a;font-weight:400;margin-left:8px">net for the day</span></div>'+
           '<div class="cowho">submitted by <b style="color:#c9b896">'+tdName(c.submitted_by)+'</b> <span style="float:right;color:#7fa0c4">tap for detail ›</span></div>'+
+          '<div style="text-align:right;margin-top:6px"><button class="codelete" data-coid="'+c.id+'" data-coname="'+(c.game_name||'this cash game').replace(/"/g,'')+'" data-codate="'+(c.game_date||'')+'" style="background:none;border:1px solid #6a3a3a;color:#c98a8a;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">🗑 delete report</button></div>'+
           '<div class="codetail" id="codetail'+i+'" style="display:none"></div></div>';
-        }).join('');
+      }).join('');
       }
       document.querySelectorAll('.coclick').forEach(el=>{
         el.addEventListener('click',(ev)=>{
@@ -204,6 +206,9 @@
           }catch(outer){ console.error('click error',outer); }
         });
       });
+      document.querySelectorAll('.codelete').forEach(btn=>{
+        btn.addEventListener('click',(ev)=>{ ev.stopPropagation(); deleteCloseout(btn.dataset.coid, btn.dataset.coname, btn.dataset.codate); });
+      });
       // deep-link: if URL has #co=ID, auto-open that specific tournament and scroll to it
       const hash=window.location.hash||'';
       const mm=hash.match(/co=([^&]+)/);
@@ -218,6 +223,26 @@
         }
       }
     }catch(e){ setStatus('Could not load close-outs: '+(e.message||e),'err'); }
+  }
+  async function deleteCloseout(id, name, date){
+    if(!id) return;
+    const ok=confirm('⚠ Delete this report permanently?\n\n'+(name||'Report')+(date?(' — '+date):'')+'\n\nThis removes the close-out and all its placings and staff/wages. This CANNOT be undone.');
+    if(!ok) return;
+    const ok2=confirm('Are you absolutely sure? This permanently deletes the report and everything linked to it.');
+    if(!ok2) return;
+    try{
+      // remove linked rows first, then the close-out
+      await supabase.from('placings').delete().eq('closeout_id', id);
+      await supabase.from('staff_shifts').delete().eq('closeout_id', id);
+      try{ await supabase.from('closeout_corrections').delete().eq('closeout_id', id); }catch(e){}
+      try{ await supabase.from('cash_movements').delete().eq('closeout_id', id); }catch(e){}
+      const { error } = await supabase.from('closeouts').delete().eq('id', id);
+      if(error) throw error;
+      setStatus('✓ Report deleted.','ok');
+      // remove from local data and re-render
+      CO_DATA = CO_DATA.filter(c=>String(c.id)!==String(id));
+      loadCloseouts();
+    }catch(e){ setStatus('Could not delete: '+(e.message||e),'err'); alert('Could not delete the report: '+(e.message||e)); }
   }
   function coDetail(c){
     const money=n=>{n=Math.round(Number(n)||0);return (n<0?'-$':'$')+Math.abs(n).toLocaleString();};
