@@ -111,7 +111,7 @@
       <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ></span></a>
       <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ></span></a>
       <div class="toggle" id="periodToggle">
-        <button data-p="week" class="on">This week</button><button data-p="month">This month</button>
+        <button data-p="week" class="on">This week</button><button data-p="lastweek">Last week</button><button data-p="month">This month</button>
         <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
       </div>
       <div class="metrics">
@@ -236,11 +236,13 @@
     // returns {start,end} for current or previous period
     const d=new Date(); let start,end;
     if(period==='week'){ start=mondayOf(d); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // Mon → end of today
+    else if(period==='lastweek'){ const thisMon=mondayOf(d); start=new Date(thisMon); start.setDate(start.getDate()-7); end=new Date(thisMon); } // previous Mon → this Mon
     else if(period==='month'){ start=new Date(d.getFullYear(),d.getMonth(),1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // 1st → end of today (MTD)
     else if(period==='ytd'){ start=new Date(d.getFullYear(),0,1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); }
     else { return {start:null,end:null}; } // all time
     if(which==='prev'){
       if(period==='week'){ const s2=mondayOf(d); const ps=new Date(s2); ps.setDate(ps.getDate()-7); return {start:ps,end:s2}; }
+      if(period==='lastweek'){ const thisMon=mondayOf(d); const lastMon=new Date(thisMon); lastMon.setDate(lastMon.getDate()-7); const prevMon=new Date(lastMon); prevMon.setDate(prevMon.getDate()-7); return {start:prevMon,end:lastMon}; }
       if(period==='month'){ return {start:new Date(d.getFullYear(),d.getMonth()-1,1), end:new Date(d.getFullYear(),d.getMonth(),1)}; }
       if(period==='ytd'){ return {start:new Date(d.getFullYear()-1,0,1), end:new Date(d.getFullYear(),0,1)}; }
     }
@@ -547,7 +549,7 @@
     computed.totalCashHeld=totalCashHeld;
     // new players registered in the period
     const newP=PLAYERS.filter(inPeriod).length;
-    if($('mNewP')){ $('mNewP').textContent=newP; $('mNewPSub').textContent = period==='month'?'registered this month':(period==='week'?'registered this week':'registered this period'); }
+    if($('mNewP')){ $('mNewP').textContent=newP; $('mNewPSub').textContent = period==='month'?'registered this month':(period==='week'?'registered this week':(period==='lastweek'?'registered last week':'registered this period')); }
     // wages owed = all unpaid staff shifts; broken down by payment-method state
     let wagesOwed=0, wTransfer=0, wInvoice=0, wNone=0;
     (SHIFTS||[]).filter(s=>!s.paid).forEach(s=>{ const amt=(Number(s.hours)||0)*(Number(s.rate)||0); wagesOwed+=amt;
@@ -572,7 +574,7 @@
     const thisMonth=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
     if(period==='month') return i.period===thisMonth;
     if(period==='ytd') return i.period.startsWith(String(d.getFullYear()));
-    if(period==='week'){ // invoices are monthly; for a weekly view show the current month's
+    if(period==='week'||period==='lastweek'){ // invoices are monthly; for a weekly view show the current month's
       return i.period===thisMonth;
     }
     return true;
