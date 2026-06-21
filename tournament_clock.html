@@ -347,7 +347,7 @@ async function renderSetup(){
   // load templates and games
   TEMPLATES=((await supabase.from('blind_templates').select('*').order('name')).data)||[];
   const games=((await supabase.from('games').select('*').eq('active',true).order('name')).data)||[];
-  const tmplOpts=TEMPLATES.map(t=>'<div class="tmpl-item" data-tid="'+t.id+'"><span>'+t.name+' <span style="color:var(--ink-faint);font-size:11px">('+((t.levels||[]).length)+' levels)</span></span><span style="color:var(--gold)">use ›</span></div>').join('')||'<div class="pphint">No templates yet — build one below and save it.</div>';
+  const tmplOpts=TEMPLATES.map(t=>'<div class="tmpl-item" data-tid="'+t.id+'"><span class="tmpl-use" data-tid="'+t.id+'">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">('+((t.levels||[]).length)+' levels)</span></span><span style="display:flex;gap:10px;align-items:center"><button class="tmpl-export" data-tid="'+t.id+'" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">⬇ CSV</button><span class="tmpl-use" data-tid="'+t.id+'" style="color:var(--gold);cursor:pointer">use ›</span></span></div>').join('')||'<div class="pphint">No templates yet — build one below and save it.</div>';
   const gameOpts='<option value="">— pick a game —</option>'+games.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'" data-buyin="'+(g.buy_in||0)+'" data-rake="'+(g.rake||0)+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
   s.innerHTML=
     '<a class="exit" href="index.html">‹ Back to Poker Palace</a>'+
@@ -361,7 +361,7 @@ async function renderSetup(){
       '<div><label>Prize pool $</label><input id="setPool" class="fld" type="number" value="0"></div></div>'+
       '<div class="pphint">Tip: you can update players-left and prize pool live from the clock later.</div>'+
     '</div>'+
-    '<div class="sect"><h2>2 · Blind template</h2><div id="tmplList">'+tmplOpts+'</div></div>'+
+    '<div class="sect"><h2>2 · Blind template</h2><div id="tmplList">'+tmplOpts+'</div>'+(TEMPLATES.length?'<button class="btn sec" id="exportAllTmpl" style="margin-top:8px">⬇ Export all templates to CSV</button>':'')+'</div>'+
     '<div class="sect"><h2>3 · Blind levels <span style="color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:400">(edit or build)</span></h2>'+
       '<div class="lvlrow"><div class="lvlhead">#</div><div class="lvlhead">SB</div><div class="lvlhead">BB</div><div class="lvlhead">Ante</div><div class="lvlhead">Mins</div><div></div></div>'+
       '<div id="lvlBody"></div>'+
@@ -377,7 +377,9 @@ async function renderSetup(){
   // wire
   $('setGame').addEventListener('change',(e)=>{ const o=e.target.selectedOptions[0]; if(o){ const buyin=Number(o.dataset.buyin)||0, rake=Number(o.dataset.rake)||0; const ent=Number($('setEntries').value)||0; if(ent>0 && Number($('setPool').value)===0){ $('setPool').value=(buyin-rake)*ent; } } });
   $('setEntries').addEventListener('input',()=>{ if(!$('setLeft').value||Number($('setLeft').value)===0) $('setLeft').value=$('setEntries').value; });
-  s.querySelectorAll('.tmpl-item').forEach(el=>el.addEventListener('click',()=>{ const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t){ editLevels=JSON.parse(JSON.stringify(t.levels||[])); renderLevelEditor(); s.querySelectorAll('.tmpl-item').forEach(x=>x.classList.remove('active')); el.classList.add('active'); } }));
+  s.querySelectorAll('.tmpl-use').forEach(el=>el.addEventListener('click',()=>{ const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t){ editLevels=JSON.parse(JSON.stringify(t.levels||[])); renderLevelEditor(); s.querySelectorAll('.tmpl-item').forEach(x=>x.classList.remove('active')); const item=s.querySelector('.tmpl-item[data-tid="'+t.id+'"]'); if(item) item.classList.add('active'); } }));
+  s.querySelectorAll('.tmpl-export').forEach(el=>el.addEventListener('click',(ev)=>{ ev.stopPropagation(); const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t) exportTemplateCSV(t); }));
+  if($('exportAllTmpl')) $('exportAllTmpl').addEventListener('click', exportAllTemplatesCSV);
   $('addLvl').addEventListener('click',()=>{ const last=editLevels.filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round((last.bb||100)):100; editLevels.push({level:editLevels.filter(l=>!l.isBreak).length+1, sb:sb, bb:sb*2, ante:0, minutes:20, isBreak:false}); renumber(); renderLevelEditor(); });
   $('addBreak').addEventListener('click',()=>{ editLevels.push({isBreak:true, breakName:'Break', minutes:10}); renderLevelEditor(); });
   $('saveTmpl').addEventListener('click', saveTemplate);
@@ -414,6 +416,36 @@ function renderLevelEditor(){
   }).join('');
   body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{ const i=+inp.dataset.i, f=inp.dataset.f; editLevels[i][f]= (f==='breakName')?inp.value : (Number(inp.value)||0); }));
   body.querySelectorAll('.delx').forEach(b=>b.addEventListener('click',()=>{ editLevels.splice(+b.dataset.del,1); renumber(); renderLevelEditor(); }));
+}
+function csvCell(v){ const s=String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+function downloadCSV(filename, rows){
+  const csv=rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+function templateRows(t){
+  const rows=[['Level','Small Blind','Big Blind','Ante','Minutes','Type']];
+  (t.levels||[]).forEach((l,i)=>{
+    if(l.isBreak){ rows.push(['', '', '', '', (l.minutes||0), 'BREAK: '+(l.breakName||'Break')]); }
+    else { rows.push([(l.level||i+1), (l.sb||0), (l.bb||0), (l.ante||0), (l.minutes||0), 'Level']); }
+  });
+  return rows;
+}
+function exportTemplateCSV(t){
+  const safe=(t.name||'template').replace(/[^a-z0-9_\- ]/gi,'').trim().replace(/\s+/g,'_');
+  downloadCSV('blind_template_'+safe+'.csv', templateRows(t));
+}
+function exportAllTemplatesCSV(){
+  const rows=[['Template','Level','Small Blind','Big Blind','Ante','Minutes','Type']];
+  (TEMPLATES||[]).forEach(t=>{
+    (t.levels||[]).forEach((l,i)=>{
+      if(l.isBreak){ rows.push([t.name, '', '', '', '', (l.minutes||0), 'BREAK: '+(l.breakName||'Break')]); }
+      else { rows.push([t.name, (l.level||i+1), (l.sb||0), (l.bb||0), (l.ante||0), (l.minutes||0), 'Level']); }
+    });
+  });
+  downloadCSV('blind_templates_all.csv', rows);
 }
 async function saveTemplate(){
   const name=($('tmplName').value||'').trim();
