@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Palace — Admin Command Centre</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
+  :root{--bg:#16161a;--line:#34343a;--line-soft:#26262b;--ink:#ecebe9;--ink-dim:#a5a4a8;--ink-faint:#76757a;
+    --good:#5cb88a;--good-deep:#3f8c66;--amber:#e0ad55;--red:#e07a5f;--blue:#7fa0c4;--gold:#c9b896;--pp:#D00E26;
+    --chip:#1e1e23;--card:#22222a;--radius:14px;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#16161a;color:var(--ink);font-family:'Libre Franklin',sans-serif;-webkit-font-smoothing:antialiased;padding:22px 16px 110px;line-height:1.5;font-size:17px}
+  .wrap{max-width:820px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .logo img{height:40px;display:block}
+  .top .right{text-align:right;font-family:'JetBrains Mono';font-size:12px;color:var(--ink-faint)} .top .right .role{color:var(--gold)}
+  .hero{margin:14px 0 6px}
+  .hero h1{font-family:'Archivo';font-weight:800;font-size:26px;margin:0}
+  .hero p{font-size:14.5px;color:var(--ink-dim);margin:5px 0 0}
+  .status{padding:13px 15px;border-radius:11px;font-size:14px;margin:14px 0 0;border:1px solid var(--line);background:var(--chip);display:none}
+  .status.show{display:block}.status.err{border-color:#7a3328;background:rgba(224,122,95,.12);color:#f0b3a3}
+  .loginwrap{max-width:430px;margin:30px auto 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+  .card h2{font-family:'Archivo';font-weight:600;font-size:16px;margin:0 0 12px}
+  label{display:block;font-size:13px;color:var(--ink-dim);margin:12px 0 5px}
+  input{width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-size:15px;padding:11px 12px;outline:none;font-family:inherit}
+  input:focus{border-color:var(--blue)}
+  .signinbtn{width:100%;margin-top:16px;background:var(--blue);border:none;color:#0e1a26;font-weight:700;font-size:15px;border-radius:10px;padding:13px;cursor:pointer}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 0;font-size:13px;color:var(--ink-dim)}
+  .bar b{color:var(--ink)}
+  .bar button{background:var(--chip);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer}
+  .bar button:hover{border-color:var(--blue);color:var(--blue)}
+  .toggle{display:inline-flex;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:3px;margin:16px 0 12px;gap:2px;flex-wrap:wrap}
+  .toggle button{background:none;border:none;color:var(--ink-dim);font-family:'Libre Franklin';font-size:12.5px;padding:7px 13px;border-radius:7px;cursor:pointer}
+  .toggle button.on{background:var(--pp);color:#fff;font-weight:600}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+  @media(max-width:560px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;cursor:pointer;transition:border-color .15s,transform .1s;position:relative}
+  .metric:hover{border-color:var(--blue);transform:translateY(-2px)}
+  .metric .ml{font-size:12.5px;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+  .metric .mv{font-family:'JetBrains Mono';font-weight:700;font-size:24px;margin-top:9px;line-height:1}
+  .metric .md{font-size:11px;margin-top:7px;font-family:'JetBrains Mono';color:var(--ink-faint)}
+  .metric .md.trend .up{color:var(--good)} .metric .md.trend .down{color:var(--red)} .metric .md.trend .flat{color:var(--ink-faint)}
+  .metric .arrow{position:absolute;right:13px;bottom:11px;color:var(--ink-faint);font-size:13px}
+  .metric.pnl .mv{color:var(--good)} .metric.cash .mv{color:var(--gold)} .metric.prize .mv{color:var(--blue)}
+  .metric.inv .mv{color:var(--amber)} .metric.flags .mv{color:var(--amber)} .metric.venwin .mv{color:var(--good)} .metric.venloss .mv{color:var(--red)}
+  .metric.flags.active{background:linear-gradient(135deg,rgba(224,173,85,.16),rgba(224,122,85,.10));border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+  .metric.flags.active .ml{color:var(--amber)}
+  .gesclocks{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1c1c22,#262630);border:1px solid var(--pp);color:var(--ink);text-decoration:none;border-radius:12px;padding:14px;font-family:'Archivo',sans-serif;font-weight:700;font-size:15px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(208,14,38,.2) inset}
+  .gesclocks:hover{filter:brightness(1.1)} .gesclocks .gx{color:var(--pp);font-size:13px;font-weight:600}
+  .reportbtn{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1d2630,#243240);border:1px solid var(--blue);color:var(--ink);text-decoration:none;border-radius:12px;padding:16px;font-family:'Archivo',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(127,160,196,.2) inset}
+  .reportbtn:hover{filter:brightness(1.12)} .reportbtn .gx{color:var(--blue);font-size:13px;font-weight:600}
+  .metric.wages .mv{color:var(--amber)}
+  .metric.coming{opacity:.6;border-style:dashed}
+  .metric.coming .mv{color:var(--ink-faint);font-size:13px}
+  .ctag{font-size:9px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:4px;padding:2px 6px;margin-left:auto}
+  .sech{font-family:'Archivo';font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);margin:22px 0 12px}
+  .vrow{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:8px;cursor:pointer}
+  .vrow:hover{border-color:var(--blue)}
+  .vrow .vn{font-weight:600} .vrow .vsub{font-size:12px;color:var(--ink-faint);font-family:'JetBrains Mono';margin-top:2px}
+  .vrow .vv{font-family:'JetBrains Mono';font-weight:700;color:var(--good)}
+  .empty{color:var(--ink-faint);text-align:center;padding:18px;font-size:13.5px}
+  .allbtn{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--good-deep);border:1px solid var(--good);color:#fff;font-family:'Archivo';font-weight:700;font-size:16px;padding:15px 30px;border-radius:14px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:20}
+  .allbtn:hover{filter:brightness(1.1)}
+  .menu,.detail{position:fixed;inset:0;background:rgba(10,10,12,.96);z-index:30;display:none;overflow:auto;padding:30px 18px 100px}
+  .menu.open,.detail.open{display:block}
+  .mwrap{max-width:720px;margin:0 auto}
+  .mwrap h2{font-family:'Archivo';font-weight:800;font-size:22px;margin:6px 0 4px}
+  .menu h2{text-align:center} .menu .msub{text-align:center;color:var(--ink-dim);font-size:13px;margin-bottom:22px}
+  .mgrp{font-family:'Archivo';font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:20px 0 10px}
+  .mtile{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin-bottom:9px;cursor:pointer;text-decoration:none;color:var(--ink)}
+  .mtile:hover{border-color:var(--blue)} .mtile.soon{opacity:.5;cursor:default}
+  .mtile .ic{font-size:21px;flex:none}.mtile .mt{font-family:'Archivo';font-weight:600;font-size:15px}.mtile .mdh{font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .mtile .live{margin-left:auto;font-size:10px;color:var(--good);background:rgba(92,184,138,.12);border:1px solid rgba(92,184,138,.3);border-radius:5px;padding:3px 8px}
+  .mtile .soontag{margin-left:auto;font-size:10px;color:var(--gold);background:rgba(201,184,150,.12);border:1px solid rgba(201,184,150,.3);border-radius:5px;padding:3px 8px}
+  .closem{position:fixed;top:18px;right:18px;background:#fff;color:#16161a;border:none;border-radius:9px;padding:9px 15px;font-weight:600;cursor:pointer;z-index:31}
+  .dtitle{font-family:'Archivo';font-weight:800;font-size:20px;margin:0 0 3px}
+  .dsub{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
+  .drow{display:flex;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin-bottom:8px;font-size:14px}
+  .flagrow:hover{border-color:var(--blue);background:rgba(127,160,196,.06)}
+  .drow .l{color:var(--ink-dim)} .drow .r{font-family:'JetBrains Mono';font-weight:700}
+  .comingbox{background:rgba(201,184,150,.07);border:1px solid rgba(201,184,150,.3);border-radius:13px;padding:22px;text-align:center}
+  .comingbox .ic{font-size:38px}.comingbox h3{font-family:'Archivo';font-size:18px;margin:12px 0 6px}.comingbox p{font-size:14px;color:var(--ink-dim);max-width:480px;margin:0 auto;line-height:1.6}
+  .comingbox .need{margin-top:14px;font-family:'JetBrains Mono';font-size:12px;color:var(--gold)}
+  .legalfoot{text-align:center;font-family:'JetBrains Mono';font-size:11px;color:var(--ink-faint);line-height:1.7;margin-top:26px;padding-top:18px;border-top:1px solid var(--line-soft)}
+  .legalfoot b{color:var(--ink-dim)}
+  .notadmin{background:rgba(224,122,95,.1);border:1px solid #7a3328;border-radius:12px;padding:20px;text-align:center;color:#f0b3a3;font-size:14px}
+  #app.hidden,#login.hidden{display:none}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><img alt="Poker Palace" src="data:image/png;base64,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"></div>
+    <div class="right"><div id="dt">-</div><div class="role" id="roleLbl"></div></div>
+  </div>
+  
+  <a href="index.html" onclick="if(history.length>1){history.back();return false;}" style="color:#7fa0c4;text-decoration:none;font-size:13px;display:inline-block;margin:8px 0 2px">‹ Back</a>
+  <div id="status" class="status"></div>
+
+  <div class="loginwrap" id="login">
+    <div class="card"><h2>Sign in (admin)</h2>
+      <label>Email</label><input id="email" type="email" placeholder="admin@pokerpalace.test" autocomplete="username">
+      <label>Password</label><input id="password" type="password" placeholder="********" autocomplete="current-password">
+      <button class="signinbtn" id="signinBtn">Sign in</button>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="hero"><h1 id="greet">Command Centre</h1><p>Tap any box for the full detail.</p></div>
+    <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
+    <div id="adminArea">
+      <a class="gesclocks" href="https://poker.ges.xyz:7000/casino/poker_palace/mobile/display.htm?z=ad15ee4a9d66cac09dd97a289d528f91" target="_blank" rel="noopener">📺 Live GES Clocks <span class="gx">open ›</span></a>
+      <a class="reportbtn" href="admin_view_cloud_test.html">📋 Complete Tournament Report <span class="gx">open ›</span></a>
+      <div class="toggle" id="periodToggle">
+        <button data-p="week" class="on">This week</button><button data-p="month">This month</button>
+        <button data-p="ytd">Year to date</button><button data-p="all">All time</button>
+      </div>
+      <div class="metrics">
+        <div class="metric flags" data-d="flags"><div class="ml">⚑ Needs action</div><div class="mv" id="mFlags">0</div><div class="md" id="mFlagsSub">items to review</div><span class="arrow">›</span></div>
+        <div class="metric pnl" data-d="pnl"><div class="ml">📊 Net P&amp;L</div><div class="mv" id="mPnl">$0</div><div class="md trend" id="mPnlTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric wages" data-d="wages"><div class="ml">💵 Wages — outstanding</div><div class="mv" id="mWages" style="color:var(--amber)">$0</div><div class="md" id="mWagesSub">cash · transfer · invoice</div><span class="arrow">›</span></div>
+        <div class="metric cash" data-d="cash"><div class="ml">🪙 Total cash held</div><div class="mv" id="mCash" style="color:var(--gold)">$0</div><div class="md" id="mCashSub">all TDs + admin</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">›</span></div>
+        <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">—</div><span class="arrow">›</span></div>
+        <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">—</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">›</span></div>
+        <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">—</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">›</span></div>
+        <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
+        <div class="metric bank coming" data-d="bank"><div class="ml">🏦 Money in bank<span class="ctag">COMING</span></div><div class="mv">needs bank + overheads</div></div>
+      </div>
+    </div>
+    <div id="notAdmin" class="notadmin" style="display:none">This dashboard is for admins.</div>
+  </div>
+  <div class="legalfoot"><b>S&amp;R Promotions Pty Ltd</b> &middot; ABN 59 638 242 350<br><b>Poker Palace League Pty Ltd</b> &middot; ABN 49 659 444 514</div>
+</div>
+
+<button class="allbtn" id="allBtn" style="display:none">▤ All sections</button>
+
+<div class="detail" id="detail"><button class="closem" id="closeDetail">Close</button><div class="mwrap" id="detailBody"></div></div>
+
+<div class="menu" id="menu">
+  <button class="closem" id="closeMenu">Close</button>
+  <div class="mwrap">
+    <h2>All sections</h2><div class="msub">Your Poker Palace screens</div>
+    <div class="mgrp">⚙ Operations</div>
+    <a class="mtile" href="closeout_live.html"><span class="ic">🃏</span><div><div class="mt">TD Nightly Close-out</div><div class="mdh">Entries, money, placings, staff</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="payment_reconciliation_live.html"><span class="ic">💸</span><div><div class="mt">Payment Reconciliation</div><div class="mdh">Tick each prize paid</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="cash_custody_live.html"><span class="ic">🪙</span><div><div class="mt">Cash Custody</div><div class="mdh">TD→admin→owners, with approval</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="admin_view_cloud_test.html"><span class="ic">🛡️</span><div><div class="mt">Admin View</div><div class="mdh">Every TD's close-outs</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">💰 Money &amp; reporting</div>
+    <a class="mtile" href="reports_live.html"><span class="ic">📊</span><div><div class="mt">Reports</div><div class="mdh">P&amp;L, cash, invoicing, expenses · CSV export</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="venues_invoicing_live.html"><span class="ic">🏛</span><div><div class="mt">Venues &amp; Invoicing</div><div class="mdh">Monthly club-money invoices</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="expenses_live.html"><span class="ic">📒</span><div><div class="mt">Overheads &amp; Expenses</div><div class="mdh">Costs, bulk paste, receipts</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="sms_charges_live.html"><span class="ic">📲</span><div><div class="mt">SMS Charges</div><div class="mdh">Marketing SMS charged to a game</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="wages_live.html"><span class="ic">💵</span><div><div class="mt">Wages</div><div class="mdh">Staff pay by period · paid/outstanding</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="owner_payments_live.html"><span class="ic">💼</span><div><div class="mt">Owner Payments &amp; Loans</div><div class="mdh">Record → owner approves</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="pending_transfers_live.html"><span class="ic">⏳</span><div><div class="mt">Pending Transfers</div><div class="mdh">Pay out TD-assigned transfers</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">⚙ Setup &amp; people</div>
+    <a class="mtile" href="game_setup_live.html"><span class="ic">🎲</span><div><div class="mt">Game Setup</div><div class="mdh">Games + buy-in/rake/add-on</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="staff_rates_live.html"><span class="ic">👥</span><div><div class="mt">Staff &amp; Rates</div><div class="mdh">Staff list + locked rates</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="tickets_live.html"><span class="ic">🎟</span><div><div class="mt">Tickets</div><div class="mdh">Satellite/seat prizes for payouts</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="player_tickets_live.html"><span class="ic">🎫</span><div><div class="mt">Player Ticket Register</div><div class="mdh">Won tickets per player · used or not</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="players_list_live.html"><span class="ic">👤</span><div><div class="mt">Players &amp; Members</div><div class="mdh">Registered member registry</div></div><span class="live">LIVE</span></a>
+    <a class="mtile" href="expense_categories_live.html"><span class="ic">🗂</span><div><div class="mt">Expense Categories</div><div class="mdh">Manage category dropdowns</div></div><span class="live">LIVE</span></a>
+
+    <div class="mgrp">📊 Coming</div>
+    <div class="mtile soon"><span class="ic">🏦</span><div><div class="mt">Money in Bank</div><div class="mdh">Rolling bank balance</div></div><span class="soontag">SOON</span></div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPABASE_URL='https://tqlwkqtlxvozrgsavupg.supabase.co';
+  const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+  const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+  const $=id=>document.getElementById(id);
+  let user=null,isAdmin=false,MY_NAME='',CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null,INJECTIONS=[];
+  function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
+  const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
+  const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
+  function setStatus(m,k){const s=$('status');s.className='status show '+(k||'');s.innerHTML=m;}
+  function clearStatus(){$('status').className='status';}
+
+  async function showApp(u){
+    user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
+    let myRole='';
+    try{const{data,error}=await supabase.from('profiles').select('*').eq('user_id',u.id);
+      if(error) throw error;
+      if(Array.isArray(data)&&data.length){
+        const me=data.find(r=>r.role==='admin'||r.role==='owner')||data[0];
+        myRole=me.role||'';
+        MY_NAME=me.full_name||me.name||'';
+        isAdmin=data.some(r=>r.role==='admin'||r.role==='owner');
+        const nm=me.full_name||me.name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];
+      } else { isAdmin=false; myRole='(no profile row found)'; }
+    }catch(e){ isAdmin=false; myRole='(error: '+(e.message||e)+')'; }
+    $('roleLbl').textContent=isAdmin?(myRole==='owner'?'OWNER':'ADMIN'):'TD';
+    if(!isAdmin){
+      $('adminArea').style.display='none';$('notAdmin').style.display='block';
+      $('notAdmin').innerHTML='This dashboard is for admins and owners. Your account\'s role reads as: <b>'+(myRole||'(blank)')+'</b>.<br><br>If you\'re an owner and seeing this, your profiles row needs role set to <b>owner</b> (Table Editor → profiles → your row).';
+      return;
+    }
+    $('allBtn').style.display='block';await loadAll();
+  }
+  function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');$('allBtn').style.display='none';}
+  // re-load data when returning to the dashboard (e.g. back from the report after acknowledging) so flags refresh
+  window.addEventListener('pageshow', (e)=>{ if(user && isAdmin){ loadAll(); } });
+
+  async function loadAll(){
+    try{
+      const co=await supabase.from('closeouts').select('*');if(co.error)throw co.error;CLOSEOUTS=co.data||[];
+      PLACINGS=(await supabase.from('placings').select('*')).data||[];
+      TICKETS=(await supabase.from('tickets').select('*')).data||[];
+      SHIFTS=(await supabase.from('staff_shifts').select('*')).data||[];
+      PROFILES=(await supabase.from('profiles').select('*')).data||[];
+      PROFMAP={}; PROFILES.forEach(p=>{ PROFMAP[p.user_id]=p.full_name||p.name||null; });
+      PLAYERS=(await supabase.from('players').select('created_at')).data||[];
+      STAFF=(await supabase.from('staff_shifts').select('*')).data||[];
+      INVOICES=(await supabase.from('invoices').select('*')).data||[];
+      GAMES=(await supabase.from('games').select('*')).data||[];
+      VENUES=(await supabase.from('venues').select('*')).data||[];
+      EXPENSES=(await supabase.from('expenses').select('*')).data||[];
+      OWNERPAY=(await supabase.from('owner_payments').select('*')).data||[];
+      CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      SMS=(await supabase.from('sms_charges').select('*')).data||[];
+      try{ INJECTIONS=(await supabase.from('cash_injections').select('*')).data||[]; }catch(e){ INJECTIONS=[]; }
+      try{ const od=(await supabase.from('cash_opening').select('*').eq('id',1)).data; OPENING=(od&&od[0])||null; }catch(e){ OPENING=null; }
+      compute();
+    }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
+  }
+  function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; } // Monday 00:00 of d's week
+  function periodRange(which){
+    // returns {start,end} for current or previous period
+    const d=new Date(); let start,end;
+    if(period==='week'){ start=mondayOf(d); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // Mon → end of today
+    else if(period==='month'){ start=new Date(d.getFullYear(),d.getMonth(),1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); } // 1st → end of today (MTD)
+    else if(period==='ytd'){ start=new Date(d.getFullYear(),0,1); end=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); }
+    else { return {start:null,end:null}; } // all time
+    if(which==='prev'){
+      if(period==='week'){ const s2=mondayOf(d); const ps=new Date(s2); ps.setDate(ps.getDate()-7); return {start:ps,end:s2}; }
+      if(period==='month'){ return {start:new Date(d.getFullYear(),d.getMonth()-1,1), end:new Date(d.getFullYear(),d.getMonth(),1)}; }
+      if(period==='ytd'){ return {start:new Date(d.getFullYear()-1,0,1), end:new Date(d.getFullYear(),0,1)}; }
+    }
+    return {start,end};
+  }
+  function inRange(c,r){ if(!r.start)return true; const ds=c.game_date||c.created_at; if(!ds)return true; const t=new Date(ds); return t>=r.start && (!r.end||t<r.end); }
+  function inPeriod(c){ return inRange(c, periodRange('cur')); }
+
+  function metricsFor(cos){
+    const ids=new Set(cos.map(c=>c.id));
+    let prizes=0,outstanding=0,outN=0;
+    PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
+    return {prizes,outstanding,outN,count:cos.length};
+  }
+  function trendHtml(cur,prev){
+    if(prev===0){ return cur>0?'<span class="up">▲ new</span>':'<span class="flat">— no prior</span>'; }
+    const pct=Math.round((cur-prev)/Math.abs(prev)*100);
+    if(pct>0) return '<span class="up">▲ '+pct+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
+    if(pct<0) return '<span class="down">▼ '+Math.abs(pct)+'%</span> <span style="color:var(--ink-faint)">vs prev</span>';
+    return '<span class="flat">— flat</span>';
+  }
+
+  // find the game setup for a close-out (match by game name + venue)
+  function gameFor(c){
+    return GAMES.find(g=>(g.name||'')===(c.game_name||'') && (g.venue_name||'')===(c.venue_name||''))
+        || GAMES.find(g=>(g.name||'')===(c.game_name||''));
+  }
+  // per-close-out gaming margin = rake collected − overlay
+  function gamingMargin(c){
+    if(c.void===true) return {rake:0,overlay:0,margin:0,known:true}; // void: no rake, no overlay liability
+    const g=gameFor(c); if(!g) return {rake:0,overlay:0,margin:0,known:false};
+    if(g.rake_free===true) return {rake:0,overlay:0,margin:0,known:true}; // rake-free: no rake/margin
+    const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, gtee=Number(g.guarantee)||0, addonPrice=Number(g.addon_price)||0;
+    const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
+    const rakeCollected=rake*entries;
+    const prizePool=(buyin-rake)*entries + addonPrice*addons;
+    const overlay=Math.max(0, gtee - prizePool);
+    return {rake:rakeCollected, overlay, margin:rakeCollected-overlay, known:true};
+  }
+  // full Net P&L for a set of close-outs + the period's earned club money & expenses
+  function pnlFor(cos, useExpenses){
+    const ids=new Set(cos.map(c=>c.id));
+    let margin=0, rakeTot=0, overlayTot=0;
+    cos.forEach(c=>{const m=gamingMargin(c); margin+=m.margin; rakeTot+=m.rake; overlayTot+=m.overlay;});
+    let wages=0; STAFF.forEach(s=>{if(ids.has(s.closeout_id)) wages+=(Number(s.hours)||0)*(Number(s.rate)||0);});
+    // club money = EARNED from rates (not invoiced)
+    const club=earnedClubTotal(cos);
+    // overheads/expenses for the period
+    let exp=0; (useExpenses||[]).forEach(e=>{ exp+=Number(e.amount)||0; });
+    // rake-free promo costs in these close-outs
+    let promo=0; cos.forEach(c=>{ promo+=Number(c.promo_cost)||0; });
+    // SMS charges linked to these close-outs
+    let sms=0; (SMS||[]).forEach(x=>{ if(ids.has(x.closeout_id)) sms+=Number(x.amount)||0; });
+    const net = margin + club - wages - exp - promo - sms;
+    return {net, margin, rakeTot, overlayTot, wages, club, exp, promo, sms};
+  }
+  function expInPeriod(e){
+    const r=periodRange('cur'); if(!r.start) return true;
+    const ds=e.expense_date||''; if(!ds) return false;
+    const t=new Date(ds); return t>=r.start && (!r.end||t<r.end);
+  }
+
+  // earned club money per venue — counts QUALIFYING NIGHTS, not raw games.
+  // A night (venue+date) qualifies if a non-void tournament ran, OR a rake-free game ran.
+  // A void tournament alone does NOT qualify. One club fee per qualifying night (per_game) or monthly (fixed).
+  function gameIsRakeFree(name){ const g=(GAMES||[]).find(x=>x.name===name); return g && g.rake_free===true; }
+  function earnedClubByVenue(cos){
+    const nightsByVenue={}; // venue -> Set of qualifying dates
+    cos.forEach(c=>{
+      const v=c.venue_name||'(no venue)'; const d=c.game_date||''; if(!d) return;
+      const isVoid=c.void===true;
+      // a night qualifies for club money if SOMETHING ran: a non-void tournament, OR a rake-free cash game.
+      // the parallel cash game is saved as its own close-out (is_cash_game / named "Rake Free Cash Game").
+      const isCashGame = c.is_cash_game===true || c.game_name==='Rake Free Cash Game' || gameIsRakeFree(c.game_name);
+      const qualifies = isCashGame || !isVoid;
+      if(qualifies){ (nightsByVenue[v]=nightsByVenue[v]||new Set()).add(d); }
+    });
+    const out={};
+    VENUES.forEach(v=>{
+      const basis=v.club_money_basis||'', rate=Number(v.club_money_rate)||0;
+      const nights=(nightsByVenue[v.name]||new Set()).size;
+      let earned=0;
+      if(basis==='fixed_monthly'){ earned = nights>0 ? rate : 0; }
+      else if(basis==='per_game'){ earned = rate*nights; }
+      if(earned>0 || nights>0) out[v.name]={earned, games:nights, basis, rate};
+    });
+    return out;
+  }
+  function earnedClubTotal(cos){ const e=earnedClubByVenue(cos); return Object.values(e).reduce((s,x)=>s+x.earned,0); }
+  // outstanding ticket money across all close-outs (won tickets not yet redeemed) — same logic as ticket register
+  function outstandingTicketMoneyAll(){
+    const coById={}; CLOSEOUTS.forEach(c=>coById[c.id]=c);
+    const tkById={}; TICKETS.forEach(t=>tkById[t.id]=t);
+    const won=[];
+    PLACINGS.filter(p=>p.player_name).forEach(p=>{
+      const co=coById[p.closeout_id]||{};
+      [[p.ticket_id,p.ticket_value],[p.ticket_id_2,p.ticket_value_2],[p.ticket_id_3,p.ticket_value_3]].forEach(([tid,tv])=>{
+        if(!tid) return; const t=tkById[tid];
+        won.push({player:(p.player_name||'').toLowerCase(), ticket:((t?t.name:'')||'').toLowerCase(), value:Number(tv||0), wonDate:co.game_date||''});
+      });
+    });
+    const redemptions=[];
+    CLOSEOUTS.forEach(c=>{ (c.ges_ticket_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(n=>{
+      redemptions.push({player:n.toLowerCase(), game:(c.game_name||'').toLowerCase(), date:c.game_date||''}); }); });
+    won.sort((a,b)=>(a.wonDate||'').localeCompare(b.wonDate||''));
+    const consumed=new Set(); let owed=0;
+    won.forEach(w=>{ let used=false;
+      for(let i=0;i<redemptions.length;i++){ if(consumed.has(i))continue; const r=redemptions[i];
+        if(r.player!==w.player) continue; if(!r.game||!w.ticket) continue;
+        if(!(w.ticket.includes(r.game)||r.game.includes(w.ticket))) continue;
+        if(w.wonDate&&r.date&&r.date<w.wonDate) continue;
+        used=true; consumed.add(i); break; }
+      if(!used) owed+=w.value; });
+    return owed;
+  }
+
+  function compute(){
+    const cosAll=CLOSEOUTS.filter(inPeriod); // includes drafts (for flagging)
+    const cos=cosAll.filter(c=>c.is_draft!==true); // exclude drafts from all financial calcs
+    const ids=new Set(cos.map(c=>c.id));
+    let prizes=0,outstanding=0,outN=0;
+    PLACINGS.forEach(p=>{if(ids.has(p.closeout_id)){const a=Number(p.amount)||0;prizes+=a;if(!p.paid){outstanding+=a;outN++;}}});
+    // per venue: gaming margin + club money − venue wages − venue-tagged expenses
+    const byV={};
+    cos.forEach(c=>{const v=c.venue_name||'(no venue)';(byV[v]=byV[v]||{money:0,games:0,entries:0,margin:0,club:0,wages:0,exp:0,promo:0,sms:0});
+      const m=gamingMargin(c); byV[v].money+=Number(c.money_in)||0; byV[v].games++; byV[v].entries+=Number(c.entries)||0; byV[v].margin+=m.margin; byV[v].promo+=Number(c.promo_cost)||0;});
+    // wages per venue (from staff shifts on that venue's close-outs)
+    STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
+    // SMS per venue (from sms charges on that venue's close-outs)
+    (SMS||[]).forEach(x=>{const c=cos.find(cc=>cc.id===x.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].sms+=Number(x.amount)||0;}});
+    // club money per venue — use EARNED club money (rate × nights from venue config), not just generated invoices
+    const earnedClub=earnedClubByVenue(cos);
+    Object.keys(earnedClub).forEach(v=>{ if(byV[v]) byV[v].club+=earnedClub[v].earned; });
+    // venue-tagged expenses this period
+    EXPENSES.filter(expInPeriod).forEach(e=>{ if(e.venue_name && byV[e.venue_name]) byV[e.venue_name].exp+=Number(e.amount)||0; });
+    const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo-byV[v].sms})).sort((a,b)=>b.profit-a.profit);
+    computed={cos,prizes,outstanding,outN,vlist,byV};
+
+    // invoices — outstanding club money (status not paid) for the relevant period
+    const invs=INVOICES.filter(invInPeriod);
+    let invOut=0, invOutN=0, invTotal=0;
+    invs.forEach(i=>{ const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; invTotal+=amt; if(i.status!=='paid'){ invOut+=amt; invOutN++; } });
+    computed.invs=invs; computed.invOut=invOut; computed.invTotal=invTotal;
+    $('mInv').textContent=money(invOut);
+    $('mInvSub').textContent=invOutN+' unpaid · '+money(invTotal)+' invoiced';
+
+    // Net P&L (overlay-aware): gaming margin + club money − wages − expenses
+    const expsCur=EXPENSES.filter(expInPeriod);
+    const pnl=pnlFor(cos, expsCur);
+    computed.pnl=pnl;
+    $('mPnl').textContent=money(pnl.net);
+    $('mPnl').style.color = pnl.net>=0 ? 'var(--good)' : 'var(--red)';
+
+    // previous period for trends
+    const prevCos=CLOSEOUTS.filter(c=>inRange(c,periodRange('prev')));
+    const prev=metricsFor(prevCos);
+    // prev-period P&L for its trend
+    const prevR=periodRange('prev');
+    const prevInvs=INVOICES.filter(i=>{ if(!i.period)return false; const d=new Date(); if(period==='month'){const pm=new Date(d.getFullYear(),d.getMonth()-1,1);return i.period===pm.getFullYear()+'-'+('0'+(pm.getMonth()+1)).slice(-2);} return false; });
+    const prevExps=EXPENSES.filter(e=>{const ds=e.expense_date||'';if(!ds||!prevR.start)return false;const t=new Date(ds);return t>=prevR.start&&(!prevR.end||t<prevR.end);});
+    const prevPnl=pnlFor(prevCos, prevExps);
+
+    $('mPnl').textContent=money(pnl.net);
+    $('mPnlTrend').innerHTML=trendHtml(pnl.net, prevPnl.net);
+    $('mPrize').textContent=money(prizes);
+    $('mPrizeTrend').innerHTML=trendHtml(prizes,prev.prizes);
+    $('mOut').textContent=money(outstanding);
+    $('mOutTrend').innerHTML=trendHtml(outstanding,prev.outstanding);
+    if($('mVenN')) $('mVenN').textContent=vlist.length;
+    if($('mHist')) $('mHist').textContent=(computed.cos||[]).length;
+    // most/least profitable venue
+    if(vlist.length){
+      const w=vlist[0], l=vlist[vlist.length-1];
+      $('mVenWin').textContent=w.name; $('mVenWinSub').textContent=money(w.profit)+' profit';
+      $('mVenLoss').textContent=l.name; $('mVenLossSub').textContent=money(l.profit)+' profit';
+    } else { $('mVenWin').textContent='—'; $('mVenLoss').textContent='—'; $('mVenWinSub').textContent='no data'; $('mVenLossSub').textContent='no data'; }
+
+    // ---- needs action flags ----
+    const flags=[];
+    // 1. unpaid placings (across all close-outs in period)
+    const unpaid=PLACINGS.filter(p=>!p.paid && cos.some(c=>c.id===p.closeout_id));
+    if(unpaid.length){ const amt=unpaid.reduce((s,p)=>s+(Number(p.amount)||0),0); flags.push({ic:'⏳',t:unpaid.length+' unpaid payout'+(unpaid.length>1?'s':''),d:money(amt)+' outstanding · reconcile on Payment Reconciliation',link:'payment_reconciliation_live.html',cta:'Open Payment Reconciliation'}); }
+    // ===== OWNER actions (separate section) =====
+    const ownerFlags=[];
+    // owner payments pending approval — owners confirm they've received the payment
+    const pend=OWNERPAY.filter(o=>o.status==='pending');
+    if(pend.length){ const amt=pend.reduce((s,o)=>s+(Number(o.amount)||0),0); ownerFlags.push({ic:'💼',t:pend.length+' owner payment'+(pend.length>1?'s':'')+' to confirm',d:money(amt)+' — confirm you\'ve received this cash on the Owner Payments screen',link:'owner_payments_live.html',cta:'Open Owner Payments'}); }
+    // bank transactions that can't be allocated — placeholder (feature coming)
+    ownerFlags.push({ic:'🏦',t:'Unallocated bank transactions',d:'Coming soon — bank transactions that can\'t be matched to a game/venue will appear here for owners to review',placeholder:true,cta:'Coming soon'});
+    computed.ownerFlags=ownerFlags;
+    // 3. invoices not yet sent/paid (this period)
+    const draftInv=invsForVenues().filter(i=>i.status==='draft');
+    if(draftInv.length){ flags.push({ic:'🧾',t:draftInv.length+' invoice'+(draftInv.length>1?'s':'')+' not sent',d:'club-money invoices still in draft this period',link:'venues_invoicing_live.html',cta:'Open Venues & Invoicing'}); }
+    // 4. close-outs whose game has no setup (breaks P&L)
+    const noSetup=cos.filter(c=>{const g=gameFor(c); return !g || (!(Number(g.buy_in))&&!(Number(g.rake))&&!(Number(g.guarantee)));});
+    if(noSetup.length){ const nsLink = noSetup.length===1 ? ('admin_view_cloud_test.html#co='+noSetup[0].id) : 'game_setup_live.html';
+      flags.push({ic:'⚙️',t:noSetup.length+' close-out'+(noSetup.length>1?'s':'')+' missing game setup',d:'buy-in/rake/guarantee not set — P&L can\'t be accurate for these',link:nsLink,cta:noSetup.length===1?'Open this tournament':'Open Game Setup'}); }
+    // 5. overlay games (lost on the guarantee) — excluding ones already acknowledged
+    const overlays=cos.filter(c=>gamingMargin(c).overlay>0 && c.overlay_ack!==true);
+    if(overlays.length){ const amt=overlays.reduce((s,c)=>s+gamingMargin(c).overlay,0);
+      const olLink = overlays.length===1 ? ('admin_view_cloud_test.html#co='+overlays[0].id) : 'admin_view_cloud_test.html#overlays';
+      flags.push({ic:'📉',t:overlays.length+' game'+(overlays.length>1?'s':'')+' overlaid',d:money(amt)+' paid in overlays — open the report to acknowledge',link:olLink,cta:overlays.length===1?'Open this tournament':'Open Tournament Report'}); }
+    // 6. acknowledged-but-unpaid wages (transfer/invoice committed, not yet confirmed paid)
+    const ackWages=(SHIFTS||[]).filter(s=>!s.paid && s.pay_status==='acknowledged');
+    if(ackWages.length){ const amt=ackWages.reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
+      flags.push({ic:'💵',t:ackWages.length+' wage payment'+(ackWages.length>1?'s':'')+' to confirm',d:money(amt)+' acknowledged by transfer/invoice — confirm once paid on the Wages screen',link:'wages_live.html',cta:'Open Wages'}); }
+    // 7. incoming cash hand-ups from TDs awaiting confirmation
+    const incoming=(CASH||[]).filter(m=>m.movement_type==='td_to_admin' && m.status!=='approved');
+    if(incoming.length){ const amt=incoming.reduce((s,m)=>s+(Number(m.amount)||0),0);
+      flags.push({ic:'💰',t:incoming.length+' cash hand-up'+(incoming.length>1?'s':'')+' to confirm',d:money(amt)+' handed up by TDs — confirm receipt in Cash held',drawer:'cash',cta:'Open Cash held'}); }
+    // 8. opening cash balance not yet set
+    if(!(OPENING && OPENING.as_of)){
+      flags.push({ic:'🪙',t:'Set opening cash balance',d:'No opening cash balance recorded — tap Total cash held to set it (locks once saved)',drawer:'cash',cta:'Set it now'});
+    }
+    // 9. incomplete close-outs (missing staff or placings) — any TD, this period
+    const shByCo={}; (STAFF||[]).forEach(s=>{ (shByCo[s.closeout_id]=shByCo[s.closeout_id]||0); shByCo[s.closeout_id]++; });
+    const plByCo={}; (PLACINGS||[]).forEach(p=>{ (plByCo[p.closeout_id]=plByCo[p.closeout_id]||0); plByCo[p.closeout_id]++; });
+    const incomplete=cosAll.filter(c=>{
+      const isVoid=c.void===true; const isCash=c.is_cash_game===true||c.game_name==='Rake Free Cash Game';
+      const isDraft=c.is_draft===true;
+      const noStaff=!shByCo[c.id];
+      const noPlace=!isVoid && !isCash && !plByCo[c.id];
+      return isDraft || noStaff || noPlace;
+    });
+    if(incomplete.length){
+      const drafts=incomplete.filter(c=>c.is_draft===true).length;
+      const one=incomplete.length===1;
+      flags.push({ic:'📝',t:incomplete.length+' incomplete close-out'+(one?'':'s')+(drafts?(' ('+drafts+' draft'+(drafts>1?'s':'')+')'):''),d:'missing staff/placings or saved as draft — '+(one?'open it':'review them')+' on the Tournament Report',
+        link: one ? ('admin_view_cloud_test.html#co='+incomplete[0].id) : 'admin_view_cloud_test.html',
+        cta: one ? 'Open this tournament' : 'Open Tournament Report'});
+    }
+    computed.flags=flags;
+    const ownerActionable=(computed.ownerFlags||[]).filter(f=>!f.placeholder).length;
+    const totalCount=flags.length+ownerActionable;
+    $('mFlags').textContent=totalCount;
+    const flagBox=document.querySelector('.metric.flags'); if(flagBox) flagBox.classList.toggle('active', totalCount>0);
+    $('mFlags').style.color = totalCount ? 'var(--amber)' : 'var(--good)';
+    $('mFlagsSub').textContent = totalCount ? 'items to review' : 'all clear';
+
+    // opening balance: a starting figure as of a date; only count movements AFTER that date
+    const openAmt = OPENING ? (Number(OPENING.amount)||0) : 0;
+    const openDate = OPENING && OPENING.as_of ? OPENING.as_of : null;
+    computed.openAmt=openAmt; computed.openDate=openDate;
+    const afterOpen = (d)=> !openDate || (d && String(d) > String(openDate)); // strictly after the opening date
+    // cash held by admin = approved received from TDs − cash expenses − given to owners (movements after opening date)
+    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    // wages paid in CASH come out of the float (after opening date)
+    const coDate={}; (CLOSEOUTS||[]).forEach(c=>{ coDate[c.id]=c.game_date; });
+    const coName={}; (CLOSEOUTS||[]).forEach(c=>{ coName[c.id]=c.game_name; });
+    const cashWageShifts=(STAFF||[]).filter(s=>s.paid===true&&s.paid_method==='cash').map(s=>({
+      name:s.staff_name||'(unnamed)', role:s.role||'', amount:(Number(s.hours)||0)*(Number(s.rate)||0),
+      date:(s.paid_date||coDate[s.closeout_id]||''), game:coName[s.closeout_id]||''
+    })).filter(s=>afterOpen(s.date)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const wagesCash=cashWageShifts.reduce((s,x)=>s+x.amount,0);
+    computed.wagesCash=wagesCash;
+    computed.cashWageShifts=cashWageShifts;
+    // breakdown of money received by each owner (admin_to_owner movements, grouped by recipient)
+    const ownerRecv={};
+    CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
+    computed.ownerRecvList=Object.keys(ownerRecv).map(k=>({name:k, amt:ownerRecv[k]})).sort((a,b)=>b.amt-a.amt);
+    computed.ownerRecvTotal=Object.values(ownerRecv).reduce((s,x)=>s+x,0);
+    // tickets allocated to players (satellite/seat prizes won) — value held but owed out as seats
+    let ticketsAllocated=0;
+    PLACINGS.forEach(p=>{
+      [p.ticket_value, p.ticket_value_2, p.ticket_value_3].forEach(tv=>{ ticketsAllocated+=Number(tv)||0; });
+    });
+    computed.ticketsAllocated=ticketsAllocated;
+    const cashHeld=received-cashExp-toOwners-wagesCash;
+    computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
+    // detail lists (for expandable date-filtered breakdowns) — name, date, amount, sub
+    const tdNm=(uid)=>tdName(uid);
+    computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date))
+      .map(m=>({name:tdNm(m.from_user), date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.to_admin?('→ '+m.to_admin):'')+(m.note?(' · '+m.note):'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    computed.cashExpList=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date))
+      .map(e=>({name:e.note||e.category||e.venue_name||'Expense', date:(e.expense_date||e.date||''), amount:Number(e.amount)||0, sub:(e.venue_name?e.venue_name:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    computed.toOwnersList=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date))
+      .map(m=>({name:m.to_admin||'(owner)', date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.note?m.note:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    computed.ticketOwed=outstandingTicketMoneyAll();
+    computed.cashClear=cashHeld-computed.ticketOwed;
+    // cash held by each TD = their close-out leftovers − their approved hand-ups (after opening date)
+    const byTd={};
+    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].leftover+=Number(c.leftover_cash)||0; byTd[uid].games.push({name:c.game_name||'(no name)', date:c.game_date||'', cashIn:Number(c.cash_in)||0, leftover:Number(c.leftover_cash)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}); });
+    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].handed+=Number(m.amount)||0; byTd[uid].handups.push({amount:Number(m.amount)||0, date:m.move_date||'', to:m.to_admin||'', note:m.note||''}); });
+    const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
+    computed.tdHeldTotal=tdHeldTotal;
+    computed.tdHeldList=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed, games:byTd[uid].games.sort((a,b)=>(b.date||'').localeCompare(a.date||'')), handups:byTd[uid].handups.sort((a,b)=>(b.date||'').localeCompare(a.date||''))})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
+    const movementsSince = cashHeld+tdHeldTotal;
+    // cash injections after the opening date add to the float
+    const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
+    computed.injectAmt=injectAmt;
+    computed.movementsSince=movementsSince+injectAmt;
+    const totalCashHeld=openAmt+movementsSince+injectAmt;
+    computed.totalCashHeld=totalCashHeld;
+    // new players registered in the period
+    const newP=PLAYERS.filter(inPeriod).length;
+    if($('mNewP')){ $('mNewP').textContent=newP; $('mNewPSub').textContent = period==='month'?'registered this month':(period==='week'?'registered this week':'registered this period'); }
+    // wages owed = all unpaid staff shifts; broken down by payment-method state
+    let wagesOwed=0, wTransfer=0, wInvoice=0, wNone=0;
+    (SHIFTS||[]).filter(s=>!s.paid).forEach(s=>{ const amt=(Number(s.hours)||0)*(Number(s.rate)||0); wagesOwed+=amt;
+      if(s.pay_status==='acknowledged' && s.paid_method==='transfer') wTransfer+=amt;
+      else if(s.pay_status==='acknowledged' && s.paid_method==='invoice') wInvoice+=amt;
+      else wNone+=amt;
+    });
+    computed.wagesOwed=wagesOwed; computed.wTransfer=wTransfer; computed.wInvoice=wInvoice; computed.wNone=wNone;
+    if($('mWages')){ $('mWages').textContent=money(wagesOwed); }
+    $('mCash').textContent=money(totalCashHeld);
+    $('mCashSub').textContent=money(cashHeld)+' admin + '+money(tdHeldTotal)+' TDs';
+  }
+
+  // invoices for the current period (for per-venue club money attribution)
+  function invsForVenues(){ return INVOICES.filter(invInPeriod); }
+
+  // which invoice periods (YYYY-MM strings) count for the current toggle
+  function invInPeriod(i){
+    if(!i.period) return period==='all';
+    if(period==='all') return true;
+    const d=new Date();
+    const thisMonth=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
+    if(period==='month') return i.period===thisMonth;
+    if(period==='ytd') return i.period.startsWith(String(d.getFullYear()));
+    if(period==='week'){ // invoices are monthly; for a weekly view show the current month's
+      return i.period===thisMonth;
+    }
+    return true;
+  }
+
+  // ---- detail overlay ----
+  const COMING={
+    bank:{ic:'🏦',t:'Money in bank',p:'A rolling bank balance: opening balance + transfers in (at games) − player payments − overhead costs and expenses. It needs a starting bank figure plus the overheads/expenses feeders and a record of transfers, none of which are in the system yet.',need:'Build: Bank balance + Overheads/Expenses + Transfers'}
+  };
+  async function confirmCash(id){
+    try{
+      const { error } = await supabase.from('cash_movements').update({status:'approved', approved_at:new Date().toISOString()}).eq('id',id);
+      if(error) throw error;
+      // refresh and re-open cash detail
+      CASH=(await supabase.from('cash_movements').select('*')).data||[];
+      compute(); openDetail('cash');
+    }catch(e){ alert('Could not confirm: '+(e.message||e)); }
+  }
+  function openDetail(key){
+    const b=$('detailBody');
+    if(COMING[key]){const c=COMING[key];b.innerHTML='<div class="comingbox"><div class="ic">'+c.ic+'</div><h3>'+c.t+'</h3><p>'+c.p+'</p><div class="need">'+c.need+'</div></div>';$('detail').classList.add('open');return;}
+    if(key==='cash'){
+      const recent=[...CASH].sort((a,b)=>(b.move_date||'').localeCompare(a.move_date||'')).slice(0,20);
+      const tdList=computed.tdHeldList||[];
+      const hasOpening = !!(OPENING && OPENING.as_of);
+      const openingBlock = hasOpening
+        ? '<div class="drow"><span class="l">Opening balance <span style="color:var(--ink-faint);font-size:11px">(as of '+OPENING.as_of+', locked)</span>'+(OPENING.note?'<br><span style="font-size:11px;color:var(--ink-faint)">📝 '+OPENING.note+'</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(computed.openAmt||0)+'</span></div>'+
+          '<div class="drow"><span class="l">Movements since</span><span class="r">'+money(computed.movementsSince||0)+'</span></div>'
+        : '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.07);flex-direction:column;align-items:stretch;gap:8px">'+
+            '<div style="color:var(--amber);font-weight:600">⚑ Set opening cash balance</div>'+
+            '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash already held as of a date. This locks once saved — only the owner can change it later in Supabase.</div>'+
+            '<div style="display:flex;gap:8px"><input id="openAmtIn" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="openDateIn" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+            '<input id="openNoteIn" placeholder="Note (optional) — e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
+            '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
+          '</div>';
+      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
+        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
+        openingBlock+
+        '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
+        '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
+        ((computed.injectAmt||0)>0?'<div class="drow"><span class="l">Cash injections</span><span class="r" style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
+        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Add cash injection</span><span class="r" style="color:var(--blue)">›</span></div>'+
+        '<div id="injectForm" style="display:none;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:8px">'+
+          '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Add cash to the float (e.g. you put cash in). Increases total cash held from the date.</div>'+
+          '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="injAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="injDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+          '<input id="injNote" type="text" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+          '<button id="saveInjectBtn" style="width:100%;background:var(--good);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Add injection</button>'+
+        '</div>'+
+        '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
+        (tdList.length?tdList.map((t,ti)=>{
+          const gameRows=t.games.map(g=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:'+((g.leftover||0)>=0?'var(--good)':'var(--red)')+'">'+money(g.leftover)+'</span></div>').join('');
+          const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">−'+money(h.amount)+'</span></div>').join('')):'';
+          return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer;border-bottom:1px solid var(--line)"><div class="drow" style="border:none"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">tap for breakdown ›</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
+            '<div class="tdheld-detail" id="tdheld'+ti+'" style="display:none;padding:4px 4px 12px 4px">'+
+              '<div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">Leftover cash by tournament:</div>'+
+              gameRows+
+              handupRows+
+              '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:6px"><span>Currently holding</span><span style="color:var(--good)">'+money(t.held)+'</span></div>'+
+            '</div>'+
+          '</div>';
+        }).join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
+        '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
+        expandableCashLine({id:'cdReceived', label:'Received from TDs (approved)', amount:computed.cashReceived||0, color:'var(--good)', sign:'+'})+
+        expandableCashLine({id:'cdExp', label:'Less: cash expenses', amount:computed.cashExp||0, color:'var(--red)', sign:'−'})+
+        ((computed.wagesCash||0)>0?expandableCashLine({id:'cashWage', label:'Less: wages paid in cash', amount:computed.wagesCash, color:'var(--red)', sign:'−'}):'')+
+        expandableCashLine({id:'cdOwners', label:'Less: given to owners', amount:computed.cashToOwners||0, color:'var(--gold)', sign:'−'})+
+        ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
+          '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
+          computed.ownerRecvList.map(o=>{ const mine=(MY_NAME&&o.name&&o.name.toLowerCase().trim()===MY_NAME.toLowerCase().trim()); return '<div class="drow"'+(mine?' style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"':'')+'><span class="l">'+(mine?'⭐ ':'')+o.name+(mine?' <span style="font-size:11px;color:var(--gold)">(you)</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>'; }).join('')+
+          '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total to owners</b></span><span class="r"><b>'+money(computed.ownerRecvTotal||0)+'</b></span></div>'
+        ):'')+
+        '<div class="cashexp-toggle" data-listid="cdAdminHeld" style="cursor:pointer"><div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b> <span style="font-size:11px;color:var(--ink-faint)">tap ›</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+          '<div id="cdAdminHeld_wrap" style="display:none;padding:6px 2px 10px 2px">'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Received from TDs</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
+            ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>':'')+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: given to owners</span><span style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= Admin cash held</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
+          '</div>'+
+        '</div>'+
+        // ===== Hand cash to an owner =====
+        (function(){
+          const owners=(PROFILES||[]).filter(p=>p.role==='owner');
+          const opts=owners.length?owners.map(o=>'<option value="'+(o.full_name||o.name||'')+'">'+(o.full_name||o.name||'(owner)')+'</option>').join(''):'<option value="">(no owners found)</option>';
+          return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer;margin-top:10px" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">›</span></div>'+
+            '<div id="handOwnerForm" style="display:none;background:var(--chip);border:1px solid var(--gold);border-radius:9px;padding:12px;margin-bottom:8px">'+
+              '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Record cash you have handed to an owner. This reduces the admin cash held and shows on the owner\'s app.</div>'+
+              '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="hoAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="hoDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+              '<label style="font-size:12px;color:var(--ink-dim)">Owner</label>'+
+              '<select id="hoOwner" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin:4px 0 8px">'+opts+'</select>'+
+              '<input id="hoNote" placeholder="Note (optional) — e.g. profit distribution" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+              '<button id="hoSaveBtn" style="width:100%;background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Record cash to owner</button>'+
+              '<div id="hoMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
+            '</div>'+
+        '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
+        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
+        (function(){
+          const pend=(CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
+          if(!pend.length) return '';
+          return '<div class="dsub" style="margin-top:16px;color:var(--amber)">⏳ Awaiting your confirmation</div>'+
+            pend.map(m=>'<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l">'+money(m.amount)+' from a TD'+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><button class="confirmcash" data-confirm="'+m.id+'" style="background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:8px;padding:8px 13px;font-size:12.5px;cursor:pointer;font-weight:600">✓ Confirm receipt</button></div>').join('');
+        })()+
+        // ===== Net free cash summary =====
+        (function(){
+          const held=Number(computed.totalCashHeld!=null?computed.totalCashHeld:computed.cashHeld)||0;
+          const tk=Number(computed.ticketsAllocated)||0;
+          const free=held-tk;
+          return '<div class="dsub" style="margin-top:18px">🧮 Cash leftover after tickets</div>'+
+            '<div class="pnlbox" style="border-color:#c9b896">'+
+              '<div class="drow"><span class="l">Current cash held</span><span class="r" style="color:var(--gold)">'+money(held)+'</span></div>'+
+              '<div class="drow"><span class="l">Less: ticket money required <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'−'+money(tk):money(0))+'</span></div>'+
+              '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>CASH LEFTOVER AFTER TICKETS</span><span class="npval">'+money(free)+'</span></div>'+
+            '</div>'+
+            '<div class="dmut" style="margin-top:6px;font-size:11px">This is the cash genuinely free to use — total cash held minus the ticket/satellite seat money set aside for players who won seats (owed out as future entries).</div>';
+        })();
+    } else if(key==='flags'){
+      const fl=computed.flags||[];
+      const ofl=computed.ownerFlags||[];
+      try{
+        const renderRow=(f,i,kind)=>{
+          const cta=f.cta||'Open';
+          const clickable=!f.placeholder;
+          return '<div class="drow '+(clickable?'flagrow':'')+'" '+(clickable?('data-'+kind+'flag="'+i+'"'):'')+' style="'+(clickable?'cursor:pointer;':'opacity:.6;')+'flex-direction:column;align-items:stretch;gap:6px">'+
+            '<span class="l"><span style="font-size:16px;margin-right:8px">'+(f.ic||'•')+'</span>'+(f.t||'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono;margin-left:26px">'+(f.d||'')+'</span></span>'+
+            '<span style="align-self:flex-end;color:'+(clickable?'var(--blue)':'var(--ink-faint)')+';font-size:12px;font-weight:600">'+cta+(clickable?' ›':'')+'</span>'+
+          '</div>';
+        };
+        let html='<div class="dtitle">⚑ Needs action</div>';
+        // Admin section
+        html+='<div class="dsub" style="margin-top:6px;color:var(--gold)">👤 Admin to action</div>';
+        html+= fl.length ? fl.map((f,i)=>renderRow(f,i,'admin')).join('') : '<div class="drow" style="opacity:.7"><span class="l">✅ Nothing for admin right now</span></div>';
+        // Owner section
+        html+='<div class="dsub" style="margin-top:18px;color:var(--blue)">💼 Owner to action</div>';
+        html+= ofl.length ? ofl.map((f,i)=>renderRow(f,i,'owner')).join('') : '<div class="drow" style="opacity:.7"><span class="l">✅ Nothing for owners right now</span></div>';
+        b.innerHTML=html;
+      }catch(err){ b.innerHTML='<div class="dtitle">⚑ Needs action</div><div class="dsub" style="color:var(--red)">Could not render: '+(err.message||err)+'</div>'; }
+    } else if(key==='pnl'){
+      const p=computed.pnl||{net:0,margin:0,rakeTot:0,overlayTot:0,wages:0,club:0,exp:0,promo:0,sms:0};
+      const dline=(l,v,col,dest)=>'<div class="drow" data-d="'+dest+'" style="cursor:pointer"><span class="l">'+l+' <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      b.innerHTML='<div class="dtitle">📊 Net P&amp;L</div><div class="dsub">Tap any line for its game-by-game breakdown.</div>'+
+        dline('Rake collected', p.rakeTot, 'var(--good)','rakebd')+
+        dline('Less: overlay (guarantee top-ups)', -p.overlayTot, 'var(--red)','overlaybd')+
+        '<div class="drow" data-d="marginbd" style="cursor:pointer;border-color:var(--line)"><span class="l"><b>Gaming margin</b> <span style="color:var(--blue);font-size:11px">›</span></span><span class="r"><b>'+(p.margin<0?'−':'')+money(Math.abs(p.margin))+'</b></span></div>'+
+        '<div class="drow" data-d="clubdetail" style="cursor:pointer"><span class="l">Plus: club money (earned) <span style="color:var(--blue);font-size:11px">›</span></span><span class="r" style="color:var(--good)">'+money(p.club)+'</span></div>'+
+        dline('Less: wages', -p.wages, 'var(--red)','wagesbd')+
+        dline('Less: overheads & expenses', -p.exp, 'var(--red)','expbd')+
+        dline('Less: promotions', -(p.promo||0), 'var(--red)','promobd')+
+        dline('Less: SMS charges', -(p.sms||0), 'var(--red)','smsbd')+
+        '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'−':'')+money(Math.abs(p.net))+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period.</div>';
+    } else if(key==='prize'){
+      const rows=computed.cos.map(c=>{const pr=PLACINGS.filter(p=>p.closeout_id===c.id).reduce((s,p)=>s+(Number(p.amount)||0),0);return {n:(c.game_name||'(no name)')+' · '+(c.venue_name||''),v:pr};}).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+      b.innerHTML='<div class="dtitle">🏆 Prizepools</div><div class="dsub">Total prize money by game, this period</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--blue)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">No prizes in this period.</div>');
+    } else if(key==='payouts'){
+      const rows=PLACINGS.filter(p=>!p.paid&&computed.cos.some(c=>c.id===p.closeout_id)).map(p=>{const c=computed.cos.find(x=>x.id===p.closeout_id);return {n:(p.player_name||'(no name)')+' · place '+(p.place||'')+' · '+(c?c.game_name:''),v:p.amount};}).sort((a,b)=>b.v-a.v);
+      b.innerHTML='<div class="dtitle">⏳ Outstanding payouts</div><div class="dsub">Unpaid placings — reconcile these on the Payment Reconciliation screen</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--amber)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">Everything\'s paid. 🎉</div>');
+    } else if(key==='inv'){
+      const invs=(computed.invs||[]).slice().sort((a,b)=>{const av=(a.override_amount!=null?a.override_amount:a.calculated_amount)||0;const bv=(b.override_amount!=null?b.override_amount:b.calculated_amount)||0;return bv-av;});
+      b.innerHTML='<div class="dtitle">🧾 Outstanding invoices</div><div class="dsub">Club-money invoices for this period — manage on the Venues &amp; Invoicing screen</div>'+(invs.length?invs.map(i=>{const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0;const col=i.status==='paid'?'var(--good)':'var(--amber)';return '<div class="drow"><span class="l">'+i.venue_name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+i.period+' · '+i.status+(i.games_count?(' · '+i.games_count+' games'):'')+'</span></span><span class="r" style="color:'+col+'">'+money(amt)+'</span></div>';}).join(''):'<div class="empty">No invoices saved for this period yet. Generate them on the Venues &amp; Invoicing screen.</div>');
+    } else if(key==='venwin'||key==='venloss'){
+      const vl=computed.vlist||[];
+      const v = key==='venwin' ? vl[0] : vl[vl.length-1];
+      if(!v){ b.innerHTML='<div class="dtitle">'+(key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue')+'</div><div class="empty">No venue data in this period.</div>'; $('detail').classList.add('open'); return; }
+      const title = key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue';
+      const cosV=(computed.cos||[]).filter(c=>(c.venue_name||'(no venue)')===v.name);
+      const row=(k,val,col,sign)=>'<div class="drow"><span class="l">'+k+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(sign&&val>0?sign:'')+(val<0?'−':'')+money(Math.abs(val))+'</span></div>';
+      // per-tournament margin breakdown
+      const gameRows=cosV.map(c=>{ const m=gamingMargin(c); return {name:(c.game_name||'(no name)'), date:c.game_date||'', margin:m.margin, void:c.void===true, cash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}; }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      let h='<div class="dtitle">'+title+'</div><div class="dsub" style="font-size:15px;color:var(--ink)"><b>'+v.name+'</b> — '+v.games+' game'+(v.games===1?'':'s')+' this period</div>';
+      h+='<div class="pnlbox" style="border-color:#c9b896;margin-top:8px">'+
+        row('Gaming margin (rake − overlay)', v.margin, 'var(--good)', '+')+
+        row('Club money', v.club, 'var(--good)', '+')+
+        row('Less: staff wages', -v.wages, v.wages>0?'var(--red)':'var(--ink)')+
+        row('Less: promotions', -v.promo, v.promo>0?'var(--red)':'var(--ink)')+
+        row('Less: SMS charges', -v.sms, v.sms>0?'var(--red)':'var(--ink)')+
+        row('Less: venue expenses', -v.exp, v.exp>0?'var(--red)':'var(--ink)')+
+        '<div class="netprofit '+(v.profit>=0?'pos':'neg')+'"><span>VENUE PROFIT</span><span class="npval">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>'+
+      '</div>';
+      h+='<div class="dsub" style="margin-top:14px">🏆 Gaming margin by tournament</div>';
+      h+= gameRows.length ? gameRows.map(g=>'<div class="drow"><span class="l">'+(g.void?'⛔ ':(g.cash?'🎲 ':'🏆 '))+g.name+' <span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+g.date+'</span></span><span class="r" style="color:'+(g.margin>=0?'var(--good)':'var(--red)')+'">'+(g.margin<0?'−':'')+money(Math.abs(g.margin))+'</span></div>').join('') : '<div class="empty">No games.</div>';
+      h+='<div class="dmut" style="margin-top:10px;font-size:11px">Venue profit = gaming margin + club money − wages − promotions − SMS − venue expenses. Shared business overheads (not tied to a venue) are accounted for separately at the P&amp;L level, so this is the venue\'s standalone contribution.</div>';
+      h+='<div class="drow" data-d="venues" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-top:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">🏛 Compare all venues ›</span></div>';
+      b.innerHTML=h;
+    } else if(key==='venues'){
+      const title = '🏛 All venues — by profit';
+      let vl=computed.vlist||[];
+      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Tap the venue boxes for a full breakdown.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
+    } else if(key==='rakebd'||key==='overlaybd'||key==='marginbd'||key==='wagesbd'||key==='expbd'||key==='promobd'||key==='smsbd'){
+      const cos=computed.cos||[];
+      const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
+      const gl=(name,v,col)=>'<div class="drow"><span class="l">'+name+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(v<0?'−':'')+money(Math.abs(v))+'</span></div>';
+      const gname=c=>(c.game_name||'(no name)')+' · '+(c.venue_name||'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.game_date||'')+'</span>';
+      let title='',sub='',rows=[],empty='';
+      if(key==='rakebd'){
+        title='💵 Rake collected — by game'; sub='Rake × entries for each game this period.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).rake,col:'var(--good)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No rake this period.';
+      } else if(key==='overlaybd'){
+        title='📉 Overlay — by game'; sub='Guarantee top-ups paid when the prize pool fell short.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).overlay,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No overlays this period. 🎉';
+      } else if(key==='marginbd'){
+        title='📊 Gaming margin — by game'; sub='Rake collected − overlay, per game.';
+        rows=cos.map(c=>({n:gname(c),v:gamingMargin(c).margin,col:gamingMargin(c).margin>=0?'var(--good)':'var(--red)'})).filter(r=>Math.abs(r.v)>0.5).sort((a,b)=>b.v-a.v);
+        empty='No gaming margin this period.';
+      } else if(key==='wagesbd'){
+        title='💵 Wages — by game'; sub='Staff pay recorded against each game this period.';
+        const byco={}; STAFF.forEach(s=>{ const c=cos.find(x=>x.id===s.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(s.hours)||0)*(Number(s.rate)||0); } });
+        rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
+        empty='No wages this period.';
+      } else if(key==='expbd'){
+        title='🧾 Overheads & expenses'; sub='Expenses dated in this period.';
+        rows=(EXPENSES||[]).filter(expInPeriod).map(e=>({n:(e.note||e.category||'Expense')+(e.venue_name?(' · '+e.venue_name):'')+' <span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.expense_date||e.date||'')+'</span>',v:Number(e.amount)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No expenses this period.';
+      } else if(key==='promobd'){
+        title='🎁 Promotions — by game'; sub='Promo costs recorded on each game this period.';
+        rows=cos.map(c=>({n:gname(c),v:Number(c.promo_cost)||0,col:'var(--red)'})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
+        empty='No promotions this period.';
+      } else if(key==='smsbd'){
+        title='📲 SMS charges — by game'; sub='SMS marketing spend linked to each game this period.';
+        const byco={}; (SMS||[]).forEach(x=>{ const c=cos.find(cc=>cc.id===x.closeout_id); if(c){ byco[c.id]=(byco[c.id]||0)+(Number(x.amount)||0); } });
+        rows=cos.filter(c=>byco[c.id]).map(c=>({n:gname(c),v:byco[c.id],col:'var(--red)'})).sort((a,b)=>b.v-a.v);
+        empty='No SMS charges linked this period.';
+      }
+      const total=rows.reduce((s,r)=>s+r.v,0);
+      b.innerHTML=back+'<div class="dtitle">'+title+'</div><div class="dsub">'+sub+'</div>'+
+        (rows.length?rows.map(r=>gl(r.n,r.v,r.col)).join('')+'<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total</b></span><span class="r"><b>'+(total<0?'−':'')+money(Math.abs(total))+'</b></span></div>':'<div class="empty">'+empty+'</div>');
+    } else if(key==='clubdetail'){
+      const cos=computed.cos||[];
+      const backLink='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
+      const earned=earnedClubByVenue(cos);
+      const names=Object.keys(earned).sort((a,b)=>earned[b].earned-earned[a].earned);
+      const invs=invsForVenues();
+      b.innerHTML=backLink+'<div class="dtitle">💰 Club money — earned vs invoiced</div><div class="dsub">Earned is what the rates say you\'ve made this period. The marker shows whether it\'s been invoiced yet on the Venues &amp; Invoicing screen.</div>'+
+        (names.length?names.map(n=>{
+          const e=earned[n];
+          const inv=invs.find(i=>i.venue_name===n);
+          const invMark = inv ? ('<span style="font-size:10px;color:'+(inv.status==='paid'?'var(--good)':inv.status==='sent'?'var(--blue)':'var(--amber)')+';border:1px solid currentColor;border-radius:5px;padding:2px 7px;margin-left:6px">'+inv.status+'</span>') : '<span style="font-size:10px;color:var(--ink-faint);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-left:6px">not invoiced</span>';
+          return '<div class="drow"><span class="l">'+n+invMark+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(e.basis==='fixed_monthly'?'fixed monthly':money(e.rate)+' × '+e.games+' games')+'</span></span><span class="r" style="color:var(--good)">'+money(e.earned)+'</span></div>';
+        }).join(''):'<div class="empty">No club money earned this period.</div>');
+    } else if(key==='wages'){
+      b.innerHTML='<div class="dtitle">💵 Wages — outstanding payments</div><div class="dsub">All staff pay not yet confirmed paid, by payment type.</div>'+
+        '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l"><b>Total outstanding</b></span><span class="r" style="color:var(--amber)"><b>'+money(computed.wagesOwed||0)+'</b></span></div>'+
+        '<div class="dsub" style="margin-top:14px">Breakdown</div>'+
+        '<div class="drow"><span class="l">⏳ Transfer pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wTransfer||0)+'</span></div>'+
+        '<div class="drow"><span class="l">🧾 Invoice pending confirm</span><span class="r" style="color:var(--blue)">'+money(computed.wInvoice||0)+'</span></div>'+
+        '<div class="drow"><span class="l">• Not yet actioned (no method)</span><span class="r">'+money(computed.wNone||0)+'</span></div>'+
+        '<div style="margin-top:12px"><a href="wages_live.html" style="display:block;text-align:center;background:var(--blue);color:#0e1a26;font-weight:700;border-radius:9px;padding:12px;text-decoration:none">Open Wages screen →</a></div>';
+    } else if(key==='history'){
+      const cos=[...(computed.cos||[])].sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
+      b.innerHTML='<div class="dtitle">🗂 Tournament History</div><div class="dsub">Games this period — tap one for its players &amp; winners.</div>'+
+        (cos.length?cos.map(c=>'<div class="drow" data-d="game:'+c.id+'" style="cursor:pointer"><span class="l">'+(c.game_name||'(game)')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.venue_name||'')+' · '+(c.game_date||'')+'</span></span><span class="r" style="color:var(--blue)">'+(c.entries||0)+' entries ›</span></div>').join(''):'<div class="empty">No tournaments in this period.</div>');
+    } else if(key.indexOf('game:')===0){
+      const id=key.slice(5);
+      const c=(CLOSEOUTS||[]).find(x=>String(x.id)===String(id))||{};
+      const wins=PLACINGS.filter(p=>String(p.closeout_id)===String(id)&&Number(p.amount)>0).sort((a,b)=>a.place-b.place);
+      const winNames=new Set(wins.map(w=>(w.player_name||'').toLowerCase()).filter(Boolean));
+      const players=((c.ges_players||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean)).sort();
+      const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
+      b.innerHTML='<div class="dtitle">'+(c.game_name||'Game')+'</div><div class="dsub">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+(c.entries||0)+' entries · TD: '+tdName(c.submitted_by)+' &nbsp; <span data-d="history" style="color:var(--blue);cursor:pointer">‹ back to history</span></div>'+
+        '<div class="dsub" style="margin-top:6px">🏆 Winners</div>'+
+        (wins.length?wins.map(w=>'<div class="drow"><span class="l"><b style="color:var(--gold)">'+w.place+suf(w.place)+'</b> &nbsp; '+(w.player_name||'(unassigned)')+'<span style="font-size:11px;color:var(--ink-faint)"> · '+(w.paid_by||'')+'</span></span><span class="r" style="color:var(--gold)">'+money(w.amount)+'</span></div>').join(''):'<div class="empty">No winners recorded.</div>')+
+        '<div class="dsub" style="margin-top:14px">👥 All players ('+players.length+')</div>'+
+        (players.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">'+players.map(n=>{const w=winNames.has(n.toLowerCase());return '<span style="background:'+(w?'rgba(201,184,150,.13)':'var(--chip)')+';border:1px solid '+(w?'var(--gold)':'var(--line)')+';border-radius:14px;padding:5px 11px;font-size:12.5px;color:'+(w?'var(--gold)':'var(--ink-dim)')+';'+(w?'font-weight:600':'')+'">'+(w?'🏆 ':'')+n+'</span>';}).join('')+'</div>':'<div class="empty">No GES player list for this game (was it imported?).</div>');
+    }
+    $('detail').classList.add('open');
+    // delegated handler: any [data-d] inside the drawer navigates (back links, drill-downs). Set once.
+    if(!b.dataset.wired){
+      b.dataset.wired='1';
+      b.addEventListener('click',(ev)=>{
+        const dEl=ev.target.closest('[data-d]'); if(dEl && b.contains(dEl)){ ev.preventDefault(); openDetail(dEl.dataset.d); return; }
+        const cf=ev.target.closest('[data-confirm]'); if(cf){ confirmCash(cf.dataset.confirm); return; }
+        const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
+        const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
+        const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
+      });
+    }
+    const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
+    const air=$('addInjectRow'); if(air && !air.dataset.w){ air.dataset.w='1'; air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
+    const sib=$('saveInjectBtn'); if(sib && !sib.dataset.w){ sib.dataset.w='1'; sib.addEventListener('click', saveInjection); }
+    const hor=$('handOwnerRow'); if(hor && !hor.dataset.w){ hor.dataset.w='1'; hor.addEventListener('click',()=>{ const f=$('handOwnerForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
+    const hos=$('hoSaveBtn'); if(hos && !hos.dataset.w){ hos.dataset.w='1'; hos.addEventListener('click', saveHandToOwner); }
+  }
+  function renderCashListById(id, days){
+    const map={ cdReceived:computed.receivedList, cdExp:computed.cashExpList, cdOwners:computed.toOwnersList, cashWage:computed.cashWageShifts };
+    renderCashDetailRows(id+'_rows', map[id]||[], days);
+  }
+  function renderCashWageRows(days){
+    renderCashDetailRows('cashWageRows', computed.cashWageShifts||[], days, true);
+  }
+  // generic: build an expandable cash-detail line (label + amount, with date-range buttons + rows container)
+  function expandableCashLine(opts){
+    // opts: id, label, amount, color, sign
+    return '<div class="cashexp-toggle" data-listid="'+opts.id+'" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">'+opts.label+' <span style="font-size:11px;color:var(--ink-faint)">tap for list ›</span></span><span class="r" style="color:'+(opts.color||'var(--ink)')+'">'+(opts.sign||'')+money(opts.amount||0)+'</span></div>'+
+      '<div id="'+opts.id+'_wrap" style="display:none;padding:2px 2px 10px 2px">'+
+        '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+
+          [['14','Last 2 weeks'],['30','30 days'],['90','90 days'],['9999','All']].map((p,i)=>'<button class="cdrange" data-listid="'+opts.id+'" data-days="'+p[0]+'" style="background:'+(i===0?'var(--gold)':'none')+';color:'+(i===0?'#1a1205':'var(--ink-dim)')+';border:'+(i===0?'none':'1px solid var(--line)')+';border-radius:6px;padding:5px 10px;font-size:11px;font-weight:'+(i===0?'600':'400')+';cursor:pointer">'+p[1]+'</button>').join('')+
+        '</div>'+
+        '<div id="'+opts.id+'_rows"></div>'+
+      '</div>'+
+    '</div>';
+  }
+  function renderCashDetailRows(rowsId, list, days, isWage){
+    const box=$(rowsId); if(!box) return;
+    let filtered=list||[];
+    if(days && days<9999){ const c=new Date(); c.setDate(c.getDate()-days); const cut=c.toISOString().slice(0,10); filtered=filtered.filter(s=>(s.date||'')>=cut); }
+    if(!filtered.length){ box.innerHTML='<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">Nothing in this range.</div>'; return; }
+    const tot=filtered.reduce((s,x)=>s+(Number(x.amount)||0),0);
+    box.innerHTML=filtered.map(s=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(s.name||'')+(s.role?(' <span style="font-size:10px;color:var(--ink-faint)">'+s.role+'</span>'):'')+'<br><span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+(s.date||'')+(s.game?(' · '+s.game):'')+(s.sub?(' · '+s.sub):'')+'</span></span><span style="color:var(--ink)">'+money(Number(s.amount)||0)+'</span></div>').join('')+
+      '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>Total ('+filtered.length+')</span><span>'+money(tot)+'</span></div>';
+  }
+  async function saveHandToOwner(){
+    const amt=Number($('hoAmt').value); const date=$('hoDate').value; const owner=$('hoOwner').value; const note=($('hoNote')&&$('hoNote').value.trim())||null;
+    const msg=$('hoMsg'); const show=(t,ok)=>{ if(msg){ msg.style.display='block'; msg.style.color=ok?'var(--good)':'var(--red)'; msg.textContent=t; } };
+    if(!amt||isNaN(amt)){ show('Enter an amount.',false); return; }
+    if(!date){ show('Pick a date.',false); return; }
+    if(!owner){ show('Pick an owner.',false); return; }
+    const btn=$('hoSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { data, error } = await supabase.from('cash_movements').insert({ movement_type:'admin_to_owner', amount:amt, move_date:date, from_user:user.id, to_admin:owner, note:note, recorded_by:user.id, status:'approved' }).select();
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_movements.');
+      CASH.push(data[0]); show('✓ Recorded '+money(amt)+' to '+owner,true);
+      setTimeout(()=>{ compute(); openDetail('cash'); }, 700);
+    }catch(e){ show('Could not save: '+(e.message||e),false); btn.disabled=false; btn.textContent='Record cash to owner'; }
+  }
+  async function saveInjection(){
+    const amt=Number($('injAmt').value); const date=$('injDate').value; const note=$('injNote').value.trim();
+    if(!amt||isNaN(amt)){ alert('Enter an amount.'); return; }
+    if(!date){ alert('Pick a date.'); return; }
+    const btn=$('saveInjectBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { data, error } = await supabase.from('cash_injections').insert({ amount:amt, inject_date:date, note:note||null, added_by:user.id }).select();
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_injections.');
+      INJECTIONS.push(data[0]); compute(); openDetail('cash');
+    }catch(e){ alert('Could not save injection: '+(e.message||e)); btn.disabled=false; btn.textContent='Add injection'; }
+  }
+  async function saveOpening(){
+    const amt=Number($('openAmtIn').value); const date=$('openDateIn').value;
+    const note=($('openNoteIn')&&$('openNoteIn').value.trim())||null;
+    if($('openAmtIn').value===''||isNaN(amt)){ alert('Enter an amount.'); return; }
+    if(!date){ alert('Pick an as-of date.'); return; }
+    if(!confirm('Set opening balance to '+money(amt)+' as of '+date+'?\n\nThis LOCKS — only the owner can change it later in Supabase.')) return;
+    const btn=$('saveOpeningBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { error } = await supabase.from('cash_opening').insert({ id:1, amount:amt, as_of:date, set_by:user.id, note:note });
+      if(error) throw error;
+      OPENING={ id:1, amount:amt, as_of:date, set_by:user.id, note:note };
+      compute(); openDetail('cash');
+    }catch(e){ alert('Could not save: '+(e.message||e)+'\n\n(If it says duplicate key, an opening balance already exists — only the owner can change it in Supabase.)'); btn.disabled=false; btn.textContent='Save opening balance (locks it)'; }
+  }
+
+  document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
+  // delegated handler: any element with data-d inside the detail drawer drills down (works after re-render)
+  $('detailBody').addEventListener('click',(e)=>{
+    // expandable cash-detail toggles + date ranges
+    const cdr=e.target.closest('.cdrange'); if(cdr){ e.stopPropagation(); const id=cdr.dataset.listid; const days=Number(cdr.dataset.days)||14; renderCashListById(id, days); const wrap=$(id+'_wrap'); if(wrap) wrap.querySelectorAll('.cdrange').forEach(x=>{ x.style.background='none'; x.style.color='var(--ink-dim)'; x.style.border='1px solid var(--line)'; x.style.fontWeight='400'; }); cdr.style.background='var(--gold)'; cdr.style.color='#1a1205'; cdr.style.border='none'; cdr.style.fontWeight='600'; return; }
+    const cdt=e.target.closest('.cashexp-toggle'); if(cdt){ const id=cdt.dataset.listid; const wrap=$(id+'_wrap'); if(wrap){ const show=(wrap.style.display==='none'||wrap.style.display===''); wrap.style.display=show?'block':'none'; if(show && id!=='cdAdminHeld') renderCashListById(id, 14); } return; }
+    const el=e.target.closest('[data-d]'); if(el && $('detailBody').contains(el)){ openDetail(el.dataset.d); }
+  });
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('open'));
+  $('periodToggle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;period=b.dataset.p;$('periodToggle').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));compute();});
+  $('allBtn').addEventListener('click',()=>$('menu').classList.add('open'));
+  $('closeMenu').addEventListener('click',()=>$('menu').classList.remove('open'));
+
+  async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
+  async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
+  $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
+  (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
+</script>
+</body>
+</html>

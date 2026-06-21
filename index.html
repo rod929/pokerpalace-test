@@ -167,7 +167,7 @@
     <div id="adminTiles" style="display:none">
       <div class="grp">📊 Command centre</div>
       <div class="tiles">
-        <a class="tile dash" href="admin_dashboard_live.html"><span class="ic">📊</span><div><div class="t">Dashboard</div><div class="d">Net P&amp;L, venues, cash, action list</div></div></a>
+        <a class="tile dash" href="admin_dashboard_v2.html"><span class="ic">📊</span><div><div class="t">Dashboard</div><div class="d">Net P&amp;L, venues, cash, action list</div></div></a>
       </div>
       <div class="grp">⚙ Operations</div>
       <div class="tiles">
@@ -266,7 +266,7 @@
     <div id="ownerTiles" style="display:none">
       <div class="grp">📊 Reporting</div>
       <div class="tiles">
-        <a class="tile dash" href="admin_dashboard_live.html"><span class="ic">📊</span><div><div class="t">Dashboard</div><div class="d">Net P&amp;L, venues, cash</div></div></a>
+        <a class="tile dash" href="admin_dashboard_v2.html"><span class="ic">📊</span><div><div class="t">Dashboard</div><div class="d">Net P&amp;L, venues, cash</div></div></a>
         <a class="tile" href="owner_payments_live.html"><span class="ic">💼</span><div><div class="t">Owner Payments</div><div class="d">Approve payments to you</div></div></a>
       </div>
     </div>
@@ -290,7 +290,7 @@
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
     try{const{data}=await supabase.from('profiles').select('role,full_name').eq('user_id',u.id);role=(Array.isArray(data)&&data.length)?((data.find(r=>r.role==='admin')||data[0]).role):'';MY_NAME=(Array.isArray(data)&&data.length)?(data[0].full_name||''):'';}catch(e){role='';}
     // admins and owners land straight on the dashboard (owners get the full admin view)
-    if(role==='admin'||role==='owner'){ window.location.replace('admin_dashboard_live.html'); return; }
+    if(role==='admin'||role==='owner'){ window.location.replace('admin_dashboard_v2.html'); return; }
     $('roleLbl').textContent=(role||'user').toUpperCase();
     $('roleChip').textContent=(role||'user').toUpperCase();
     $('adminTiles').style.display = (role==='admin'||role==='owner') ? 'block':'none';
