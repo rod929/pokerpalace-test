@@ -336,3 +336,6 @@
   $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
+
+</body>
+</html>

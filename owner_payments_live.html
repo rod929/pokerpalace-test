@@ -195,3 +195,6 @@
   $('signoutBtn').addEventListener('click',signOut);$('recordBtn').addEventListener('click',record);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
+
+</body>
+</html>

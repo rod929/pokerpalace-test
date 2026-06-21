@@ -191,3 +191,6 @@
 
   (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
 </script>
+
+</body>
+</html>

@@ -399,3 +399,6 @@
   $('signoutBtn').addEventListener('click',signOut);
   (async function(){ var r=await supabase.auth.getSession(); if(r.data.session) showApp(r.data.session.user); else showLogin(); })();
 </script>
+
+</body>
+</html>
