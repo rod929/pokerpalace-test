@@ -303,7 +303,7 @@
   }
 
   // ===== TD dashboard =====
-  let TD_CO=[], TD_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], TD_ADMINS=[], TD_WAGE_CO=[], earnPeriod='week';
+  let TD_CO=[], TD_SHIFTS=[], TD_CO_SHIFTS=[], TD_CASH=[], TD_PLACINGS=[], TD_TICKETS=[], TD_PLAYERS=[], TD_ADMINS=[], TD_WAGE_CO=[], earnPeriod='week';
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; }
   function periodStart(p){
@@ -321,12 +321,16 @@
       // close-outs I created (for cash held, players, to-finish — these are about MY close-outs)
       TD_CO=(await supabase.from('closeouts').select('*').eq('submitted_by',user.id).order('game_date',{ascending:false})).data||[];
       const coIds=TD_CO.map(c=>c.id);
-      // MY wages = staff shifts where I am the staff member (by name), regardless of who created the close-out
-      let myShifts=[];
-      if(MY_NAME){
-        myShifts=((await supabase.from('staff_shifts').select('*').ilike('staff_name',MY_NAME)).data)||[];
-      }
-      TD_SHIFTS = myShifts;
+      // shifts on MY close-outs — used to check if a close-out has staff entered (completeness)
+      TD_CO_SHIFTS = coIds.length ? ((await supabase.from('staff_shifts').select('*').in('closeout_id',coIds)).data||[]) : [];
+      // MY wages = staff shifts where I am the staff member (matched by name), regardless of who created the close-out.
+      const norm=x=>String(x||'').trim().toLowerCase().replace(/\s+/g,' ');
+      const myNames=new Set();
+      if(MY_NAME) myNames.add(norm(MY_NAME));
+      if(user.email) myNames.add(norm(user.email.split('@')[0]));
+      let allShifts=[];
+      try{ allShifts=((await supabase.from('staff_shifts').select('*')).data)||[]; }catch(e){ allShifts=[]; }
+      TD_SHIFTS = allShifts.filter(s=>myNames.has(norm(s.staff_name)));
       // make sure we have the close-outs those shifts belong to (may be created by another TD) for dates/names
       const shiftCoIds=[...new Set(TD_SHIFTS.map(s=>s.closeout_id).filter(Boolean))];
       const missingCoIds=shiftCoIds.filter(id=>!coIds.includes(id));
@@ -348,7 +352,7 @@
   function renderToFinish(){
     try{
     const box=$('toFinishBox'); if(!box) return;
-    const shiftsByCo={}; TD_SHIFTS.forEach(s=>{ (shiftsByCo[s.closeout_id]=shiftsByCo[s.closeout_id]||[]).push(s); });
+    const shiftsByCo={}; TD_CO_SHIFTS.forEach(s=>{ (shiftsByCo[s.closeout_id]=shiftsByCo[s.closeout_id]||[]).push(s); });
     const placeByCo={}; TD_PLACINGS.forEach(p=>{ (placeByCo[p.closeout_id]=placeByCo[p.closeout_id]||[]).push(p); });
     const items=[];
     const seen={};
@@ -597,7 +601,7 @@
   function sheetDetail(c){
     if(!c) return '';
     const plc=(TD_PLACINGS||[]).filter(p=>String(p.closeout_id)===String(c.id)).sort((a,b)=>a.place-b.place);
-    const sh=(TD_SHIFTS||[]).filter(s=>String(s.closeout_id)===String(c.id));
+    const sh=(TD_CO_SHIFTS||[]).filter(s=>String(s.closeout_id)===String(c.id));
     const suf=n=>n===1?'st':n===2?'nd':n===3?'rd':'th';
     const g=(k,v)=>'<div class="sk">'+k+'</div><div class="sv">'+v+'</div>';
     let html='<div class="sgrid">'+
