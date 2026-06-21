@@ -369,8 +369,9 @@
     STAFF.forEach(s=>{const c=cos.find(x=>x.id===s.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].wages+=(Number(s.hours)||0)*(Number(s.rate)||0);}});
     // SMS per venue (from sms charges on that venue's close-outs)
     (SMS||[]).forEach(x=>{const c=cos.find(cc=>cc.id===x.closeout_id);if(c){const v=c.venue_name||'(no venue)';if(byV[v])byV[v].sms+=Number(x.amount)||0;}});
-    // club money per venue (invoiced this period)
-    invsForVenues().forEach(i=>{ const v=i.venue_name||'(no venue)'; if(byV[v]) byV[v].club+=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0; });
+    // club money per venue — use EARNED club money (rate × nights from venue config), not just generated invoices
+    const earnedClub=earnedClubByVenue(cos);
+    Object.keys(earnedClub).forEach(v=>{ if(byV[v]) byV[v].club+=earnedClub[v].earned; });
     // venue-tagged expenses this period
     EXPENSES.filter(expInPeriod).forEach(e=>{ if(e.venue_name && byV[e.venue_name]) byV[e.venue_name].exp+=Number(e.amount)||0; });
     const vlist=Object.keys(byV).map(v=>({name:v,...byV[v],profit:byV[v].margin+byV[v].club-byV[v].wages-byV[v].exp-byV[v].promo-byV[v].sms})).sort((a,b)=>b.profit-a.profit);
@@ -488,8 +489,14 @@
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     // wages paid in CASH come out of the float (after opening date)
     const coDate={}; (CLOSEOUTS||[]).forEach(c=>{ coDate[c.id]=c.game_date; });
-    const wagesCash=(STAFF||[]).filter(s=>s.paid===true&&s.paid_method==='cash').filter(s=>{ const d=s.paid_date||coDate[s.closeout_id]; return afterOpen(d); }).reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
+    const coName={}; (CLOSEOUTS||[]).forEach(c=>{ coName[c.id]=c.game_name; });
+    const cashWageShifts=(STAFF||[]).filter(s=>s.paid===true&&s.paid_method==='cash').map(s=>({
+      name:s.staff_name||'(unnamed)', role:s.role||'', amount:(Number(s.hours)||0)*(Number(s.rate)||0),
+      date:(s.paid_date||coDate[s.closeout_id]||''), game:coName[s.closeout_id]||''
+    })).filter(s=>afterOpen(s.date)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const wagesCash=cashWageShifts.reduce((s,x)=>s+x.amount,0);
     computed.wagesCash=wagesCash;
+    computed.cashWageShifts=cashWageShifts;
     // breakdown of money received by each owner (admin_to_owner movements, grouped by recipient)
     const ownerRecv={};
     CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
@@ -610,7 +617,17 @@
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
-        ((computed.wagesCash||0)>0?'<div class="drow"><span class="l">Less: wages paid in cash</span><span class="r" style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>':'')+
+        ((computed.wagesCash||0)>0?'<div class="cashwage-toggle" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">Less: wages paid in cash <span style="font-size:11px;color:var(--ink-faint)">tap for list ›</span></span><span class="r" style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>'+
+          '<div id="cashWageList" style="display:none;padding:2px 2px 10px 2px">'+
+            '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+
+              '<button class="cwrange" data-days="14" style="background:var(--gold);color:#1a1205;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">Last 2 weeks</button>'+
+              '<button class="cwrange" data-days="30" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">30 days</button>'+
+              '<button class="cwrange" data-days="90" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">90 days</button>'+
+              '<button class="cwrange" data-days="9999" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">All</button>'+
+            '</div>'+
+            '<div id="cashWageRows"></div>'+
+          '</div>'+
+        '</div>':'')+
         '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
         ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
           '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
@@ -631,13 +648,13 @@
           const held=Number(computed.totalCashHeld!=null?computed.totalCashHeld:computed.cashHeld)||0;
           const tk=Number(computed.ticketsAllocated)||0;
           const free=held-tk;
-          return '<div class="dsub" style="margin-top:18px">🧮 Net free cash</div>'+
+          return '<div class="dsub" style="margin-top:18px">🧮 Cash leftover after tickets</div>'+
             '<div class="pnlbox" style="border-color:#c9b896">'+
               '<div class="drow"><span class="l">Current cash held</span><span class="r" style="color:var(--gold)">'+money(held)+'</span></div>'+
-              '<div class="drow"><span class="l">Less: tickets allocated to players <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'−'+money(tk):money(0))+'</span></div>'+
-              '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>NET FREE CASH</span><span class="npval">'+money(free)+'</span></div>'+
+              '<div class="drow"><span class="l">Less: ticket money required <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'−'+money(tk):money(0))+'</span></div>'+
+              '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>CASH LEFTOVER AFTER TICKETS</span><span class="npval">'+money(free)+'</span></div>'+
             '</div>'+
-            '<div class="dmut" style="margin-top:6px;font-size:11px">Net free cash = total cash held minus the value of ticket/satellite seats won by players (which are owed out as future entries).</div>';
+            '<div class="dmut" style="margin-top:6px;font-size:11px">This is the cash genuinely free to use — total cash held minus the ticket/satellite seat money set aside for players who won seats (owed out as future entries).</div>';
         })();
     } else if(key==='flags'){
       const fl=computed.flags||[];
@@ -799,11 +816,27 @@
         const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
+        const cwr=ev.target.closest('.cwrange'); if(cwr){ ev.stopPropagation(); renderCashWageRows(Number(cwr.dataset.days)||14); b.querySelectorAll('.cwrange').forEach(x=>{ x.style.background='none'; x.style.color='var(--ink-dim)'; x.style.border='1px solid var(--line)'; }); cwr.style.background='var(--gold)'; cwr.style.color='#1a1205'; cwr.style.border='none'; return; }
+        const cwt=ev.target.closest('.cashwage-toggle'); if(cwt){ const d=$('cashWageList'); if(d){ const show=(d.style.display==='none'||d.style.display===''); d.style.display=show?'block':'none'; if(show) renderCashWageRows(14); } return; }
       });
     }
     const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
     const air=$('addInjectRow'); if(air && !air.dataset.w){ air.dataset.w='1'; air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
     const sib=$('saveInjectBtn'); if(sib && !sib.dataset.w){ sib.dataset.w='1'; sib.addEventListener('click', saveInjection); }
+  }
+  function renderCashWageRows(days){
+    const box=$('cashWageRows'); if(!box) return;
+    const list=computed.cashWageShifts||[];
+    let filtered=list;
+    if(days && days<9999){
+      const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+      const cut=cutoff.toISOString().slice(0,10);
+      filtered=list.filter(s=>(s.date||'')>=cut);
+    }
+    if(!filtered.length){ box.innerHTML='<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">No cash wages in this range.</div>'; return; }
+    const tot=filtered.reduce((s,x)=>s+x.amount,0);
+    box.innerHTML=filtered.map(s=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+s.name+(s.role?(' <span style="font-size:10px;color:var(--ink-faint)">'+s.role+'</span>'):'')+'<br><span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+(s.date||'')+(s.game?(' · '+s.game):'')+'</span></span><span style="color:var(--red)">−'+money(s.amount)+'</span></div>').join('')+
+      '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>Total ('+filtered.length+')</span><span style="color:var(--red)">−'+money(tot)+'</span></div>';
   }
   async function saveInjection(){
     const amt=Number($('injAmt').value); const date=$('injDate').value; const note=$('injNote').value.trim();
