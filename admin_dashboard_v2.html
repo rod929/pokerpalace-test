@@ -122,6 +122,7 @@
         <div class="metric" data-d="payouts"><div class="ml">⏳ Outstanding payouts</div><div class="mv" id="mOut" style="color:var(--amber)">$0</div><div class="md trend" id="mOutTrend">-</div><span class="arrow">></span></div>
         <div class="metric inv" data-d="inv"><div class="ml">🧾 Outstanding invoices</div><div class="mv" id="mInv" style="color:var(--amber)">$0</div><div class="md" id="mInvSub">unpaid club money</div><span class="arrow">></span></div>
         <div class="metric prize" data-d="prize"><div class="ml">🏆 Prizepools</div><div class="mv" id="mPrize">$0</div><div class="md trend" id="mPrizeTrend">-</div><span class="arrow">></span></div>
+        <div class="metric games" data-d="games"><div class="ml">🃏 Games this period</div><div class="mv" id="mGames">0</div><div class="md trend" id="mGamesTrend">-</div><span class="arrow">></span></div>
         <div class="metric venwin" data-d="venwin"><div class="ml">📈 Most profitable venue</div><div class="mv" id="mVenWin" style="font-size:17px">-</div><div class="md" id="mVenWinSub">by venue profit</div><span class="arrow">></span></div>
         <div class="metric venloss" data-d="venloss"><div class="ml">📉 Least profitable venue</div><div class="mv" id="mVenLoss" style="font-size:17px">-</div><div class="md" id="mVenLossSub">by venue profit</div><span class="arrow">></span></div>
         <div class="metric" data-d="newp"><div class="ml">✨ New players</div><div class="mv" id="mNewP" style="color:var(--blue)">0</div><div class="md" id="mNewPSub">registered this period</div></div>
@@ -406,6 +407,15 @@
     $('mPnlTrend').innerHTML=trendHtml(pnl.net, prevPnl.net);
     $('mPrize').textContent=money(prizes);
     $('mPrizeTrend').innerHTML=trendHtml(prizes,prev.prizes);
+    // games this period: count tournaments that ran (exclude drafts, voids, and standalone cash games)
+    const isCashCo=c=>(c.is_cash_game===true||c.game_name==='Rake Free Cash Game');
+    const gamesCount=cos.filter(c=>c.void!==true && !isCashCo(c)).length;
+    const prevGamesCount=prevCos.filter(c=>c.void!==true && !isCashCo(c)).length;
+    if($('mGames')){
+      $('mGames').textContent=gamesCount;
+      $('mGamesTrend').innerHTML=trendHtml(gamesCount, prevGamesCount);
+    }
+    computed.gamesCount=gamesCount; computed.prevGamesCount=prevGamesCount;
     $('mOut').textContent=money(outstanding);
     $('mOutTrend').innerHTML=trendHtml(outstanding,prev.outstanding);
     if($('mVenN')) $('mVenN').textContent=vlist.length;
@@ -714,6 +724,18 @@
         dline('Less: SMS charges', -(p.sms||0), 'var(--red)','smsbd')+
         '<div class="drow" style="border:1px solid '+(p.net>=0?'var(--good-deep)':'#7a3328')+';background:'+(p.net>=0?'rgba(92,184,138,.08)':'rgba(224,122,95,.08)')+'"><span class="l"><b>Net P&amp;L</b></span><span class="r" style="color:'+(p.net>=0?'var(--good)':'var(--red)')+'"><b>'+(p.net<0?'-':'')+money(Math.abs(p.net))+'</b></span></div>'+
         '<div class="dsub" style="margin-top:14px">Note: club money uses the invoiced amount for the period.</div>';
+    } else if(key==='games'){
+      const isCash=c=>(c.is_cash_game===true||c.game_name==='Rake Free Cash Game');
+      const list=(computed.cos||[]).filter(c=>c.void!==true && !isCash(c)).sort((a,b)=>(b.game_date||'').localeCompare(a.game_date||''));
+      const cur=computed.gamesCount||0, prv=computed.prevGamesCount||0;
+      const diff=cur-prv;
+      const pctTxt = prv>0 ? ((diff>=0?'+':'')+Math.round((diff/prv)*100)+'% vs last period') : (cur>0?'no games last period':'');
+      b.innerHTML='<div class="dtitle">🃏 Games this period</div>'+
+        '<div class="dsub"><b style="font-size:22px;color:var(--ink)">'+cur+'</b> tournament'+(cur===1?'':'s')+(pctTxt?(' · <span style="color:'+(diff>=0?'var(--good)':'var(--red)')+'">'+pctTxt+'</span>'):'')+'<br><span style="font-size:11px;color:var(--ink-faint)">Last period: '+prv+'</span></div>'+
+        (list.length?list.map(c=>{
+          const entries=Number(c.entries)||0;
+          return '<div class="drow"><span class="l">🏆 '+(c.game_name||'(no name)')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(c.venue_name||'')+' · '+(c.game_date||'')+' · '+entries+' entries</span></span><span class="r" style="color:var(--ink-dim)">'+entries+'</span></div>';
+        }).join(''):'<div class="empty">No tournaments this period.</div>');
     } else if(key==='prize'){
       const rows=computed.cos.map(c=>{const pr=PLACINGS.filter(p=>p.closeout_id===c.id).reduce((s,p)=>s+(Number(p.amount)||0),0);return {n:(c.game_name||'(no name)')+' · '+(c.venue_name||''),v:pr};}).filter(r=>r.v>0).sort((a,b)=>b.v-a.v);
       b.innerHTML='<div class="dtitle">🏆 Prizepools</div><div class="dsub">Total prize money by game, this period</div>'+(rows.length?rows.map(r=>'<div class="drow"><span class="l">'+r.n+'</span><span class="r" style="color:var(--blue)">'+money(r.v)+'</span></div>').join(''):'<div class="empty">No prizes in this period.</div>');
