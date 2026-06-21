@@ -486,6 +486,10 @@
     const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    // wages paid in CASH come out of the float (after opening date)
+    const coDate={}; (CLOSEOUTS||[]).forEach(c=>{ coDate[c.id]=c.game_date; });
+    const wagesCash=(STAFF||[]).filter(s=>s.paid===true&&s.paid_method==='cash').filter(s=>{ const d=s.paid_date||coDate[s.closeout_id]; return afterOpen(d); }).reduce((s,x)=>s+((Number(x.hours)||0)*(Number(x.rate)||0)),0);
+    computed.wagesCash=wagesCash;
     // breakdown of money received by each owner (admin_to_owner movements, grouped by recipient)
     const ownerRecv={};
     CASH.filter(m=>m.movement_type==='admin_to_owner').forEach(m=>{ const who=(m.to_admin||'(unnamed owner)'); ownerRecv[who]=(ownerRecv[who]||0)+(Number(m.amount)||0); });
@@ -497,7 +501,7 @@
       [p.ticket_value, p.ticket_value_2, p.ticket_value_3].forEach(tv=>{ ticketsAllocated+=Number(tv)||0; });
     });
     computed.ticketsAllocated=ticketsAllocated;
-    const cashHeld=received-cashExp-toOwners;
+    const cashHeld=received-cashExp-toOwners-wagesCash;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
@@ -606,6 +610,7 @@
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
         '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
         '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
+        ((computed.wagesCash||0)>0?'<div class="drow"><span class="l">Less: wages paid in cash</span><span class="r" style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>':'')+
         '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
         ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
           '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
@@ -678,11 +683,34 @@
     } else if(key==='inv'){
       const invs=(computed.invs||[]).slice().sort((a,b)=>{const av=(a.override_amount!=null?a.override_amount:a.calculated_amount)||0;const bv=(b.override_amount!=null?b.override_amount:b.calculated_amount)||0;return bv-av;});
       b.innerHTML='<div class="dtitle">🧾 Outstanding invoices</div><div class="dsub">Club-money invoices for this period — manage on the Venues &amp; Invoicing screen</div>'+(invs.length?invs.map(i=>{const amt=(i.override_amount!=null?Number(i.override_amount):Number(i.calculated_amount))||0;const col=i.status==='paid'?'var(--good)':'var(--amber)';return '<div class="drow"><span class="l">'+i.venue_name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+i.period+' · '+i.status+(i.games_count?(' · '+i.games_count+' games'):'')+'</span></span><span class="r" style="color:'+col+'">'+money(amt)+'</span></div>';}).join(''):'<div class="empty">No invoices saved for this period yet. Generate them on the Venues &amp; Invoicing screen.</div>');
-    } else if(key==='venues'||key==='venwin'||key==='venloss'){
-      const title = key==='venwin'?'📈 Most profitable venue':key==='venloss'?'📉 Least profitable venue':'🏛 All venues — by profit';
+    } else if(key==='venwin'||key==='venloss'){
+      const vl=computed.vlist||[];
+      const v = key==='venwin' ? vl[0] : vl[vl.length-1];
+      if(!v){ b.innerHTML='<div class="dtitle">'+(key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue')+'</div><div class="empty">No venue data in this period.</div>'; $('detail').classList.add('open'); return; }
+      const title = key==='venwin'?'📈 Most profitable venue':'📉 Least profitable venue';
+      const cosV=(computed.cos||[]).filter(c=>(c.venue_name||'(no venue)')===v.name);
+      const row=(k,val,col,sign)=>'<div class="drow"><span class="l">'+k+'</span><span class="r" style="color:'+(col||'var(--ink)')+'">'+(sign&&val>0?sign:'')+(val<0?'−':'')+money(Math.abs(val))+'</span></div>';
+      // per-tournament margin breakdown
+      const gameRows=cosV.map(c=>{ const m=gamingMargin(c); return {name:(c.game_name||'(no name)'), date:c.game_date||'', margin:m.margin, void:c.void===true, cash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}; }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      let h='<div class="dtitle">'+title+'</div><div class="dsub" style="font-size:15px;color:var(--ink)"><b>'+v.name+'</b> — '+v.games+' game'+(v.games===1?'':'s')+' this period</div>';
+      h+='<div class="pnlbox" style="border-color:#c9b896;margin-top:8px">'+
+        row('Gaming margin (rake − overlay)', v.margin, 'var(--good)', '+')+
+        row('Club money', v.club, 'var(--good)', '+')+
+        row('Less: staff wages', -v.wages, v.wages>0?'var(--red)':'var(--ink)')+
+        row('Less: promotions', -v.promo, v.promo>0?'var(--red)':'var(--ink)')+
+        row('Less: SMS charges', -v.sms, v.sms>0?'var(--red)':'var(--ink)')+
+        row('Less: venue expenses', -v.exp, v.exp>0?'var(--red)':'var(--ink)')+
+        '<div class="netprofit '+(v.profit>=0?'pos':'neg')+'"><span>VENUE PROFIT</span><span class="npval">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>'+
+      '</div>';
+      h+='<div class="dsub" style="margin-top:14px">🏆 Gaming margin by tournament</div>';
+      h+= gameRows.length ? gameRows.map(g=>'<div class="drow"><span class="l">'+(g.void?'⛔ ':(g.cash?'🎲 ':'🏆 '))+g.name+' <span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+g.date+'</span></span><span class="r" style="color:'+(g.margin>=0?'var(--good)':'var(--red)')+'">'+(g.margin<0?'−':'')+money(Math.abs(g.margin))+'</span></div>').join('') : '<div class="empty">No games.</div>';
+      h+='<div class="dmut" style="margin-top:10px;font-size:11px">Venue profit = gaming margin + club money − wages − promotions − SMS − venue expenses. Shared business overheads (not tied to a venue) are accounted for separately at the P&amp;L level, so this is the venue\'s standalone contribution.</div>';
+      h+='<div class="drow" data-d="venues" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-top:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">🏛 Compare all venues ›</span></div>';
+      b.innerHTML=h;
+    } else if(key==='venues'){
+      const title = '🏛 All venues — by profit';
       let vl=computed.vlist||[];
-      if(key==='venloss') vl=[...vl].reverse();
-      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Shared overheads sit at the business level, not here.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
+      b.innerHTML='<div class="dtitle">'+title+'</div><div class="dsub">Venue profit = gaming margin + club money − wages − venue-tagged expenses. Tap the venue boxes for a full breakdown.</div>'+(vl.length?vl.map(v=>'<div class="drow"><span class="l">'+v.name+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+v.games+' games · margin '+money(v.margin)+' · club '+money(v.club)+' · wages '+money(v.wages)+(v.exp?(' · exp '+money(v.exp)):'')+'</span></span><span class="r" style="color:'+(v.profit>=0?'var(--good)':'var(--red)')+'">'+(v.profit<0?'−':'')+money(Math.abs(v.profit))+'</span></div>').join(''):'<div class="empty">No venue data in this period.</div>');
     } else if(key==='rakebd'||key==='overlaybd'||key==='marginbd'||key==='wagesbd'||key==='expbd'||key==='promobd'||key==='smsbd'){
       const cos=computed.cos||[];
       const back='<div class="drow" data-d="pnl" style="cursor:pointer;border:1px solid var(--blue);background:rgba(127,160,196,.08);padding:9px 12px;margin-bottom:10px;border-radius:8px"><span class="l" style="color:var(--blue);font-weight:600">‹ Back to Net P&amp;L</span></div>';
@@ -818,3 +846,5 @@
   $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
+</body>
+</html>
