@@ -580,12 +580,13 @@
       const tdList=computed.tdHeldList||[];
       const hasOpening = !!(OPENING && OPENING.as_of);
       const openingBlock = hasOpening
-        ? '<div class="drow"><span class="l">Opening balance <span style="color:var(--ink-faint);font-size:11px">(as of '+OPENING.as_of+', locked)</span></span><span class="r" style="color:var(--gold)">'+money(computed.openAmt||0)+'</span></div>'+
+        ? '<div class="drow"><span class="l">Opening balance <span style="color:var(--ink-faint);font-size:11px">(as of '+OPENING.as_of+', locked)</span>'+(OPENING.note?'<br><span style="font-size:11px;color:var(--ink-faint)">📝 '+OPENING.note+'</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(computed.openAmt||0)+'</span></div>'+
           '<div class="drow"><span class="l">Movements since</span><span class="r">'+money(computed.movementsSince||0)+'</span></div>'
         : '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.07);flex-direction:column;align-items:stretch;gap:8px">'+
             '<div style="color:var(--amber);font-weight:600">⚑ Set opening cash balance</div>'+
             '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash already held as of a date. This locks once saved — only the owner can change it later in Supabase.</div>'+
             '<div style="display:flex;gap:8px"><input id="openAmtIn" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="openDateIn" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+            '<input id="openNoteIn" placeholder="Note (optional) — e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
             '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
           '</div>';
       b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation — admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
@@ -852,14 +853,15 @@
   }
   async function saveOpening(){
     const amt=Number($('openAmtIn').value); const date=$('openDateIn').value;
+    const note=($('openNoteIn')&&$('openNoteIn').value.trim())||null;
     if($('openAmtIn').value===''||isNaN(amt)){ alert('Enter an amount.'); return; }
     if(!date){ alert('Pick an as-of date.'); return; }
     if(!confirm('Set opening balance to '+money(amt)+' as of '+date+'?\n\nThis LOCKS — only the owner can change it later in Supabase.')) return;
     const btn=$('saveOpeningBtn'); btn.disabled=true; btn.textContent='Saving…';
     try{
-      const { error } = await supabase.from('cash_opening').insert({ id:1, amount:amt, as_of:date, set_by:user.id });
+      const { error } = await supabase.from('cash_opening').insert({ id:1, amount:amt, as_of:date, set_by:user.id, note:note });
       if(error) throw error;
-      OPENING={ id:1, amount:amt, as_of:date, set_by:user.id };
+      OPENING={ id:1, amount:amt, as_of:date, set_by:user.id, note:note };
       compute(); openDetail('cash');
     }catch(e){ alert('Could not save: '+(e.message||e)+'\n\n(If it says duplicate key, an opening balance already exists — only the owner can change it in Supabase.)'); btn.disabled=false; btn.textContent='Save opening balance (locks it)'; }
   }
