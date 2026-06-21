@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Poker Palace — Tournament Clock</title>
+<style>
+  :root{
+    --bg:#0d1410; --felt:#13241b; --card:#16201a; --line:#2a3a30;
+    --ink:#f3efe6; --ink-dim:#a9b3aa; --ink-faint:#6d7a70;
+    --gold:#d8b863; --gold-deep:#b8954a; --good:#5cb88a; --red:#e07a5f; --amber:#e0ad55;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+  .mono{font-family:'JetBrains Mono','SF Mono',ui-monospace,monospace}
+  #login{max-width:380px;margin:60px auto;padding:24px}
+  #login h1{font-size:20px;margin-bottom:16px;text-align:center;color:var(--gold)}
+  input,select,button{font-family:inherit}
+  .fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-size:15px;margin-bottom:10px}
+  .btn{background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:9px;padding:12px;font-size:15px;cursor:pointer;width:100%}
+  .btn.sec{background:none;border:1px solid var(--line);color:var(--ink-dim);font-weight:600}
+  .hidden{display:none!important}
+  .status{text-align:center;font-size:13px;margin-top:10px;min-height:18px}
+  .status.err{color:var(--red)} .status.ok{color:var(--good)}
+
+  /* ===== CLOCK DISPLAY ===== */
+  #clockView{display:flex;flex-direction:column;min-height:100vh;padding:3vh 3vw}
+  .ch-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .ch-name{font-size:clamp(18px,3.2vw,40px);font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+  .ch-venue{font-size:clamp(11px,1.4vw,18px);color:var(--ink-faint);margin-top:2px;text-transform:uppercase;letter-spacing:.12em}
+  .ch-status{font-size:clamp(11px,1.3vw,16px);color:var(--gold);font-weight:600;text-align:right;white-space:nowrap}
+  .ch-status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:5px;vertical-align:middle}
+  .ch-status.paused .dot{background:var(--amber)}
+
+  .ch-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5vh;padding:2vh 0}
+  .ch-levellabel{font-size:clamp(13px,1.8vw,24px);color:var(--gold);text-transform:uppercase;letter-spacing:.2em;font-weight:700}
+  .ch-timer{font-size:clamp(80px,22vw,300px);font-weight:800;line-height:.9;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .ch-timer.warn{color:var(--amber)} .ch-timer.crit{color:var(--red);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .ch-blinds{display:flex;align-items:baseline;gap:2.5vw;margin-top:1vh}
+  .ch-blind-item{text-align:center}
+  .ch-blind-val{font-size:clamp(34px,8vw,110px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--gold)}
+  .ch-blind-lbl{font-size:clamp(11px,1.3vw,17px);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-top:6px}
+  .ch-sep{font-size:clamp(30px,6vw,90px);color:var(--line);font-weight:300}
+  .ch-break{font-size:clamp(40px,9vw,130px);font-weight:800;color:var(--good)}
+
+  .ch-next{font-size:clamp(12px,1.5vw,20px);color:var(--ink-dim);margin-top:1.5vh}
+  .ch-next b{color:var(--ink)}
+
+  .ch-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5vw;margin-top:2vh}
+  .ch-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.6vh 1vw;text-align:center}
+  .ch-stat-val{font-size:clamp(20px,3.4vw,46px);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .ch-stat-val.gold{color:var(--gold)}
+  .ch-stat-lbl{font-size:clamp(9px,1.1vw,14px);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em;margin-top:6px}
+
+  /* ===== TD CONTROL BAR ===== */
+  #ctrlBar{position:fixed;bottom:0;left:0;right:0;background:rgba(13,20,16,.97);border-top:1px solid var(--line);padding:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;backdrop-filter:blur(8px);z-index:20}
+  .cbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;min-width:64px}
+  .cbtn.primary{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+  .cbtn.warn{border-color:var(--amber);color:var(--amber)}
+  .cbtn:active{transform:scale(.96)}
+
+  /* setup panel */
+  #setup{max-width:680px;margin:20px auto;padding:20px}
+  #setup h1{font-size:22px;color:var(--gold);margin-bottom:4px}
+  #setup .sub{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
+  .sect{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .sect h2{font-size:14px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px}
+  label{font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px}
+  .lvlrow{display:grid;grid-template-columns:32px 1fr 1fr 1fr 1fr 32px;gap:6px;align-items:center;margin-bottom:6px}
+  .lvlrow input{padding:8px;font-size:13px;margin:0}
+  .lvlrow .lvlnum{font-size:12px;color:var(--ink-faint);text-align:center}
+  .lvlhead{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;text-align:center}
+  .delx{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer}
+  .row2{display:flex;gap:8px}.row2>*{flex:1}
+  .tmpl-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer}
+  .tmpl-item:hover{border-color:var(--gold)}
+  .tmpl-item.active{border-color:var(--gold);background:rgba(216,184,99,.08)}
+  .breakrow{background:rgba(92,184,138,.07)}
+  .pphint{font-size:11px;color:var(--ink-faint);margin-top:4px}
+  a.exit{color:var(--ink-faint);font-size:12px;text-decoration:none;display:inline-block;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h1>🃏 Tournament Clock</h1>
+  <input id="email" class="fld" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" class="fld" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="btn" id="signinBtn">Sign in</button>
+  <div class="status" id="loginStatus"></div>
+  <div style="text-align:center;margin-top:14px">
+    <a class="exit" href="index.html">‹ Back to Poker Palace</a>
+  </div>
+</div>
+
+<!-- SETUP (TD) -->
+<div id="setup" class="hidden"></div>
+
+<!-- CLOCK DISPLAY -->
+<div id="clockView" class="hidden">
+  <div class="ch-top">
+    <div>
+      <div class="ch-name" id="cName">Tournament</div>
+      <div class="ch-venue" id="cVenue"></div>
+    </div>
+    <div class="ch-status" id="cStatus"><span class="dot"></span><span id="cStatusTxt">LIVE</span></div>
+  </div>
+  <div class="ch-center">
+    <div class="ch-levellabel" id="cLevelLabel">Level 1</div>
+    <div class="ch-timer" id="cTimer">20:00</div>
+    <div class="ch-blinds" id="cBlinds"></div>
+    <div class="ch-next" id="cNext"></div>
+  </div>
+  <div class="ch-stats">
+    <div class="ch-stat"><div class="ch-stat-val gold" id="cPlayers">0</div><div class="ch-stat-lbl">Players left</div></div>
+    <div class="ch-stat"><div class="ch-stat-val" id="cEntries">0</div><div class="ch-stat-lbl">Entries</div></div>
+    <div class="ch-stat"><div class="ch-stat-val gold" id="cPool">$0</div><div class="ch-stat-lbl">Prize pool</div></div>
+    <div class="ch-stat"><div class="ch-stat-val" id="cAvg">0</div><div class="ch-stat-lbl">Avg stack</div></div>
+  </div>
+</div>
+
+<!-- TD CONTROL BAR -->
+<div id="ctrlBar" class="hidden">
+  <button class="cbtn" id="btnPrev">‹ Prev</button>
+  <button class="cbtn primary" id="btnPlay">▶ Start</button>
+  <button class="cbtn" id="btnNext">Next ›</button>
+  <button class="cbtn" id="btnMinus">−1m</button>
+  <button class="cbtn" id="btnPlus">+1m</button>
+  <button class="cbtn warn" id="btnEdit">⚙ Setup</button>
+</div>
+
+<audio id="dingSound" preload="auto"></audio>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://tqlwkqtlxvozrgsavupg.supabase.co';
+const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const money=n=>'$'+(Math.round(Number(n)||0)).toLocaleString();
+
+// URL params decide the mode: ?view=tv (display only), ?view=player (display only), default = TD control
+const params=new URLSearchParams(location.search);
+const VIEW_MODE=params.get('view')||'';   // 'tv' | 'player' | '' (control)
+const CLOCK_ID=params.get('clock')||null;  // which clock_state row to show
+const isDisplayOnly = (VIEW_MODE==='tv'||VIEW_MODE==='player');
+
+let user=null, role='', STATE=null, tickTimer=null, lastLevelIndex=-1, channel=null;
+
+// ---------- AUTH ----------
+async function signIn(){
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email||!password){ setLoginStatus('Enter email and password.','err'); return; }
+  setLoginStatus('Signing in...','ok');
+  try{
+    const { data, error }=await supabase.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    await afterAuth(data.user);
+  }catch(e){ setLoginStatus(e.message||String(e),'err'); }
+}
+function setLoginStatus(m,k){ const s=$('loginStatus'); s.className='status '+(k||''); s.textContent=m; }
+
+async function afterAuth(u){
+  user=u;
+  try{ const { data }=await supabase.from('profiles').select('role').eq('user_id',u.id); role=(Array.isArray(data)&&data.length)?(data[0].role||''):''; }catch(e){ role=''; }
+  $('login').classList.add('hidden');
+  bootControl();
+}
+
+// Display-only mode: no login needed, just show the clock
+async function bootDisplay(){
+  $('login').classList.add('hidden');
+  $('clockView').classList.remove('hidden');
+  await loadState();
+  subscribe();
+  startTick();
+}
+
+// TD control mode
+async function bootControl(){
+  await loadState();
+  if(!STATE || STATE.status==='setup'){ renderSetup(); }
+  else { showClock(true); subscribe(); startTick(); }
+}
+
+// ---------- LOAD / SUBSCRIBE ----------
+async function loadState(){
+  let q=supabase.from('clock_state').select('*').order('updated_at',{ascending:false}).limit(1);
+  if(CLOCK_ID) q=supabase.from('clock_state').select('*').eq('id',CLOCK_ID).limit(1);
+  const { data }=await q;
+  STATE=(data&&data.length)?data[0]:null;
+}
+function subscribe(){
+  try{
+    channel=supabase.channel('clock-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'clock_state'},(payload)=>{
+        if(payload.new){ if(!CLOCK_ID || String(payload.new.id)===String(CLOCK_ID)){ STATE=payload.new; renderClock(); } }
+      }).subscribe();
+  }catch(e){}
+  // fallback poll every 5s in case realtime isn't enabled
+  setInterval(async ()=>{ await loadState(); renderClock(); }, 5000);
+}
+
+// ---------- CLOCK MATH ----------
+function levels(){ return (STATE&&Array.isArray(STATE.levels))?STATE.levels:[]; }
+function curLevel(){ const L=levels(); const i=STATE?STATE.current_level:0; return L[i]||null; }
+function levelSeconds(lv){ return Math.round((Number(lv&&lv.minutes)||0)*60); }
+function remainingSec(){
+  if(!STATE) return 0;
+  const lv=curLevel(); if(!lv) return 0;
+  if(STATE.is_paused){ return (STATE.paused_remaining_sec!=null)?STATE.paused_remaining_sec:levelSeconds(lv); }
+  if(!STATE.level_started_at) return levelSeconds(lv);
+  const started=new Date(STATE.level_started_at).getTime();
+  const elapsed=Math.floor((Date.now()-started)/1000);
+  return Math.max(0, levelSeconds(lv)-elapsed);
+}
+function fmtTime(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60); const ss=s%60; return m+':'+('0'+ss).slice(-2); }
+
+// ---------- RENDER CLOCK ----------
+function showClock(withControl){
+  $('setup').classList.add('hidden');
+  $('clockView').classList.remove('hidden');
+  if(withControl && !isDisplayOnly) $('ctrlBar').classList.remove('hidden');
+  renderClock();
+}
+function renderClock(){
+  if(!STATE){ return; }
+  $('cName').textContent=STATE.game_name||'Tournament';
+  $('cVenue').textContent=STATE.venue_name||'';
+  const lv=curLevel();
+  const paused=STATE.is_paused;
+  $('cStatus').className='ch-status'+(paused?' paused':'');
+  $('cStatusTxt').textContent=paused?'PAUSED':'LIVE';
+
+  const blindsBox=$('cBlinds'); const nextBox=$('cNext');
+  if(lv && lv.isBreak){
+    $('cLevelLabel').textContent='BREAK';
+    blindsBox.innerHTML='<div class="ch-break">'+(lv.breakName||'Break')+'</div>';
+    nextBox.innerHTML='';
+  } else if(lv){
+    $('cLevelLabel').textContent='Level '+(lv.level||(STATE.current_level+1));
+    let h='<div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.sb)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Small</div></div>';
+    h+='<div class="ch-sep">/</div>';
+    h+='<div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.bb)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Big</div></div>';
+    if(Number(lv.ante)>0){ h+='<div class="ch-sep">/</div><div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.ante)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Ante</div></div>'; }
+    blindsBox.innerHTML=h;
+    const L=levels(); const nx=L[STATE.current_level+1];
+    if(nx){ nextBox.innerHTML = nx.isBreak ? ('Next: <b>'+(nx.breakName||'Break')+'</b>') : ('Next: <b>'+(Number(nx.sb)||0).toLocaleString()+' / '+(Number(nx.bb)||0).toLocaleString()+(Number(nx.ante)>0?(' / '+(Number(nx.ante)||0).toLocaleString()):'')+'</b>'); }
+    else nextBox.innerHTML='<b>Final level</b>';
+  }
+  // stats
+  const entries=Number(STATE.entries)||0, left=Number(STATE.players_left)||0;
+  const stack=Number(STATE.starting_stack)||0;
+  $('cEntries').textContent=entries;
+  $('cPlayers').textContent=left;
+  $('cPool').textContent=money(STATE.prize_pool);
+  const totalChips=entries*stack;
+  $('cAvg').textContent= left>0 ? Math.round(totalChips/left).toLocaleString() : '—';
+
+  // play button label
+  if($('btnPlay')) $('btnPlay').innerHTML = paused ? '▶ Start' : '⏸ Pause';
+
+  paintTimer();
+}
+function paintTimer(){
+  const t=$('cTimer'); if(!t||!STATE) return;
+  const rem=remainingSec();
+  t.textContent=fmtTime(rem);
+  t.className='ch-timer'+(rem<=10?' crit':(rem<=60?' warn':''));
+}
+
+// ticking — every display runs its own countdown off level_started_at, so all stay in sync
+function startTick(){
+  if(tickTimer) clearInterval(tickTimer);
+  lastLevelIndex = STATE?STATE.current_level:-1;
+  tickTimer=setInterval(()=>{
+    if(!STATE) return;
+    paintTimer();
+    // auto-advance when running and time hits 0 — only the TD control device writes the change
+    if(!isDisplayOnly && !STATE.is_paused){
+      const rem=remainingSec();
+      if(rem<=0){ autoAdvance(); }
+    }
+  },250);
+}
+
+// ---------- TD CONTROLS ----------
+async function pushState(patch){
+  if(!STATE) return;
+  const upd={ ...patch, updated_at:new Date().toISOString(), updated_by:user?user.id:null };
+  Object.assign(STATE, upd);
+  renderClock();
+  try{ await supabase.from('clock_state').update(upd).eq('id',STATE.id); }catch(e){}
+}
+async function playPause(){
+  if(!STATE) return;
+  if(STATE.is_paused){
+    // resume: set level_started_at so that remaining = paused_remaining_sec
+    const lv=curLevel(); const full=levelSeconds(lv);
+    const rem=(STATE.paused_remaining_sec!=null)?STATE.paused_remaining_sec:full;
+    const started=new Date(Date.now()-(full-rem)*1000).toISOString();
+    await pushState({ is_paused:false, level_started_at:started, paused_remaining_sec:null });
+  } else {
+    await pushState({ is_paused:true, paused_remaining_sec:remainingSec() });
+  }
+}
+async function gotoLevel(idx){
+  const L=levels(); if(idx<0||idx>=L.length) return;
+  const lv=L[idx];
+  await pushState({ current_level:idx, level_started_at:new Date().toISOString(), is_paused:false, paused_remaining_sec:null });
+  playDing();
+}
+async function nextLevel(){ if(!STATE) return; gotoLevel((STATE.current_level||0)+1); }
+async function prevLevel(){ if(!STATE) return; gotoLevel((STATE.current_level||0)-1); }
+async function autoAdvance(){
+  const L=levels(); const ni=(STATE.current_level||0)+1;
+  if(ni<L.length){ gotoLevel(ni); }
+  else { await pushState({ is_paused:true, paused_remaining_sec:0 }); } // end of structure
+}
+async function adjustMinutes(delta){
+  if(!STATE) return;
+  const rem=remainingSec()+delta*60;
+  if(STATE.is_paused){ await pushState({ paused_remaining_sec:Math.max(0,rem) }); }
+  else { const lv=curLevel(); const full=levelSeconds(lv); const started=new Date(Date.now()-(full-Math.max(0,rem))*1000).toISOString(); await pushState({ level_started_at:started }); }
+}
+function playDing(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=880; o.type='sine';
+    g.gain.setValueAtTime(0.001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.4,ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.9);
+    o.start(); o.stop(ctx.currentTime+0.95);
+  }catch(e){}
+}
+
+// ---------- SETUP PANEL (TD) ----------
+let editLevels=[]; let TEMPLATES=[];
+async function renderSetup(){
+  $('clockView').classList.add('hidden');
+  $('ctrlBar').classList.add('hidden');
+  const s=$('setup'); s.classList.remove('hidden');
+  // load templates and games
+  TEMPLATES=((await supabase.from('blind_templates').select('*').order('name')).data)||[];
+  const games=((await supabase.from('games').select('*').eq('active',true).order('name')).data)||[];
+  const tmplOpts=TEMPLATES.map(t=>'<div class="tmpl-item" data-tid="'+t.id+'"><span>'+t.name+' <span style="color:var(--ink-faint);font-size:11px">('+((t.levels||[]).length)+' levels)</span></span><span style="color:var(--gold)">use ›</span></div>').join('')||'<div class="pphint">No templates yet — build one below and save it.</div>';
+  const gameOpts='<option value="">— pick a game —</option>'+games.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'" data-buyin="'+(g.buy_in||0)+'" data-rake="'+(g.rake||0)+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
+  s.innerHTML=
+    '<a class="exit" href="index.html">‹ Back to Poker Palace</a>'+
+    '<h1>🃏 Set up tournament clock</h1>'+
+    '<div class="sub">Pick a blind template, set the tournament details, then launch the clock. The TV and player views update live.</div>'+
+    '<div class="sect"><h2>1 · Tournament</h2>'+
+      '<label>Which game?</label><select id="setGame" class="fld">'+gameOpts+'</select>'+
+      '<div class="row2"><div><label>Starting stack</label><input id="setStack" class="fld" type="number" value="10000"></div>'+
+      '<div><label>Entries so far</label><input id="setEntries" class="fld" type="number" value="0"></div></div>'+
+      '<div class="row2"><div><label>Players left</label><input id="setLeft" class="fld" type="number" value="0"></div>'+
+      '<div><label>Prize pool $</label><input id="setPool" class="fld" type="number" value="0"></div></div>'+
+      '<div class="pphint">Tip: you can update players-left and prize pool live from the clock later.</div>'+
+    '</div>'+
+    '<div class="sect"><h2>2 · Blind template</h2><div id="tmplList">'+tmplOpts+'</div></div>'+
+    '<div class="sect"><h2>3 · Blind levels <span style="color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:400">(edit or build)</span></h2>'+
+      '<div class="lvlrow"><div class="lvlhead">#</div><div class="lvlhead">SB</div><div class="lvlhead">BB</div><div class="lvlhead">Ante</div><div class="lvlhead">Mins</div><div></div></div>'+
+      '<div id="lvlBody"></div>'+
+      '<div class="row2" style="margin-top:8px"><button class="btn sec" id="addLvl">+ Add level</button><button class="btn sec" id="addBreak">+ Add break</button></div>'+
+      '<div style="margin-top:10px"><label>Save this structure as a template</label><div class="row2"><input id="tmplName" class="fld" placeholder="Template name e.g. Standard NSW"><button class="btn sec" id="saveTmpl" style="flex:0 0 auto;width:auto;padding-left:18px;padding-right:18px">Save</button></div></div>'+
+    '</div>'+
+    '<button class="btn" id="launchBtn" style="margin-bottom:40px">🚀 Launch clock</button>';
+
+  // default structure if none
+  if(!editLevels.length) editLevels=defaultStructure();
+  renderLevelEditor();
+
+  // wire
+  $('setGame').addEventListener('change',(e)=>{ const o=e.target.selectedOptions[0]; if(o){ const buyin=Number(o.dataset.buyin)||0, rake=Number(o.dataset.rake)||0; const ent=Number($('setEntries').value)||0; if(ent>0 && Number($('setPool').value)===0){ $('setPool').value=(buyin-rake)*ent; } } });
+  $('setEntries').addEventListener('input',()=>{ if(!$('setLeft').value||Number($('setLeft').value)===0) $('setLeft').value=$('setEntries').value; });
+  s.querySelectorAll('.tmpl-item').forEach(el=>el.addEventListener('click',()=>{ const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t){ editLevels=JSON.parse(JSON.stringify(t.levels||[])); renderLevelEditor(); s.querySelectorAll('.tmpl-item').forEach(x=>x.classList.remove('active')); el.classList.add('active'); } }));
+  $('addLvl').addEventListener('click',()=>{ const last=editLevels.filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round((last.bb||100)):100; editLevels.push({level:editLevels.filter(l=>!l.isBreak).length+1, sb:sb, bb:sb*2, ante:0, minutes:20, isBreak:false}); renumber(); renderLevelEditor(); });
+  $('addBreak').addEventListener('click',()=>{ editLevels.push({isBreak:true, breakName:'Break', minutes:10}); renderLevelEditor(); });
+  $('saveTmpl').addEventListener('click', saveTemplate);
+  $('launchBtn').addEventListener('click', launchClock);
+}
+function defaultStructure(){
+  return [
+    {level:1,sb:100,bb:200,ante:0,minutes:20,isBreak:false},
+    {level:2,sb:200,bb:400,ante:0,minutes:20,isBreak:false},
+    {level:3,sb:300,bb:600,ante:600,minutes:20,isBreak:false},
+    {level:4,sb:400,bb:800,ante:800,minutes:20,isBreak:false},
+    {isBreak:true,breakName:'Break',minutes:10},
+    {level:5,sb:500,bb:1000,ante:1000,minutes:20,isBreak:false},
+    {level:6,sb:700,bb:1400,ante:1400,minutes:20,isBreak:false},
+    {level:7,sb:1000,bb:2000,ante:2000,minutes:20,isBreak:false}
+  ];
+}
+function renumber(){ let n=0; editLevels.forEach(l=>{ if(!l.isBreak){ n++; l.level=n; } }); }
+function renderLevelEditor(){
+  const body=$('lvlBody'); if(!body) return;
+  body.innerHTML=editLevels.map((l,i)=>{
+    if(l.isBreak){
+      return '<div class="lvlrow breakrow"><div class="lvlnum">☕</div>'+
+        '<input data-i="'+i+'" data-f="breakName" value="'+(l.breakName||'Break')+'" placeholder="Break" style="grid-column:span 3">'+
+        '<input data-i="'+i+'" data-f="minutes" type="number" value="'+(l.minutes||10)+'">'+
+        '<button class="delx" data-del="'+i+'">×</button></div>';
+    }
+    return '<div class="lvlrow"><div class="lvlnum">'+(l.level||i+1)+'</div>'+
+      '<input data-i="'+i+'" data-f="sb" type="number" value="'+(l.sb||0)+'">'+
+      '<input data-i="'+i+'" data-f="bb" type="number" value="'+(l.bb||0)+'">'+
+      '<input data-i="'+i+'" data-f="ante" type="number" value="'+(l.ante||0)+'">'+
+      '<input data-i="'+i+'" data-f="minutes" type="number" value="'+(l.minutes||20)+'">'+
+      '<button class="delx" data-del="'+i+'">×</button></div>';
+  }).join('');
+  body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{ const i=+inp.dataset.i, f=inp.dataset.f; editLevels[i][f]= (f==='breakName')?inp.value : (Number(inp.value)||0); }));
+  body.querySelectorAll('.delx').forEach(b=>b.addEventListener('click',()=>{ editLevels.splice(+b.dataset.del,1); renumber(); renderLevelEditor(); }));
+}
+async function saveTemplate(){
+  const name=($('tmplName').value||'').trim();
+  if(!name){ alert('Give the template a name first.'); return; }
+  try{
+    const { error }=await supabase.from('blind_templates').insert({ name, levels:editLevels, created_by:user?user.id:null });
+    if(error) throw error;
+    alert('Template "'+name+'" saved.');
+    renderSetup();
+  }catch(e){ alert('Could not save template: '+(e.message||e)); }
+}
+async function launchClock(){
+  const gameName=$('setGame').value;
+  if(!gameName){ alert('Pick a game first.'); return; }
+  if(!editLevels.length){ alert('Add at least one blind level.'); return; }
+  const o=$('setGame').selectedOptions[0];
+  const venue=o?o.dataset.venue:'';
+  const row={
+    game_name:gameName, venue_name:venue, game_date:new Date().toISOString().slice(0,10),
+    levels:editLevels, current_level:0, level_started_at:null, is_paused:true,
+    paused_remaining_sec:Math.round((Number(editLevels[0].minutes)||20)*60),
+    starting_stack:Number($('setStack').value)||10000,
+    entries:Number($('setEntries').value)||0,
+    players_left:Number($('setLeft').value)||Number($('setEntries').value)||0,
+    prize_pool:Number($('setPool').value)||0,
+    status:'running', updated_by:user?user.id:null, updated_at:new Date().toISOString()
+  };
+  try{
+    // reuse an existing row if one is already running for this game/date, else insert
+    let id=null;
+    const ex=await supabase.from('clock_state').select('id').eq('game_name',gameName).eq('game_date',row.game_date).limit(1);
+    if(ex.data&&ex.data.length){ id=ex.data[0].id; await supabase.from('clock_state').update(row).eq('id',id); }
+    else { const ins=await supabase.from('clock_state').insert(row).select(); if(ins.error) throw ins.error; id=ins.data[0].id; }
+    STATE={ ...row, id };
+    showClock(true); subscribe(); startTick();
+    // show share links
+    const base=location.origin+location.pathname;
+    setTimeout(()=>{ alert('Clock launched!\n\nTV display:\n'+base+'?view=tv&clock='+id+'\n\nPlayer view:\n'+base+'?view=player&clock='+id); }, 300);
+  }catch(e){ alert('Could not launch: '+(e.message||e)); }
+}
+
+// live-edit players/pool from the clock (TD taps stats) — simple prompts
+function wireLiveStatEdits(){
+  if(isDisplayOnly) return;
+  $('cPlayers').style.cursor='pointer'; $('cPlayers').title='Tap to update';
+  $('cPool').style.cursor='pointer';
+  $('cEntries').style.cursor='pointer';
+  $('cPlayers').onclick=async ()=>{ const v=prompt('Players left:', STATE.players_left); if(v!==null) pushState({players_left:Number(v)||0}); };
+  $('cEntries').onclick=async ()=>{ const v=prompt('Total entries:', STATE.entries); if(v!==null) pushState({entries:Number(v)||0}); };
+  $('cPool').onclick=async ()=>{ const v=prompt('Prize pool $:', STATE.prize_pool); if(v!==null) pushState({prize_pool:Number(v)||0}); };
+}
+
+// ---------- WIRE CONTROL BAR ----------
+$('signinBtn').addEventListener('click', signIn);
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
+$('btnPlay').addEventListener('click', playPause);
+$('btnNext').addEventListener('click', nextLevel);
+$('btnPrev').addEventListener('click', prevLevel);
+$('btnPlus').addEventListener('click', ()=>adjustMinutes(1));
+$('btnMinus').addEventListener('click', ()=>adjustMinutes(-1));
+$('btnEdit').addEventListener('click', ()=>{ if(STATE){ STATE.status='setup'; } renderSetup(); });
+
+// keep play button label and stat-edit wiring fresh after each render
+const _origShowClock=showClock;
+
+// ---------- BOOT ----------
+(async ()=>{
+  if(isDisplayOnly){ await bootDisplay(); return; }
+  const { data }=await supabase.auth.getSession();
+  if(data.session){ await afterAuth(data.session.user); } // -> bootControl
+  // else login screen stays
+  // wire live stat edits once clock is shown
+  const obs=setInterval(()=>{ if(!$('clockView').classList.contains('hidden')){ wireLiveStatEdits(); clearInterval(obs); } }, 500);
+})();
+</script>
+</body>
+</html>
