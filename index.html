@@ -212,16 +212,13 @@
           <h2><span class="ico">💰</span> Your earnings <span class="pchip" id="tdEarnChip">this week</span></h2>
           <div class="big gold" id="tdEarn">$0</div>
           <div class="psub" id="tdEarnSub">your wages this period <span class="taphint">· tap for breakdown by tournament</span></div>
-          <div id="earnDbg" style="display:none"></div>
         </div>
         <!-- cash held -->
         <div class="pcard clickable" id="cashCard">
           <h2><span class="ico">🪙</span> Cash you're holding</h2>
           <div class="big" id="tdCash">$0</div>
           <div class="cashbd">
-            <div class="cbrow"><span>Cash in hand</span><span id="tdCashRaw">$0</span></div>
-            <div class="cbrow"><span>Less: ticket money owed</span><span id="tdCashTix">$0</span></div>
-            <div class="cbrow bal"><span>Clear balance</span><span id="tdCashBal">$0</span></div>
+            <div class="cbrow bal"><span>Cash in hand</span><span id="tdCashRaw">$0</span></div>
           </div>
           <div class="psub"><span class="taphint">tap for day-by-day movements</span></div>
         </div>
@@ -331,7 +328,6 @@
       if(user.email) myNames.add(norm(user.email.split('@')[0]));
       let allShifts=[];
       try{ allShifts=((await supabase.from('staff_shifts').select('*')).data)||[]; }catch(e){ allShifts=[]; }
-      window.__ALLSH=allShifts;
       TD_SHIFTS = allShifts.filter(s=>myNames.has(norm(s.staff_name)));
       // make sure we have the close-outs those shifts belong to (may be created by another TD) for dates/names
       const shiftCoIds=[...new Set(TD_SHIFTS.map(s=>s.closeout_id).filter(Boolean))];
@@ -397,28 +393,13 @@
     const lbl = earnPeriod==='week'?'this week':earnPeriod==='month'?'this month':'year to date';
     $('tdEarnChip').textContent = earnPeriod==='week'?'this week':earnPeriod==='month'?'this month':'YTD';
     $('tdEarnSub').textContent = 'your wages — '+lbl;
-    // diagnostic: if zero wages, show why (name match) right on the card
-    const dbg=$('earnDbg');
-    if(dbg){
-      if(wage===0){
-        const allNames=[...new Set((window.__ALLSH||[]).map(s=>s.staff_name))];
-        const mineCount=TD_SHIFTS.length;
-        dbg.style.display='block';
-        dbg.innerHTML='<div style="font-size:10.5px;color:#e0ad55;font-family:JetBrains Mono;margin-top:6px;line-height:1.5">debug · your profile name: "'+(MY_NAME||'(blank)')+'" · matched shifts: '+mineCount+'<br>staff names on file: '+(allNames.length?allNames.map(n=>'"'+n+'"').join(', '):'(none loaded)')+'</div>';
-      } else { dbg.style.display='none'; }
-    }
   }
   function renderCash(){
     const leftover=TD_CO.reduce((s,c)=>s+(Number(c.leftover_cash)||0),0);
     const handedApproved=TD_CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashRaw=Math.max(0,leftover-handedApproved);
-    const tixOwed=outstandingTicketMoney();
-    const bal=cashRaw-tixOwed;
     $('tdCash').textContent=money(cashRaw);
-    $('tdCashRaw').textContent=money(cashRaw);
-    $('tdCashTix').textContent='−'+money(tixOwed);
-    $('tdCashBal').textContent=money(bal);
-    const balEl=$('tdCashBal'); if(balEl) balEl.style.color = bal<0 ? 'var(--red)' : 'var(--good)';
+    if($('tdCashRaw')) $('tdCashRaw').textContent=money(cashRaw);
     // pending hand-ups indicator
     const pend=(TD_CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
     const hint=document.querySelector('#cashCard .taphint');
@@ -593,7 +574,6 @@
     const tix=outstandingTicketMoney();
     $('tdPanel').innerHTML='<div class="pcard" style="margin-top:14px"><h2><span class="ico">🪙</span> Cash you\'re holding — day by day</h2>'+
       '<div class="daylist">'+rows+'</div>'+
-      (tix>0?'<div class="psub" style="margin-top:10px">Of your current balance, <b style="color:var(--amber)">'+money(tix)+'</b> is ticket money owed (set aside for unredeemed seats).</div>':'')+
       '<div class="psub" style="font-size:11px">Running balance = leftover cash added each night, less cash handed up to admin (approved).</div></div>';
     $('tdPanel').scrollIntoView({behavior:'smooth'});
   }
