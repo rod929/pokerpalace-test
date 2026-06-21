@@ -175,7 +175,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null,INJECTIONS=[];
+  let user=null,isAdmin=false,MY_NAME='',CLOSEOUTS=[],PLACINGS=[],STAFF=[],INVOICES=[],GAMES=[],VENUES=[],EXPENSES=[],OWNERPAY=[],CASH=[],TICKETS=[],PLAYERS=[],SHIFTS=[],PROFILES=[],PROFMAP={},SMS=[],period='week',computed={},OPENING=null,INJECTIONS=[];
   function tdName(uid){ return PROFMAP[uid] || (uid?('TD '+String(uid).slice(0,6)):'—'); }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -191,6 +191,7 @@
       if(Array.isArray(data)&&data.length){
         const me=data.find(r=>r.role==='admin'||r.role==='owner')||data[0];
         myRole=me.role||'';
+        MY_NAME=me.full_name||me.name||'';
         isAdmin=data.some(r=>r.role==='admin'||r.role==='owner');
         const nm=me.full_name||me.name;if(nm)$('greet').textContent='Welcome back, '+String(nm).split(' ')[0];
       } else { isAdmin=false; myRole='(no profile row found)'; }
@@ -510,6 +511,14 @@
     computed.ticketsAllocated=ticketsAllocated;
     const cashHeld=received-cashExp-toOwners-wagesCash;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
+    // detail lists (for expandable date-filtered breakdowns) — name, date, amount, sub
+    const tdNm=(uid)=>tdName(uid);
+    computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date))
+      .map(m=>({name:tdNm(m.from_user), date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.to_admin?('→ '+m.to_admin):'')+(m.note?(' · '+m.note):'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    computed.cashExpList=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date))
+      .map(e=>({name:e.note||e.category||e.venue_name||'Expense', date:(e.expense_date||e.date||''), amount:Number(e.amount)||0, sub:(e.venue_name?e.venue_name:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    computed.toOwnersList=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date))
+      .map(m=>({name:m.to_admin||'(owner)', date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.note?m.note:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     computed.ticketOwed=outstandingTicketMoneyAll();
     computed.cashClear=cashHeld-computed.ticketOwed;
     // cash held by each TD = their close-out leftovers − their approved hand-ups (after opening date)
@@ -616,26 +625,38 @@
           '</div>';
         }).join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
         '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
-        '<div class="drow"><span class="l">Received from TDs (approved)</span><span class="r" style="color:var(--good)">'+money(computed.cashReceived||0)+'</span></div>'+
-        '<div class="drow"><span class="l">Less: cash expenses</span><span class="r" style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
-        ((computed.wagesCash||0)>0?'<div class="cashwage-toggle" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">Less: wages paid in cash <span style="font-size:11px;color:var(--ink-faint)">tap for list ›</span></span><span class="r" style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>'+
-          '<div id="cashWageList" style="display:none;padding:2px 2px 10px 2px">'+
-            '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+
-              '<button class="cwrange" data-days="14" style="background:var(--gold);color:#1a1205;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">Last 2 weeks</button>'+
-              '<button class="cwrange" data-days="30" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">30 days</button>'+
-              '<button class="cwrange" data-days="90" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">90 days</button>'+
-              '<button class="cwrange" data-days="9999" style="background:none;color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">All</button>'+
-            '</div>'+
-            '<div id="cashWageRows"></div>'+
-          '</div>'+
-        '</div>':'')+
-        '<div class="drow"><span class="l">Less: given to owners</span><span class="r" style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+        expandableCashLine({id:'cdReceived', label:'Received from TDs (approved)', amount:computed.cashReceived||0, color:'var(--good)', sign:'+'})+
+        expandableCashLine({id:'cdExp', label:'Less: cash expenses', amount:computed.cashExp||0, color:'var(--red)', sign:'−'})+
+        ((computed.wagesCash||0)>0?expandableCashLine({id:'cashWage', label:'Less: wages paid in cash', amount:computed.wagesCash, color:'var(--red)', sign:'−'}):'')+
+        expandableCashLine({id:'cdOwners', label:'Less: given to owners', amount:computed.cashToOwners||0, color:'var(--gold)', sign:'−'})+
         ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
           '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
-          computed.ownerRecvList.map(o=>'<div class="drow"><span class="l">'+o.name+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>').join('')+
+          computed.ownerRecvList.map(o=>{ const mine=(MY_NAME&&o.name&&o.name.toLowerCase().trim()===MY_NAME.toLowerCase().trim()); return '<div class="drow"'+(mine?' style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"':'')+'><span class="l">'+(mine?'⭐ ':'')+o.name+(mine?' <span style="font-size:11px;color:var(--gold)">(you)</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>'; }).join('')+
           '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total to owners</b></span><span class="r"><b>'+money(computed.ownerRecvTotal||0)+'</b></span></div>'
         ):'')+
-        '<div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+        '<div class="cashexp-toggle" data-listid="cdAdminHeld" style="cursor:pointer"><div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b> <span style="font-size:11px;color:var(--ink-faint)">tap ›</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+          '<div id="cdAdminHeld_wrap" style="display:none;padding:6px 2px 10px 2px">'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Received from TDs</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">−'+money(computed.cashExp||0)+'</span></div>'+
+            ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">−'+money(computed.wagesCash)+'</span></div>':'')+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: given to owners</span><span style="color:var(--gold)">−'+money(computed.cashToOwners||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= Admin cash held</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
+          '</div>'+
+        '</div>'+
+        // ===== Hand cash to an owner =====
+        (function(){
+          const owners=(PROFILES||[]).filter(p=>p.role==='owner');
+          const opts=owners.length?owners.map(o=>'<option value="'+(o.full_name||o.name||'')+'">'+(o.full_name||o.name||'(owner)')+'</option>').join(''):'<option value="">(no owners found)</option>';
+          return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer;margin-top:10px" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">›</span></div>'+
+            '<div id="handOwnerForm" style="display:none;background:var(--chip);border:1px solid var(--gold);border-radius:9px;padding:12px;margin-bottom:8px">'+
+              '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Record cash you have handed to an owner. This reduces the admin cash held and shows on the owner\'s app.</div>'+
+              '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="hoAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="hoDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+              '<label style="font-size:12px;color:var(--ink-dim)">Owner</label>'+
+              '<select id="hoOwner" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin:4px 0 8px">'+opts+'</select>'+
+              '<input id="hoNote" placeholder="Note (optional) — e.g. profit distribution" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+              '<button id="hoSaveBtn" style="width:100%;background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Record cash to owner</button>'+
+              '<div id="hoMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
+            '</div>'+
         '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
         (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'−')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
         (function(){
@@ -817,27 +838,56 @@
         const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
-        const cwr=ev.target.closest('.cwrange'); if(cwr){ ev.stopPropagation(); renderCashWageRows(Number(cwr.dataset.days)||14); b.querySelectorAll('.cwrange').forEach(x=>{ x.style.background='none'; x.style.color='var(--ink-dim)'; x.style.border='1px solid var(--line)'; }); cwr.style.background='var(--gold)'; cwr.style.color='#1a1205'; cwr.style.border='none'; return; }
-        const cwt=ev.target.closest('.cashwage-toggle'); if(cwt){ const d=$('cashWageList'); if(d){ const show=(d.style.display==='none'||d.style.display===''); d.style.display=show?'block':'none'; if(show) renderCashWageRows(14); } return; }
       });
     }
     const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
     const air=$('addInjectRow'); if(air && !air.dataset.w){ air.dataset.w='1'; air.addEventListener('click',()=>{ const f=$('injectForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
     const sib=$('saveInjectBtn'); if(sib && !sib.dataset.w){ sib.dataset.w='1'; sib.addEventListener('click', saveInjection); }
+    const hor=$('handOwnerRow'); if(hor && !hor.dataset.w){ hor.dataset.w='1'; hor.addEventListener('click',()=>{ const f=$('handOwnerForm'); if(f) f.style.display=f.style.display==='none'?'block':'none'; }); }
+    const hos=$('hoSaveBtn'); if(hos && !hos.dataset.w){ hos.dataset.w='1'; hos.addEventListener('click', saveHandToOwner); }
+  }
+  function renderCashListById(id, days){
+    const map={ cdReceived:computed.receivedList, cdExp:computed.cashExpList, cdOwners:computed.toOwnersList, cashWage:computed.cashWageShifts };
+    renderCashDetailRows(id+'_rows', map[id]||[], days);
   }
   function renderCashWageRows(days){
-    const box=$('cashWageRows'); if(!box) return;
-    const list=computed.cashWageShifts||[];
-    let filtered=list;
-    if(days && days<9999){
-      const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
-      const cut=cutoff.toISOString().slice(0,10);
-      filtered=list.filter(s=>(s.date||'')>=cut);
-    }
-    if(!filtered.length){ box.innerHTML='<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">No cash wages in this range.</div>'; return; }
-    const tot=filtered.reduce((s,x)=>s+x.amount,0);
-    box.innerHTML=filtered.map(s=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+s.name+(s.role?(' <span style="font-size:10px;color:var(--ink-faint)">'+s.role+'</span>'):'')+'<br><span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+(s.date||'')+(s.game?(' · '+s.game):'')+'</span></span><span style="color:var(--red)">−'+money(s.amount)+'</span></div>').join('')+
-      '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>Total ('+filtered.length+')</span><span style="color:var(--red)">−'+money(tot)+'</span></div>';
+    renderCashDetailRows('cashWageRows', computed.cashWageShifts||[], days, true);
+  }
+  // generic: build an expandable cash-detail line (label + amount, with date-range buttons + rows container)
+  function expandableCashLine(opts){
+    // opts: id, label, amount, color, sign
+    return '<div class="cashexp-toggle" data-listid="'+opts.id+'" style="cursor:pointer"><div class="drow" style="border:none"><span class="l">'+opts.label+' <span style="font-size:11px;color:var(--ink-faint)">tap for list ›</span></span><span class="r" style="color:'+(opts.color||'var(--ink)')+'">'+(opts.sign||'')+money(opts.amount||0)+'</span></div>'+
+      '<div id="'+opts.id+'_wrap" style="display:none;padding:2px 2px 10px 2px">'+
+        '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+
+          [['14','Last 2 weeks'],['30','30 days'],['90','90 days'],['9999','All']].map((p,i)=>'<button class="cdrange" data-listid="'+opts.id+'" data-days="'+p[0]+'" style="background:'+(i===0?'var(--gold)':'none')+';color:'+(i===0?'#1a1205':'var(--ink-dim)')+';border:'+(i===0?'none':'1px solid var(--line)')+';border-radius:6px;padding:5px 10px;font-size:11px;font-weight:'+(i===0?'600':'400')+';cursor:pointer">'+p[1]+'</button>').join('')+
+        '</div>'+
+        '<div id="'+opts.id+'_rows"></div>'+
+      '</div>'+
+    '</div>';
+  }
+  function renderCashDetailRows(rowsId, list, days, isWage){
+    const box=$(rowsId); if(!box) return;
+    let filtered=list||[];
+    if(days && days<9999){ const c=new Date(); c.setDate(c.getDate()-days); const cut=c.toISOString().slice(0,10); filtered=filtered.filter(s=>(s.date||'')>=cut); }
+    if(!filtered.length){ box.innerHTML='<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">Nothing in this range.</div>'; return; }
+    const tot=filtered.reduce((s,x)=>s+(Number(x.amount)||0),0);
+    box.innerHTML=filtered.map(s=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(s.name||'')+(s.role?(' <span style="font-size:10px;color:var(--ink-faint)">'+s.role+'</span>'):'')+'<br><span style="font-size:10px;color:var(--ink-faint);font-family:JetBrains Mono">'+(s.date||'')+(s.game?(' · '+s.game):'')+(s.sub?(' · '+s.sub):'')+'</span></span><span style="color:var(--ink)">'+money(Number(s.amount)||0)+'</span></div>').join('')+
+      '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>Total ('+filtered.length+')</span><span>'+money(tot)+'</span></div>';
+  }
+  async function saveHandToOwner(){
+    const amt=Number($('hoAmt').value); const date=$('hoDate').value; const owner=$('hoOwner').value; const note=($('hoNote')&&$('hoNote').value.trim())||null;
+    const msg=$('hoMsg'); const show=(t,ok)=>{ if(msg){ msg.style.display='block'; msg.style.color=ok?'var(--good)':'var(--red)'; msg.textContent=t; } };
+    if(!amt||isNaN(amt)){ show('Enter an amount.',false); return; }
+    if(!date){ show('Pick a date.',false); return; }
+    if(!owner){ show('Pick an owner.',false); return; }
+    const btn=$('hoSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+    try{
+      const { data, error } = await supabase.from('cash_movements').insert({ movement_type:'admin_to_owner', amount:amt, move_date:date, from_user:user.id, to_admin:owner, note:note, recorded_by:user.id, status:'approved' }).select();
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('Saved nothing — likely an RLS permission issue on cash_movements.');
+      CASH.push(data[0]); show('✓ Recorded '+money(amt)+' to '+owner,true);
+      setTimeout(()=>{ compute(); openDetail('cash'); }, 700);
+    }catch(e){ show('Could not save: '+(e.message||e),false); btn.disabled=false; btn.textContent='Record cash to owner'; }
   }
   async function saveInjection(){
     const amt=Number($('injAmt').value); const date=$('injDate').value; const note=$('injNote').value.trim();
@@ -869,6 +919,9 @@
   document.querySelectorAll('.metric').forEach(m=>m.addEventListener('click',()=>openDetail(m.dataset.d)));
   // delegated handler: any element with data-d inside the detail drawer drills down (works after re-render)
   $('detailBody').addEventListener('click',(e)=>{
+    // expandable cash-detail toggles + date ranges
+    const cdr=e.target.closest('.cdrange'); if(cdr){ e.stopPropagation(); const id=cdr.dataset.listid; const days=Number(cdr.dataset.days)||14; renderCashListById(id, days); const wrap=$(id+'_wrap'); if(wrap) wrap.querySelectorAll('.cdrange').forEach(x=>{ x.style.background='none'; x.style.color='var(--ink-dim)'; x.style.border='1px solid var(--line)'; x.style.fontWeight='400'; }); cdr.style.background='var(--gold)'; cdr.style.color='#1a1205'; cdr.style.border='none'; cdr.style.fontWeight='600'; return; }
+    const cdt=e.target.closest('.cashexp-toggle'); if(cdt){ const id=cdt.dataset.listid; const wrap=$(id+'_wrap'); if(wrap){ const show=(wrap.style.display==='none'||wrap.style.display===''); wrap.style.display=show?'block':'none'; if(show && id!=='cdAdminHeld') renderCashListById(id, 14); } return; }
     const el=e.target.closest('[data-d]'); if(el && $('detailBody').contains(el)){ openDetail(el.dataset.d); }
   });
   $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('open'));
