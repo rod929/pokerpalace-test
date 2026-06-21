@@ -135,7 +135,8 @@ async function showApp(u){
   await loadPlayers();
 }
 async function loadGames(){
-  GAMES=((await supabase.from('games').select('*').eq('active',true).order('name')).data)||[];
+  const all=((await supabase.from('games').select('*').order('name')).data)||[];
+  GAMES=all.filter(g=>g.active!==false); // include active=true AND active=null (only hide explicitly inactive)
   $('gameSel').innerHTML='<option value="">— pick a tournament —</option>'+GAMES.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
   $('gameDate').value=new Date().toISOString().slice(0,10);
 }
