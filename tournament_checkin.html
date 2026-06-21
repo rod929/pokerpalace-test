@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Palace — Tournament Check-in</title>
+<style>
+  :root{--bg:#0d1410;--card:#16201a;--chip:#1b2620;--line:#2a3a30;--ink:#f3efe6;--ink-dim:#a9b3aa;--ink-faint:#6d7a70;--gold:#d8b863;--good:#5cb88a;--red:#e07a5f;--amber:#e0ad55}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,system-ui,sans-serif;min-height:100vh}
+  .wrap{max-width:680px;margin:0 auto;padding:16px}
+  h1{font-size:20px;color:var(--gold);margin-bottom:2px}
+  .sub{color:var(--ink-dim);font-size:13px;margin-bottom:16px}
+  .fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-size:15px;margin-bottom:10px}
+  .btn{background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:9px;padding:12px;font-size:15px;cursor:pointer;width:100%}
+  .btn.sec{background:none;border:1px solid var(--line);color:var(--ink-dim);font-weight:600}
+  .btn.good{background:var(--good);color:#06140d}
+  .hidden{display:none!important}
+  .status{text-align:center;font-size:13px;margin:8px 0;min-height:16px}
+  .status.err{color:var(--red)}.status.ok{color:var(--good)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:10px}
+  label{font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px}
+  a.exit{color:var(--ink-faint);font-size:12px;text-decoration:none;display:inline-block;margin-bottom:10px}
+  .count{display:flex;gap:10px;margin-bottom:14px}
+  .countbox{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .countbox .v{font-size:30px;font-weight:800;color:var(--gold);line-height:1}
+  .countbox .l{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:5px}
+  .res{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px}
+  .res .nm{font-weight:600}.res .mt{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace}
+  .addbtn{background:var(--good);color:#06140d;border:none;border-radius:7px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:13px}
+  .entry{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line)}
+  .entry .x{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer}
+  .row2{display:flex;gap:8px}.row2>*{flex:1}
+  .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;background:var(--chip);color:var(--ink-dim);margin-left:6px}
+  .seg{display:flex;gap:6px;margin-bottom:12px}
+  .seg button{flex:1;background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:9px;font-size:13px;cursor:pointer;font-weight:600}
+  .seg button.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+  .empty{color:var(--ink-faint);font-size:13px;padding:10px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- LOGIN -->
+<div id="login">
+  <a class="exit" href="index.html">‹ Back to Poker Palace</a>
+  <h1>🎟 Tournament Check-in</h1>
+  <div class="sub">Sign in to run the check-in desk.</div>
+  <input id="email" class="fld" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" class="fld" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="btn" id="signinBtn">Sign in</button>
+  <div class="status" id="loginStatus"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <a class="exit" href="index.html">‹ Back to Poker Palace</a>
+  <h1>🎟 Tournament Check-in</h1>
+  <div class="sub" id="whoLine"></div>
+
+  <!-- pick tournament -->
+  <div class="card" id="pickCard">
+    <h2>Which tournament?</h2>
+    <select id="gameSel" class="fld"></select>
+    <div class="row2"><div><label>Date</label><input id="gameDate" class="fld" type="date"></div>
+    <div><label>&nbsp;</label><button class="btn" id="openDeskBtn">Open check-in desk ›</button></div></div>
+  </div>
+
+  <!-- the desk -->
+  <div id="desk" class="hidden">
+    <div class="count">
+      <div class="countbox"><div class="v" id="cIn">0</div><div class="l">Checked in</div></div>
+      <div class="countbox"><div class="v" id="cEntries">0</div><div class="l">Total entries</div></div>
+      <div class="countbox"><div class="v" id="cLeft">0</div><div class="l">Still in</div></div>
+    </div>
+    <div style="text-align:center;margin-bottom:14px"><button class="btn sec" id="changeGame" style="width:auto;display:inline-block;padding:8px 16px">‹ Change tournament</button></div>
+
+    <!-- search existing -->
+    <div class="card">
+      <h2>Add a player</h2>
+      <input id="search" class="fld" placeholder="Search by name…" autocomplete="off">
+      <div id="searchRes"></div>
+      <div class="seg" style="margin-top:12px">
+        <button id="tabQuick" class="on">+ Quick add (weekly)</button>
+        <button id="tabFull">Full registration (series)</button>
+      </div>
+      <div id="quickForm">
+        <div class="row2"><input id="qFirst" class="fld" placeholder="First name"><input id="qLast" class="fld" placeholder="Last name"></div>
+        <div class="row2"><input id="qMember" class="fld" placeholder="Venue membership no"><input id="qMobile" class="fld" placeholder="Mobile"></div>
+        <button class="btn good" id="quickAddBtn">+ Add new player &amp; check in</button>
+        <div class="status" id="quickStatus"></div>
+      </div>
+      <div id="fullForm" class="hidden">
+        <div class="empty">For series / larger tournaments, use the full registration form (DOB, ID, signature, terms). They'll appear in search here once registered.</div>
+        <a href="player_registration_live.html" target="_blank" style="text-decoration:none"><button class="btn sec" type="button">Open full registration form ↗</button></a>
+      </div>
+    </div>
+
+    <!-- entries list -->
+    <div class="card">
+      <h2>Checked in <span class="tag" id="entryCountTag">0</span></h2>
+      <div id="entryList"><div class="empty">No one checked in yet.</div></div>
+    </div>
+
+    <button class="btn" id="pushClockBtn" style="margin-bottom:30px">⏱️ Send count to Tournament Clock</button>
+    <div class="status" id="deskStatus"></div>
+  </div>
+</div>
+
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://tqlwkqtlxvozrgsavupg.supabase.co';
+const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+
+let user=null, GAMES=[], PLAYERS=[], ENTRIES=[], CUR={game:null,venue:null,date:null};
+
+// ---- auth ----
+async function signIn(){
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email||!password){ ls('Enter email and password.','err'); return; }
+  ls('Signing in…','ok');
+  try{ const { data, error }=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; showApp(data.user); }
+  catch(e){ ls(e.message||String(e),'err'); }
+}
+function ls(m,k){ const s=$('loginStatus'); s.className='status '+(k||''); s.textContent=m; }
+async function showApp(u){
+  user=u; $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('whoLine').textContent='Signed in as '+u.email;
+  await loadGames();
+  await loadPlayers();
+}
+async function loadGames(){
+  GAMES=((await supabase.from('games').select('*').eq('active',true).order('name')).data)||[];
+  $('gameSel').innerHTML='<option value="">— pick a tournament —</option>'+GAMES.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
+  $('gameDate').value=new Date().toISOString().slice(0,10);
+}
+async function loadPlayers(){
+  PLAYERS=((await supabase.from('players').select('id,first_name,last_name,member_no,mobile').order('last_name')).data)||[];
+}
+
+// ---- open desk ----
+async function openDesk(){
+  const sel=$('gameSel'); const name=sel.value;
+  if(!name){ alert('Pick a tournament first.'); return; }
+  const o=sel.selectedOptions[0];
+  CUR={ game:name, venue:o?o.dataset.venue:'', date:$('gameDate').value||new Date().toISOString().slice(0,10) };
+  $('pickCard').classList.add('hidden'); $('desk').classList.remove('hidden');
+  await loadEntries();
+}
+async function loadEntries(){
+  ENTRIES=((await supabase.from('tournament_entries').select('*').eq('game_name',CUR.game).eq('game_date',CUR.date).order('created_at')).data)||[];
+  renderEntries();
+}
+function renderEntries(){
+  const inCount=ENTRIES.filter(e=>e.status==='in').length;
+  const total=ENTRIES.length;
+  $('cIn').textContent=inCount;
+  $('cEntries').textContent=total;
+  $('cLeft').textContent=inCount;
+  $('entryCountTag').textContent=total;
+  const list=$('entryList');
+  if(!ENTRIES.length){ list.innerHTML='<div class="empty">No one checked in yet.</div>'; return; }
+  list.innerHTML=ENTRIES.map(e=>'<div class="entry"><span><span style="font-weight:600">'+(e.player_name||'(no name)')+'</span>'+(e.member_no?'<span class="mt"> · #'+e.member_no+'</span>':'')+(e.status==='busted'?'<span class="tag">busted</span>':'')+'</span>'+
+    '<span style="display:flex;gap:8px;align-items:center">'+(e.status==='in'?'<button class="btn sec" data-bust="'+e.id+'" style="width:auto;padding:4px 10px;font-size:11px">bust</button>':'<button class="btn sec" data-unbust="'+e.id+'" style="width:auto;padding:4px 10px;font-size:11px">back in</button>')+
+    '<button class="x" data-remove="'+e.id+'">×</button></span></div>').join('');
+  list.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeEntry(b.dataset.remove)));
+  list.querySelectorAll('[data-bust]').forEach(b=>b.addEventListener('click',()=>setStatus(b.dataset.bust,'busted')));
+  list.querySelectorAll('[data-unbust]').forEach(b=>b.addEventListener('click',()=>setStatus(b.dataset.unbust,'in')));
+}
+
+// ---- search existing players ----
+function doSearch(){
+  const q=($('search').value||'').trim().toLowerCase();
+  const box=$('searchRes');
+  if(q.length<2){ box.innerHTML=''; return; }
+  const already=new Set(ENTRIES.map(e=>String(e.player_id)));
+  const hits=PLAYERS.filter(p=>{ const nm=((p.first_name||'')+' '+(p.last_name||'')).toLowerCase(); return nm.includes(q) || (p.member_no||'').toLowerCase().includes(q); }).slice(0,8);
+  if(!hits.length){ box.innerHTML='<div class="empty">No match. Use quick add below.</div>'; return; }
+  box.innerHTML=hits.map(p=>{
+    const nm=((p.first_name||'')+' '+(p.last_name||'')).trim();
+    const inAlready=already.has(String(p.id));
+    return '<div class="res"><span><span class="nm">'+(nm||'(no name)')+'</span>'+(p.member_no?'<span class="mt"> · #'+p.member_no+'</span>':'')+(p.mobile?'<span class="mt"> · '+p.mobile+'</span>':'')+'</span>'+
+      (inAlready?'<span class="tag">checked in</span>':'<button class="addbtn" data-add="'+p.id+'">+ Check in</button>')+'</div>';
+  }).join('');
+  box.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>checkInExisting(b.dataset.add)));
+}
+async function checkInExisting(pid){
+  const p=PLAYERS.find(x=>String(x.id)===String(pid)); if(!p) return;
+  const nm=((p.first_name||'')+' '+(p.last_name||'')).trim();
+  await addEntry({ player_id:p.id, player_name:nm, member_no:p.member_no||null, mobile:p.mobile||null });
+  $('search').value=''; $('searchRes').innerHTML='';
+}
+
+// ---- quick add new player ----
+async function quickAdd(){
+  const first=$('qFirst').value.trim(), last=$('qLast').value.trim();
+  const member=$('qMember').value.trim(), mobile=$('qMobile').value.trim();
+  const qs=$('quickStatus');
+  if(!first && !last){ qs.className='status err'; qs.textContent='Enter at least a name.'; return; }
+  qs.className='status'; qs.textContent='Adding…';
+  try{
+    const row={ first_name:first||null, last_name:last||null, member_no:member||null, mobile:mobile||null, registered_by:user?user.id:null };
+    const ins=await supabase.from('players').insert(row).select();
+    if(ins.error) throw ins.error;
+    const np=ins.data[0]; PLAYERS.push(np);
+    await addEntry({ player_id:np.id, player_name:((first+' '+last).trim()||'(no name)'), member_no:member||null, mobile:mobile||null });
+    $('qFirst').value='';$('qLast').value='';$('qMember').value='';$('qMobile').value='';
+    qs.className='status ok'; qs.textContent='✓ Added & checked in.';
+    setTimeout(()=>{ qs.textContent=''; }, 2000);
+  }catch(e){ qs.className='status err'; qs.textContent='Could not add: '+(e.message||e); }
+}
+
+// ---- entry CRUD ----
+async function addEntry(p){
+  const row={ game_name:CUR.game, venue_name:CUR.venue, game_date:CUR.date, player_id:p.player_id||null, player_name:p.player_name, member_no:p.member_no||null, mobile:p.mobile||null, status:'in', entry_type:'entry', checked_in_by:user?user.id:null };
+  const ins=await supabase.from('tournament_entries').insert(row).select();
+  if(ins.error){ alert('Could not check in: '+ins.error.message); return; }
+  ENTRIES.push(ins.data[0]); renderEntries();
+}
+async function removeEntry(id){
+  if(!confirm('Remove this player from the tournament?')) return;
+  await supabase.from('tournament_entries').delete().eq('id',id);
+  ENTRIES=ENTRIES.filter(e=>String(e.id)!==String(id)); renderEntries();
+}
+async function setStatus(id,status){
+  await supabase.from('tournament_entries').update({status}).eq('id',id);
+  const e=ENTRIES.find(x=>String(x.id)===String(id)); if(e) e.status=status; renderEntries();
+}
+
+// ---- push count to clock ----
+async function pushToClock(){
+  const ds=$('deskStatus');
+  const inCount=ENTRIES.filter(e=>e.status==='in').length;
+  const total=ENTRIES.length;
+  try{
+    const ex=await supabase.from('clock_state').select('id').eq('game_name',CUR.game).eq('game_date',CUR.date).limit(1);
+    if(ex.data&&ex.data.length){
+      await supabase.from('clock_state').update({ entries:total, players_left:inCount, updated_at:new Date().toISOString() }).eq('id',ex.data[0].id);
+      ds.className='status ok'; ds.textContent='✓ Sent to clock: '+total+' entries, '+inCount+' still in.';
+    } else {
+      ds.className='status err'; ds.textContent='No clock running for this game/date yet. Launch the clock first, then send.';
+    }
+  }catch(e){ ds.className='status err'; ds.textContent='Could not send: '+(e.message||e); }
+}
+
+// ---- tabs ----
+function showTab(which){
+  $('tabQuick').classList.toggle('on',which==='quick');
+  $('tabFull').classList.toggle('on',which==='full');
+  $('quickForm').classList.toggle('hidden',which!=='quick');
+  $('fullForm').classList.toggle('hidden',which!=='full');
+}
+
+// ---- wire ----
+$('signinBtn').addEventListener('click',signIn);
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') signIn(); });
+$('openDeskBtn').addEventListener('click',openDesk);
+$('changeGame').addEventListener('click',()=>{ $('desk').classList.add('hidden'); $('pickCard').classList.remove('hidden'); });
+$('search').addEventListener('input',doSearch);
+$('quickAddBtn').addEventListener('click',quickAdd);
+$('pushClockBtn').addEventListener('click',pushToClock);
+$('tabQuick').addEventListener('click',()=>showTab('quick'));
+$('tabFull').addEventListener('click',()=>showTab('full'));
+
+// ---- boot ----
+(async ()=>{ const { data }=await supabase.auth.getSession(); if(data.session) showApp(data.session.user); })();
+</script>
+</body>
+</html>
