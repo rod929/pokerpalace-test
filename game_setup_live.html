@@ -126,6 +126,8 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
   let user=null, isAdmin=false, VENUES=[], GAMES=[], USED_NAMES=new Set();
+  let BLIND_TEMPLATES=[];     // saved templates from blind_templates table
+  let BLINDS={};              // per-game working blind levels, keyed by game id
 
   const now=new Date(); const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
@@ -152,10 +154,37 @@
     try{
       const { data, error } = await supabase.from('games').select('*').order('name'); if(error) throw error;
       GAMES=data||[];
+      // load saved blind templates (for the "start from template" dropdown)
+      try{ BLIND_TEMPLATES=((await supabase.from('blind_templates').select('*').order('name')).data)||[]; }catch(e){ BLIND_TEMPLATES=[]; }
+      // seed working blind levels per game from its stored blind_levels
+      BLINDS={}; GAMES.forEach(g=>{ BLINDS[g.id]=Array.isArray(g.blind_levels)?JSON.parse(JSON.stringify(g.blind_levels)):[]; });
       // which game NAMES have close-outs (so we can block deleting games with history)
       try{ const { data:cos } = await supabase.from('closeouts').select('game_name'); USED_NAMES=new Set((cos||[]).map(c=>(c.game_name||'').trim()).filter(Boolean)); }catch(e){ USED_NAMES=new Set(); }
       renderGames();
     }catch(e){ setStatus('Could not load games: '+(e.message||e),'err'); }
+  }
+  function blindTemplateOptions(){ return (BLIND_TEMPLATES||[]).map(t=>'<option value="'+t.id+'">'+(t.name||'(unnamed)')+' ('+((t.levels||[]).length)+' levels)</option>').join(''); }
+  function renumberBlinds(gid){ let n=0; (BLINDS[gid]||[]).forEach(l=>{ if(!l.isBreak){ n++; l.level=n; } }); }
+  function renderBlindEditor(gid){
+    const body=document.querySelector('[data-blindbody="'+gid+'"]'); if(!body) return;
+    const lv=BLINDS[gid]||[];
+    if(!lv.length){ body.innerHTML='<div class="hint" style="padding:6px 0">No levels yet — add levels or load a template.</div>'; return; }
+    body.innerHTML=lv.map((l,i)=>{
+      if(l.isBreak){
+        return '<div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 28px;gap:5px;align-items:center;margin-bottom:5px;background:rgba(92,184,138,.08);border-radius:6px;padding:2px"><div style="text-align:center">☕</div>'+
+          '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="breakName" value="'+((l.breakName||'Break').replace(/"/g,'&quot;'))+'" style="grid-column:span 3;padding:7px;font-size:13px">'+
+          '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="minutes" type="number" value="'+(l.minutes||10)+'" style="padding:7px;font-size:13px">'+
+          '<button data-bdel="'+gid+'" data-bdi="'+i+'" type="button" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer">&times;</button></div>';
+      }
+      return '<div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 28px;gap:5px;align-items:center;margin-bottom:5px"><div style="text-align:center;font-size:12px;color:var(--ink-faint)">'+(l.level||i+1)+'</div>'+
+        '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="sb" type="number" value="'+(l.sb||0)+'" style="padding:7px;font-size:13px">'+
+        '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="bb" type="number" value="'+(l.bb||0)+'" style="padding:7px;font-size:13px">'+
+        '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="ante" type="number" value="'+(l.ante||0)+'" style="padding:7px;font-size:13px">'+
+        '<input data-bg="'+gid+'" data-bi="'+i+'" data-bf="minutes" type="number" value="'+(l.minutes||20)+'" style="padding:7px;font-size:13px">'+
+        '<button data-bdel="'+gid+'" data-bdi="'+i+'" type="button" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer">&times;</button></div>';
+    }).join('');
+    body.querySelectorAll('input[data-bg]').forEach(inp=>inp.addEventListener('input',()=>{ const g=inp.dataset.bg, i=+inp.dataset.bi, f=inp.dataset.bf; if(BLINDS[g]&&BLINDS[g][i]){ BLINDS[g][i][f]= (f==='breakName')?inp.value:(Number(inp.value)||0); } }));
+    body.querySelectorAll('[data-bdel]').forEach(b=>b.addEventListener('click',()=>{ const g=b.dataset.bdel; (BLINDS[g]||[]).splice(+b.dataset.bdi,1); renumberBlinds(g); renderBlindEditor(g); }));
   }
 
   function venueOptions(sel){ return ['<option value="">- venue -</option>'].concat(VENUES.map(v=>'<option'+(v===sel?' selected':'')+'>'+v+'</option>')).join(''); }
@@ -210,6 +239,14 @@
         '<div><label>Promo cost $</label><input data-f="cash_promo_default" type="number" value="'+(g.cash_promo_default??'')+'" placeholder="0"></div>'+
         '<div><label>Promo description</label><input data-f="cash_promo_desc" value="'+((g.cash_promo_desc||'').replace(/"/g,'&quot;'))+'" placeholder="e.g. High hand $200"></div>'+
         '</div><div class="hint" style="margin-top:6px">For the parallel cash game — pre-fills (locked) on the TD\'s close-out.</div></div>'):'')+
+      // ===== Blind structure (for the Tournament Clock) =====
+      '<div class="rfpromo" style="border-color:var(--gold)"><div class="rfpromoh" style="color:var(--gold)">⏱️ Blind structure (for the Tournament Clock)</div>'+
+        '<div class="hint" style="margin-bottom:8px">Set the blind levels for this game. The Tournament Clock auto-loads these. You can start from a saved template, then tweak.</div>'+
+        '<div class="row2" style="display:flex;gap:8px;margin-bottom:8px"><select data-blindtmpl="'+(g.id||'')+'" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink)"><option value="">— start from a saved template —</option>'+blindTemplateOptions()+'</select><button class="actbtn" data-loadtmpl="'+(g.id||'')+'" type="button" style="flex:0 0 auto">Load</button></div>'+
+        '<div class="blindhead" style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 28px;gap:5px;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><div style="text-align:center">#</div><div style="text-align:center">SB</div><div style="text-align:center">BB</div><div style="text-align:center">Ante</div><div style="text-align:center">Mins</div><div></div></div>'+
+        '<div data-blindbody="'+(g.id||'')+'"></div>'+
+        '<div class="row2" style="display:flex;gap:8px;margin-top:8px"><button class="actbtn" data-addlvl="'+(g.id||'')+'" type="button" style="flex:1">+ Level</button><button class="actbtn" data-addbreak="'+(g.id||'')+'" type="button" style="flex:1">+ Break</button></div>'+
+      '</div>'+
       '<div class="saveline"><button class="savebtn" data-save type="button">Save game</button>'+
       '<button class="actbtn'+(g.active===false?' reactivate':'')+'" data-active type="button">'+(g.active===false?'↺ Reactivate game':'⏸ Retire game')+'</button>'+
       '<button class="delbtn" data-delete type="button">🗑 Delete</button>'+
@@ -228,6 +265,11 @@
       // when rake-free is toggled, reflect it on the in-memory game and re-render so promo fields show/hide
       const rfBox=card.querySelector('[data-f="rake_free"]');
       if(rfBox) rfBox.addEventListener('change',()=>{ const g=GAMES.find(x=>String(x.id)===String(gid)); if(g){ g.rake_free=rfBox.checked; renderGames(); const c2=document.querySelector('.game[data-g="'+gid+'"]'); if(c2) c2.classList.add('open'); } });
+      // blind structure editor
+      renderBlindEditor(gid);
+      const addL=card.querySelector('[data-addlvl="'+gid+'"]'); if(addL) addL.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; const last=BLINDS[gid].filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round(last.bb||100):100; BLINDS[gid].push({level:0,sb:sb,bb:sb*2,ante:0,minutes:20,isBreak:false}); renumberBlinds(gid); renderBlindEditor(gid); });
+      const addB=card.querySelector('[data-addbreak="'+gid+'"]'); if(addB) addB.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; BLINDS[gid].push({isBreak:true,breakName:'Break',minutes:10}); renderBlindEditor(gid); });
+      const loadT=card.querySelector('[data-loadtmpl="'+gid+'"]'); if(loadT) loadT.addEventListener('click',()=>{ const sel=card.querySelector('[data-blindtmpl="'+gid+'"]'); const tid=sel?sel.value:''; const t=BLIND_TEMPLATES.find(x=>String(x.id)===String(tid)); if(!t){ alert('Pick a template first.'); return; } if((BLINDS[gid]||[]).length && !confirm('Replace the current blind levels with template "'+t.name+'"?')) return; BLINDS[gid]=JSON.parse(JSON.stringify(t.levels||[])); renumberBlinds(gid); renderBlindEditor(gid); });
     });
   }
   async function deleteGame(gid){
@@ -263,6 +305,8 @@
 
   async function saveGame(card,gid){
     const fields={}; card.querySelectorAll('[data-f]').forEach(el=>{ const f=el.dataset.f; let v= el.type==='checkbox'?el.checked:el.value; if(['buy_in','rake','addon_price','guarantee','promo_default','cash_promo_default'].includes(f)) v = v===''?null:Number(v); fields[f]=v; });
+    // include the blind structure for the clock
+    fields.blind_levels = BLINDS[gid]||[];
     const saveBtn=card.querySelector('[data-save]'); saveBtn.disabled=true; clearStatus();
     try{
       const { error: gErr } = await supabase.from('games').update(fields).eq('id', gid);
