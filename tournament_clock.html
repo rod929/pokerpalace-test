@@ -139,6 +139,11 @@
         <div class="meta" id="payMeta">—</div>
       </div>
       <div id="payList"></div>
+      <div id="pintSponsor" class="hidden" style="margin-top:auto;padding-top:1.5vh;text-align:center">
+        <div style="font-size:clamp(7px,.75vw,10px);letter-spacing:.16em;color:var(--ink-faint);margin-bottom:.5vh">PROUDLY SPONSORED BY</div>
+        <div id="pintWrap" style="display:flex;justify-content:center"></div>
+        <div id="pintName" style="font-size:clamp(7px,.8vw,11px);letter-spacing:.2em;color:#cfa84e;margin-top:.4vh;font-weight:600">SPONSOR</div>
+      </div>
     </div>
   </div>
   <div class="ch-ticker"><div class="msg" id="cTicker">Welcome to Poker Palace</div></div>
@@ -170,7 +175,7 @@ const THEME=params.get('theme')||'';
 const isDisplayOnly=(VIEW_MODE==='tv'||VIEW_MODE==='player');
 
 let user=null, STATE=null, tickTimer=null, channel=null, GAMES_CACHE=[], TEMPLATES=[], editLevels=[];
-let useWatch = (THEME==='watch');
+let useWatch = (THEME!=='standard');
 
 async function signIn(){
   const email=$('email').value.trim(), password=$('password').value;
@@ -222,6 +227,7 @@ function nextBreakSeconds(){
 function showClock(withControl){
   $('setup').classList.add('hidden');
   $('clockView').classList.remove('hidden');
+  pintStarted=false;
   if(withControl && !isDisplayOnly) $('ctrlBar').classList.remove('hidden');
   renderClock();
 }
@@ -261,11 +267,15 @@ function renderClock(){
 
   renderWatch();
   renderPayouts();
+  renderPint();
 }
 
 function renderWatch(){
   const lv=curLevel();
   const rem=remainingSec();
+  const full=levelSeconds(lv)||1;
+  const elapsedFrac=Math.min(1,Math.max(0,(full-rem)/full)); // 0 at start → 1 at end
+  const handAngle=elapsedFrac*360; // sweeps clockwise once per level
   const sb = lv&&!lv.isBreak ? (Number(lv.sb)||0) : 0;
   const bb = lv&&!lv.isBreak ? (Number(lv.bb)||0) : 0;
   const ante = lv&&!lv.isBreak ? (Number(lv.ante)||0) : 0;
@@ -273,10 +283,22 @@ function renderWatch(){
   const timeColor = rem<=10 ? '#e07a5f' : (rem<=60 ? '#e0ad55' : '#f6f2e6');
   const isBreak = lv && lv.isBreak;
 
-  if(useWatch){
-    $('watchWrap').innerHTML = watchSVG({sb,bb,ante,timer:fmtTime(rem),lvlLabel,timeColor,isBreak,sponsor:STATE.sponsor_name});
+  // theme comes from the saved STATE; default to the sponsor watch unless explicitly 'standard'
+  const themeIsWatch = STATE ? (STATE.theme!=='standard') : useWatch;
+  if(themeIsWatch){
+    // if the watch is already drawn, just rotate the hand smoothly instead of redrawing (smoother, no flicker)
+    const existingHand=document.getElementById('sweepHand');
+    if(existingHand && $('watchWrap').dataset.lvl===String(STATE.current_level) && $('watchWrap').dataset.theme==='watch'){
+      existingHand.setAttribute('transform','rotate('+handAngle+' 170 170)');
+      const dg=document.getElementById('digiTime'); if(dg){ dg.textContent=fmtTime(rem); dg.setAttribute('fill',timeColor); }
+      // keep sub-dials / labels current (blinds don't change within a level, so only timer + hand move)
+      return;
+    }
+    $('watchWrap').innerHTML = watchSVG({sb,bb,ante,timer:fmtTime(rem),lvlLabel,timeColor,isBreak,sponsor:STATE.sponsor_name,handAngle});
+    $('watchWrap').dataset.lvl=String(STATE.current_level); $('watchWrap').dataset.theme='watch';
   } else {
     $('watchWrap').innerHTML = plainSVG({sb,bb,ante,timer:fmtTime(rem),lvlLabel,timeColor,isBreak});
+    $('watchWrap').dataset.theme='standard';
   }
 }
 
@@ -348,11 +370,15 @@ function watchSVG(o){
     '<text x="170" y="77" text-anchor="middle" fill="#bcd49a" font-size="6.5" letter-spacing="2" font-family="sans-serif">TOURNAMENT TIMEKEEPER</text>'+
     '<g filter="url(#rShadow)"><rect x="167" y="48" width="6" height="16" rx="1.5" fill="url(#rMarker)"/><rect x="167" y="276" width="6" height="16" rx="1.5" fill="url(#rMarker)"/><rect x="276" y="167" width="16" height="6" rx="1.5" fill="url(#rMarker)"/><rect x="48" y="167" width="16" height="6" rx="1.5" fill="url(#rMarker)"/></g>'+
     subInner+
-    '<rect x="126" y="100" width="88" height="34" rx="3" fill="#0a1207" stroke="#e6cf8a" stroke-width="1.5" filter="url(#rShadow)"/>'+
-    '<text x="170" y="96" text-anchor="middle" fill="#bcd49a" font-size="7.5" letter-spacing="2" font-family="sans-serif">'+o.lvlLabel+'</text>'+
-    '<text x="170" y="125" text-anchor="middle" fill="'+o.timeColor+'" font-size="23" font-weight="700" font-family="sans-serif" font-variant-numeric="tabular-nums">'+o.timer+'</text>'+
-    '<g filter="url(#rShadow)"><line x1="170" y1="170" x2="170" y2="92" stroke="url(#rHand)" stroke-width="5" stroke-linecap="round"/><line x1="170" y1="170" x2="170" y2="128" stroke="url(#rHand)" stroke-width="6.5" stroke-linecap="round" transform="rotate(120 170 170)"/></g>'+
-    '<circle cx="170" cy="170" r="8" fill="url(#rMarker)" stroke="#6e521f" stroke-width="1"/><circle cx="170" cy="170" r="3" fill="#1c1404"/>'+
+    '<rect x="118" y="98" width="104" height="40" rx="4" fill="#0a1207" stroke="#e6cf8a" stroke-width="1.5" filter="url(#rShadow)"/>'+
+    '<text x="170" y="93" text-anchor="middle" fill="#bcd49a" font-size="7.5" letter-spacing="2" font-family="sans-serif">'+o.lvlLabel+'</text>'+
+    '<text id="digiTime" x="170" y="127" text-anchor="middle" fill="'+o.timeColor+'" font-size="29" font-weight="700" font-family="sans-serif" font-variant-numeric="tabular-nums" letter-spacing="1">'+o.timer+'</text>'+
+    '<g id="sweepHand" transform="rotate('+(o.handAngle||0)+' 170 170)" style="transition:transform 0.5s linear" filter="url(#rShadow)">'+
+      '<line x1="170" y1="264" x2="170" y2="56" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>'+
+      '<line x1="170" y1="264" x2="170" y2="56" stroke="#e6cf8a" stroke-width="1.4" stroke-linecap="round"/>'+
+      '<circle cx="170" cy="56" r="3.5" fill="#1a1a1a"/><circle cx="170" cy="56" r="2" fill="#f6e6ac"/>'+
+    '</g>'+
+    '<circle cx="170" cy="170" r="6" fill="#1a1a1a"/><circle cx="170" cy="170" r="4" fill="url(#rMarker)" stroke="#6e521f" stroke-width="1"/><circle cx="170" cy="170" r="2" fill="#1c1404"/>'+
   '</svg>';
 }
 
@@ -367,6 +393,62 @@ function plainSVG(o){
     '<text x="170" y="130" text-anchor="middle" fill="'+o.timeColor+'" font-size="100" font-weight="700" font-family="sans-serif" font-variant-numeric="tabular-nums">'+o.timer+'</text>'+
     blinds+
   '</svg>';
+}
+
+let pintStarted=false;
+function pintSVG(){
+  return '<svg viewBox="0 0 160 210" width="100%" style="max-width:130px;height:auto" role="img" aria-label="Sponsor pint"><title>Sponsor pint</title>'+
+    '<defs>'+
+      '<linearGradient id="eg4" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#5a6168" stop-opacity="0.45"/><stop offset="15%" stop-color="#aeb6bd" stop-opacity="0.22"/><stop offset="50%" stop-color="#cfd6dc" stop-opacity="0.10"/><stop offset="85%" stop-color="#aeb6bd" stop-opacity="0.22"/><stop offset="100%" stop-color="#5a6168" stop-opacity="0.5"/></linearGradient>'+
+      '<linearGradient id="sh4" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ffffff" stop-opacity="0"/><stop offset="20%" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="30%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>'+
+      '<clipPath id="pc4"><path d="M34 26 Q33 24 36 24 L124 24 Q127 24 126 26 L120 120 Q118 150 112 184 Q111 192 102 192 L58 192 Q49 192 48 184 Q42 150 40 120 Z"/></clipPath>'+
+    '</defs>'+
+    '<g clip-path="url(#pc4)">'+
+      '<rect x="32" y="22" width="96" height="174" fill="url(#eg4)"/>'+
+      '<rect id="lace4" x="32" y="40" width="96" height="0" fill="#e8dcc0" opacity="0.16"/>'+
+      '<rect id="body4" x="32" y="44" width="96" height="150" fill="#1b0e07"/>'+
+      '<rect id="head4" x="32" y="38" width="96" height="13" fill="#f1e7cf"/>'+
+      '<rect x="40" y="24" width="12" height="170" fill="url(#sh4)"/>'+
+    '</g>'+
+    '<path d="M34 26 Q33 24 36 24 L124 24 Q127 24 126 26 L120 120 Q118 150 112 184 Q111 192 102 192 L58 192 Q49 192 48 184 Q42 150 40 120 Z" fill="none" stroke="#5a6168" stroke-width="2.5"/>'+
+    '<path d="M34 26 Q33 24 36 24 L124 24 Q127 24 126 26 L120 120 Q118 150 112 184 Q111 192 102 192 L58 192 Q49 192 48 184 Q42 150 40 120 Z" fill="none" stroke="#cfd6dc" stroke-width="0.8" opacity="0.55"/>'+
+    '<ellipse cx="80" cy="25" rx="45" ry="5" fill="none" stroke="#7a828a" stroke-width="2"/>'+
+    '<ellipse cx="80" cy="25" rx="45" ry="5" fill="#cfd6dc" opacity="0.08"/>'+
+    '<text id="g4" x="80" y="80" text-anchor="middle" font-family="Georgia,serif" font-size="40" font-weight="700" fill="#cfa84e" opacity="0.95">G</text>'+
+  '</svg>';
+}
+function startPint(){
+  const body=document.getElementById('body4'), head=document.getElementById('head4'), g=document.getElementById('g4'), lace=document.getElementById('lace4');
+  if(!body) return;
+  const topFull=44, headH=13, bottom=192, splitY=82;
+  function setLevel(topY){
+    body.setAttribute('y',topY); body.setAttribute('height',Math.max(0,bottom-topY));
+    head.setAttribute('y',topY-headH+1); head.setAttribute('height',topY>=bottom-2?0:13);
+    lace.setAttribute('y',topFull); lace.setAttribute('height',Math.max(0,topY-topFull));
+  }
+  function tween(from,to,dur,ease,done){ let s=null; function step(ts){ if(!s)s=ts; const t=Math.min(1,(ts-s)/dur); const e=ease?(t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2):t; setLevel(from+(to-from)*e); if(t<1)requestAnimationFrame(step); else if(done)done(); } requestAnimationFrame(step); }
+  function seq(){
+    if(!document.getElementById('body4')) return; // stopped (re-rendered)
+    tween(topFull,splitY-2,1500,true,function(){
+      if(g) g.setAttribute('fill','#ffd877');
+      setTimeout(function(){ tween(splitY-2,bottom,3400,false,function(){ setTimeout(function(){ if(g) g.setAttribute('fill','#cfa84e'); if(lace) lace.setAttribute('height',0); tween(bottom,topFull,1200,false,function(){ setTimeout(seq,1000); }); },800); }); },1200);
+    });
+  }
+  setLevel(topFull); setTimeout(seq,600);
+}
+function renderPint(){
+  const themeIsWatch = STATE ? (STATE.theme!=='standard') : useWatch;
+  const wrap=$('pintSponsor');
+  if(!wrap) return;
+  if(themeIsWatch && STATE && STATE.pint_sponsor!==''){
+    wrap.classList.remove('hidden');
+    if(!pintStarted){
+      $('pintWrap').innerHTML=pintSVG();
+      $('pintName').textContent=(STATE.pint_sponsor||'SPONSOR');
+      pintStarted=true;
+      startPint();
+    }
+  } else { wrap.classList.add('hidden'); }
 }
 
 async function pushState(patch){
@@ -445,7 +527,7 @@ async function renderSetup(){
     '</div>'+
     '<div class="sect"><h2>2 · Theme</h2>'+
       '<div class="row2"><button class="btn sec" id="themeStd" type="button">Standard clock</button><button class="btn sec" id="themeWatch" type="button">Sponsor watch</button></div>'+
-      '<div id="sponsorWrap" class="hidden" style="margin-top:10px"><label>Sponsor name (shown on the dial)</label><input id="setSponsor" class="fld" placeholder="e.g. ACME WATCHES"></div>'+
+      '<div id="sponsorWrap" class="hidden" style="margin-top:10px"><label>Sponsor name (shown on the dial)</label><input id="setSponsor" class="fld" placeholder="e.g. ACME WATCHES"><label>Second sponsor — pint (bottom-right, leave blank to hide)</label><input id="setPint" class="fld" placeholder="e.g. STOUT CO"></div>'+
       '<div class="pphint" id="themeNote">Standard clock selected.</div>'+
     '</div>'+
     '<button class="btn" id="launchBtn" style="margin-bottom:40px">🚀 Launch clock</button>';
@@ -462,11 +544,11 @@ async function renderSetup(){
     if(pickedGame && ent>0 && Number($('setPool').value)===0){ $('setPool').value=((Number(pickedGame.buy_in)||0)-(Number(pickedGame.rake)||0))*ent; }
   });
   $('setEntries').addEventListener('input',()=>{ if(!$('setLeft').value||Number($('setLeft').value)===0) $('setLeft').value=$('setEntries').value; });
-  useWatch=false;
-  const setTheme=(w)=>{ useWatch=w; $('themeStd').style.background=w?'none':'var(--gold)'; $('themeStd').style.color=w?'var(--ink-dim)':'#1a1205'; $('themeWatch').style.background=w?'var(--gold)':'none'; $('themeWatch').style.color=w?'#1a1205':'var(--ink-dim)'; $('sponsorWrap').classList.toggle('hidden',!w); $('themeNote').textContent=w?'Sponsor watch theme — green & gold timepiece.':'Standard clock selected.'; };
+  useWatch=true;
+  const setTheme=(w)=>{ useWatch=w; $('themeStd').style.background=w?'none':'var(--gold)'; $('themeStd').style.color=w?'var(--ink-dim)':'#1a1205'; $('themeWatch').style.background=w?'var(--gold)':'none'; $('themeWatch').style.color=w?'#1a1205':'var(--ink-dim)'; $('sponsorWrap').classList.toggle('hidden',!w); $('themeNote').textContent=w?'Sponsor watch theme — green & gold timepiece (default).':'Standard clock selected.'; };
   $('themeStd').addEventListener('click',()=>setTheme(false));
   $('themeWatch').addEventListener('click',()=>setTheme(true));
-  setTheme(false);
+  setTheme(true);
   $('launchBtn').addEventListener('click',()=>launchClock(pickedGame));
 }
 
@@ -487,6 +569,7 @@ async function launchClock(pickedGame){
     payout_pcts: (g&&Array.isArray(g.payout_structure)&&g.payout_structure.length)?g.payout_structure:standardPayout(entries),
     theme: useWatch?'watch':'standard',
     sponsor_name: useWatch ? ($('setSponsor').value.trim()||'SPONSOR') : null,
+    pint_sponsor: useWatch ? ($('setPint').value.trim()||'') : '',
     ticker_msg:'Good luck everyone!',
     finishers:{},
     status:'running', updated_by:user?user.id:null, updated_at:new Date().toISOString()
