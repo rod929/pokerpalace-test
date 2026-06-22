@@ -628,7 +628,7 @@
       const adminDetail =
         '<div id="adminDetail" style="display:none;padding:8px 4px 12px;background:var(--chip);border-radius:0 0 9px 9px;margin:-4px 0 8px">'+
           (hasOpening?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Opening balance <span style="color:var(--ink-faint);font-size:11px">('+OPENING.as_of+')</span></span><span style="color:var(--gold)">+'+money(computed.openAmt||0)+'</span></div>':'')+
-          '<div class="recvToggle" style="cursor:pointer"><div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Cash received from TDs <span style="font-size:11px;color:var(--ink-faint)">tap ></span></span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div></div>'+
+          '<div class="recvToggle" style="cursor:pointer" onclick="(function(e){var d=document.getElementById(\'recvList\');if(d)d.style.display=(d.style.display===\'none\'||d.style.display===\'\')?\'block\':\'none\';e.stopPropagation();})(event)"><div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Cash received from TDs <span style="font-size:11px;color:var(--ink-faint)">tap ></span></span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div></div>'+
           '<div id="recvList" style="display:none;padding:2px 0 6px 10px;border-left:2px solid var(--line);margin:0 0 4px 2px">'+
             ((computed.receivedList&&computed.receivedList.length)?computed.receivedList.map(r=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">'+(r.name||'(TD)')+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+(r.date||'')+'</span>'+(r.sub?'<br><span style="font-size:10px;color:var(--ink-faint)">'+r.sub+'</span>':'')+'</span><span style="color:var(--good)">+'+money(r.amount)+'</span></div>').join(''):'<div style="font-size:11px;color:var(--ink-faint);padding:4px 0">No hand-ups recorded.</div>')+
           '</div>'+
@@ -875,9 +875,9 @@
         const cf=ev.target.closest('[data-confirm]'); if(cf){ confirmCash(cf.dataset.confirm); return; }
         const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
+        const rt=ev.target.closest('.recvToggle'); if(rt){ const d=$('recvList'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
         const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
         const ah=ev.target.closest('.cash-holder[data-holder="admin"]'); if(ah){ const d=$('adminDetail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
-        const rt=ev.target.closest('.recvToggle'); if(rt){ ev.stopPropagation(); const d=$('recvList'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
       });
     }
     const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
