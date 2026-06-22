@@ -521,8 +521,17 @@
       [p.ticket_value, p.ticket_value_2, p.ticket_value_3].forEach(tv=>{ ticketsAllocated+=Number(tv)||0; });
     });
     computed.ticketsAllocated=ticketsAllocated;
-    const cashHeld=received-cashExp-toOwners-wagesCash;
+    // cash injections after the opening date add to the float (held by Admin)
+    const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
+    computed.injectAmt=injectAmt;
+    // Admin (Jesslyn) holds: the opening/starting balance + injections + cash received from TDs,
+    // minus cash expenses, minus wages paid in cash, minus cash handed to owners.
+    // This is a ROLLING all-time balance (the opening balance always sits with Admin).
+    const adminHeld=openAmt+injectAmt+received-cashExp-toOwners-wagesCash;
+    const cashHeld=adminHeld;
     computed.cashHeld=cashHeld; computed.cashReceived=received; computed.cashExp=cashExp; computed.cashToOwners=toOwners;
+    // who is the admin holding the float (name shown in the summary) - from whoever set the opening balance, else 'Admin'
+    computed.adminHolderName = (OPENING && OPENING.set_by && PROFMAP[OPENING.set_by]) ? PROFMAP[OPENING.set_by] : 'Admin';
     // detail lists (for expandable date-filtered breakdowns) - name, date, amount, sub
     const tdNm=(uid)=>tdName(uid);
     computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date))
@@ -540,12 +549,9 @@
     const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
     computed.tdHeldTotal=tdHeldTotal;
     computed.tdHeldList=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed, games:byTd[uid].games.sort((a,b)=>(b.date||'').localeCompare(a.date||'')), handups:byTd[uid].handups.sort((a,b)=>(b.date||'').localeCompare(a.date||''))})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
-    const movementsSince = cashHeld+tdHeldTotal;
-    // cash injections after the opening date add to the float
-    const injectAmt=(INJECTIONS||[]).filter(x=>afterOpen(x.inject_date)).reduce((s,x)=>s+(Number(x.amount)||0),0);
-    computed.injectAmt=injectAmt;
-    computed.movementsSince=movementsSince+injectAmt;
-    const totalCashHeld=openAmt+movementsSince+injectAmt;
+    // Total cash held across the operation = Admin's rolling balance (incl. opening + injections) + every TD's current holdings.
+    const totalCashHeld=cashHeld+tdHeldTotal;
+    computed.movementsSince=received-cashExp-toOwners-wagesCash+tdHeldTotal;
     computed.totalCashHeld=totalCashHeld;
     // new players registered in the period
     const newP=PLAYERS.filter(inPeriod).length;
@@ -610,8 +616,16 @@
             '<input id="openNoteIn" placeholder="Note (optional) - e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
             '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
           '</div>';
-      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation - admin plus every TD'+(hasOpening?', on top of the opening balance':'')+'.</div>'+
+      // who-holds summary: Admin (with opening) first, then each TD currently holding
+      const adminName = (computed.adminHolderName) || 'Admin';
+      const whoSummary =
+        '<div class="dsub" style="margin-top:6px">👤 Who is holding cash right now</div>'+
+        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>'+adminName+'</b> <span style="font-size:11px;color:var(--ink-faint)">Admin'+(hasOpening?' · incl. opening balance':'')+'</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
+        (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+' <span style="font-size:11px;color:var(--ink-faint)">TD</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
+        '<div class="drow" style="border-top:1px solid var(--line)"><span class="l"><b>Total still held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>';
+      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation - admin plus every TD'+(hasOpening?', including the opening balance':'')+'. This is a rolling balance until cash is handed to an owner.</div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
+        whoSummary+
         openingBlock+
         '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
