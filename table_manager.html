@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Palace — Table Manager</title>
+<style>
+  :root{--bg:#0d1410;--card:#16201a;--chip:#1b2620;--line:#2a3a30;--ink:#f3efe6;--ink-dim:#a9b3aa;--ink-faint:#6d7a70;--gold:#d8b863;--good:#5cb88a;--red:#e07a5f;--amber:#e0ad55}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,system-ui,sans-serif;min-height:100vh}
+  .wrap{max-width:900px;margin:0 auto;padding:16px}
+  h1{font-size:20px;color:var(--gold);margin-bottom:2px}
+  .sub{color:var(--ink-dim);font-size:13px;margin-bottom:16px}
+  .fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-size:15px;margin-bottom:10px}
+  .btn{background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:9px;padding:12px;font-size:15px;cursor:pointer;width:100%}
+  .btn.sec{background:none;border:1px solid var(--line);color:var(--ink-dim);font-weight:600}
+  .hidden{display:none!important}
+  .status{text-align:center;font-size:13px;margin:8px 0;min-height:16px}
+  .status.err{color:var(--red)}.status.ok{color:var(--good)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:10px}
+  label{font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px}
+  a.exit{color:var(--ink-faint);font-size:12px;text-decoration:none;display:inline-block;margin-bottom:10px}
+  .row2{display:flex;gap:8px}.row2>*{flex:1}
+  .summary{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .sbox{flex:1;min-width:90px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .sbox .v{font-size:28px;font-weight:800;color:var(--gold);line-height:1}
+  .sbox .l{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:5px}
+  .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .table{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .table.short{border-color:var(--amber)}
+  .table.broken{opacity:.5}
+  .thead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .thead .tn{font-size:15px;font-weight:700;color:var(--gold)}
+  .thead .open{font-size:11px;color:var(--ink-dim)}
+  .seat{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);font-size:13px}
+  .seat:last-child{border-bottom:none}
+  .seat .sn{color:var(--ink-faint);font-size:11px;width:24px;flex-shrink:0}
+  .seat .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seat.empty .nm{color:var(--ink-faint);font-style:italic}
+  .seat .bust{background:none;border:1px solid var(--line);color:var(--red);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;flex-shrink:0}
+  .seat.empty .bust{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="login">
+  <a class="exit" href="index.html">‹ Back to Poker Palace</a>
+  <h1>🪑 Table Manager</h1>
+  <div class="sub">Sign in to manage tables and seating.</div>
+  <input id="email" class="fld" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" class="fld" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="btn" id="signinBtn">Sign in</button>
+  <div class="status" id="loginStatus"></div>
+</div>
+
+<div id="app" class="hidden">
+  <a class="exit" href="index.html">‹ Back to Poker Palace</a>
+  <h1>🪑 Table Manager</h1>
+  <div class="sub" id="whoLine"></div>
+
+  <div class="card" id="pickCard">
+    <h2>Which tournament?</h2>
+    <select id="gameSel" class="fld"></select>
+    <div class="row2"><div><label>Date</label><input id="gameDate" class="fld" type="date"></div>
+    <div><label>Seats per table</label><input id="seatsPer" class="fld" type="number" value="9"></div></div>
+    <button class="btn" id="openBtn">Open table manager ›</button>
+  </div>
+
+  <div id="manager" class="hidden">
+    <div class="summary">
+      <div class="sbox"><div class="v" id="sPlayers">0</div><div class="l">Players in</div></div>
+      <div class="sbox"><div class="v" id="sTables">0</div><div class="l">Tables</div></div>
+      <div class="sbox"><div class="v" id="sOpen">0</div><div class="l">Open seats</div></div>
+    </div>
+    <div class="row2" style="margin-bottom:14px">
+      <button class="btn sec" id="changeGame" style="flex:1">‹ Change tournament</button>
+      <button class="btn sec" id="reseatBtn" style="flex:1">⟳ Re-seat everyone</button>
+      <button class="btn sec" id="pushClock" style="flex:1">⏱️ Send count to clock</button>
+    </div>
+    <div class="tables" id="tablesWrap"></div>
+    <div class="status" id="mgrStatus"></div>
+  </div>
+</div>
+
+</div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://tqlwkqtlxvozrgsavupg.supabase.co';
+const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+
+let user=null, GAMES=[], ENTRIES=[], CUR={game:null,venue:null,date:null}, SEATS_PER=9;
+
+async function signIn(){
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email||!password){ ls('Enter email and password.','err'); return; }
+  ls('Signing in…','ok');
+  try{ const { data, error }=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; showApp(data.user); }
+  catch(e){ ls(e.message||String(e),'err'); }
+}
+function ls(m,k){ const s=$('loginStatus'); s.className='status '+(k||''); s.textContent=m; }
+async function showApp(u){
+  user=u; $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('whoLine').textContent='Signed in as '+u.email;
+  await loadGames();
+}
+async function loadGames(){
+  const all=((await supabase.from('games').select('*').order('name')).data)||[];
+  GAMES=all.filter(g=>g.active!==false);
+  $('gameSel').innerHTML='<option value="">— pick a tournament —</option>'+GAMES.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
+  $('gameDate').value=new Date().toISOString().slice(0,10);
+}
+
+async function openManager(){
+  const sel=$('gameSel'); const name=sel.value;
+  if(!name){ alert('Pick a tournament first.'); return; }
+  const o=sel.selectedOptions[0];
+  CUR={ game:name, venue:o?o.dataset.venue:'', date:$('gameDate').value||new Date().toISOString().slice(0,10) };
+  SEATS_PER=Math.max(2,Number($('seatsPer').value)||9);
+  $('pickCard').classList.add('hidden'); $('manager').classList.remove('hidden');
+  await loadEntries();
+}
+async function loadEntries(){
+  ENTRIES=((await supabase.from('tournament_entries').select('*').eq('game_name',CUR.game).eq('game_date',CUR.date).order('created_at')).data)||[];
+  // auto-seat anyone 'in' who has no table assigned
+  await autoSeatUnseated();
+  render();
+}
+
+// assign any 'in' player without a seat to the emptiest table / next free seat
+async function autoSeatUnseated(){
+  const active=ENTRIES.filter(e=>e.status==='in');
+  const unseated=active.filter(e=>!e.table_no||!e.seat_no);
+  if(!unseated.length) return;
+  for(const e of unseated){
+    const spot=findOpenSeat();
+    e.table_no=spot.table; e.seat_no=spot.seat;
+    try{ await supabase.from('tournament_entries').update({table_no:e.table_no,seat_no:e.seat_no}).eq('id',e.id); }catch(err){}
+  }
+}
+// how many tables do we need for the active players?
+function tableCount(){
+  const active=ENTRIES.filter(e=>e.status==='in').length;
+  return Math.max(1, Math.ceil(active/SEATS_PER));
+}
+// find the table with the most open seats, then its lowest free seat
+function findOpenSeat(){
+  const nT=tableCount();
+  const occ={}; // table -> set of taken seats
+  ENTRIES.filter(e=>e.status==='in'&&e.table_no&&e.seat_no).forEach(e=>{ (occ[e.table_no]=occ[e.table_no]||new Set()).add(e.seat_no); });
+  let best=1, bestOpen=-1;
+  for(let t=1;t<=nT;t++){ const taken=occ[t]?occ[t].size:0; const open=SEATS_PER-taken; if(open>bestOpen){ bestOpen=open; best=t; } }
+  const taken=occ[best]||new Set();
+  let seat=1; while(taken.has(seat)&&seat<=SEATS_PER) seat++;
+  return { table:best, seat };
+}
+
+async function bustPlayer(id){
+  const e=ENTRIES.find(x=>String(x.id)===String(id)); if(!e) return;
+  if(!confirm('Bust '+(e.player_name||'this player')+'? Their seat will open.')) return;
+  e.status='busted';
+  const oldTable=e.table_no, oldSeat=e.seat_no;
+  e.table_no=null; e.seat_no=null;
+  try{ await supabase.from('tournament_entries').update({status:'busted',table_no:null,seat_no:null}).eq('id',e.id); }catch(err){}
+  render();
+}
+
+async function reseatAll(){
+  if(!confirm('Re-seat everyone from scratch? This reassigns all active players to balanced tables.')) return;
+  const active=ENTRIES.filter(e=>e.status==='in');
+  // clear seats
+  active.forEach(e=>{ e.table_no=null; e.seat_no=null; });
+  // shuffle for fair redraw
+  for(let i=active.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [active[i],active[j]]=[active[j],active[i]]; }
+  const nT=Math.max(1,Math.ceil(active.length/SEATS_PER));
+  active.forEach((e,idx)=>{ e.table_no=(idx%nT)+1; e.seat_no=Math.floor(idx/nT)+1; });
+  for(const e of active){ try{ await supabase.from('tournament_entries').update({table_no:e.table_no,seat_no:e.seat_no}).eq('id',e.id); }catch(err){} }
+  render();
+}
+
+function render(){
+  const active=ENTRIES.filter(e=>e.status==='in');
+  const nT=tableCount();
+  const totalSeats=nT*SEATS_PER;
+  const open=totalSeats-active.length;
+  $('sPlayers').textContent=active.length;
+  $('sTables').textContent=nT;
+  $('sOpen').textContent=open;
+  // build per-table seat maps
+  const byTable={};
+  for(let t=1;t<=nT;t++) byTable[t]=[];
+  active.forEach(e=>{ if(e.table_no&&e.table_no<=nT) byTable[e.table_no].push(e); });
+  let html='';
+  for(let t=1;t<=nT;t++){
+    const seated=byTable[t]||[];
+    const openSeats=SEATS_PER-seated.length;
+    const seatMap={}; seated.forEach(e=>seatMap[e.seat_no]=e);
+    html+='<div class="table'+(openSeats>=Math.ceil(SEATS_PER/2)?' short':'')+'"><div class="thead"><span class="tn">Table '+t+'</span><span class="open">'+seated.length+'/'+SEATS_PER+' · '+openSeats+' open</span></div>';
+    for(let s=1;s<=SEATS_PER;s++){
+      const e=seatMap[s];
+      if(e){ html+='<div class="seat"><span class="sn">'+s+'</span><span class="nm">'+(e.player_name||'(player)')+'</span><button class="bust" data-bust="'+e.id+'">bust</button></div>'; }
+      else { html+='<div class="seat empty"><span class="sn">'+s+'</span><span class="nm">— open —</span></div>'; }
+    }
+    html+='</div>';
+  }
+  $('tablesWrap').innerHTML=html;
+  $('tablesWrap').querySelectorAll('[data-bust]').forEach(b=>b.addEventListener('click',()=>bustPlayer(b.dataset.bust)));
+}
+
+async function pushClock(){
+  const active=ENTRIES.filter(e=>e.status==='in').length;
+  const total=ENTRIES.length;
+  const ms=$('mgrStatus');
+  try{
+    const ex=await supabase.from('clock_state').select('id').eq('game_name',CUR.game).eq('game_date',CUR.date).limit(1);
+    if(ex.data&&ex.data.length){
+      await supabase.from('clock_state').update({ players_left:active, entries:total, updated_at:new Date().toISOString() }).eq('id',ex.data[0].id);
+      ms.className='status ok'; ms.textContent='✓ Sent to clock: '+active+' players left.';
+    } else { ms.className='status err'; ms.textContent='No clock running for this game/date yet.'; }
+  }catch(e){ ms.className='status err'; ms.textContent='Could not send: '+(e.message||e); }
+}
+
+$('signinBtn').addEventListener('click',signIn);
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') signIn(); });
+$('openBtn').addEventListener('click',openManager);
+$('changeGame').addEventListener('click',()=>{ $('manager').classList.add('hidden'); $('pickCard').classList.remove('hidden'); });
+$('reseatBtn').addEventListener('click',reseatAll);
+$('pushClock').addEventListener('click',pushClock);
+
+(async ()=>{ const { data }=await supabase.auth.getSession(); if(data.session) showApp(data.session.user); })();
+</script>
+</body>
+</html>
