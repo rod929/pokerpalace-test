@@ -504,10 +504,11 @@
     // wages paid in CASH come out of the float (after opening date)
     const coDate={}; (CLOSEOUTS||[]).forEach(c=>{ coDate[c.id]=c.game_date; });
     const coName={}; (CLOSEOUTS||[]).forEach(c=>{ coName[c.id]=c.game_name; });
+    // wages paid in cash reduce admin's held cash - count ALL of them (all-time), to match the rolling model
     const cashWageShifts=(STAFF||[]).filter(s=>s.paid===true&&s.paid_method==='cash').map(s=>({
       name:s.staff_name||'(unnamed)', role:s.role||'', amount:(Number(s.hours)||0)*(Number(s.rate)||0),
       date:(s.paid_date||coDate[s.closeout_id]||''), game:coName[s.closeout_id]||''
-    })).filter(s=>afterOpen(s.date)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    })).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const wagesCash=cashWageShifts.reduce((s,x)=>s+x.amount,0);
     computed.wagesCash=wagesCash;
     computed.cashWageShifts=cashWageShifts;
@@ -634,7 +635,7 @@
           '</div>'+
           ((computed.injectAmt||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Cash injections</span><span style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
           ((computed.cashExp||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp)+'</span></div>':'')+
-          ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash)+'</span></div>':'')+
+          ((computed.wagesCash||0)!==0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash)+'</span></div>':'')+
           ((computed.cashToOwners||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: handed to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners)+'</span></div>':'')+
           '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:13px;font-weight:700;border-top:1px solid var(--line);margin-top:5px"><span>= '+adminName+' holds</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '</div>';
