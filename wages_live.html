@@ -147,7 +147,7 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,period='7',SHIFTS=[],COMAP={},q='',curStaff=null;
+  let user=null,isAdmin=false,period='7',SHIFTS=[],COMAP={},PROFMAP={},q='',curStaff=null;
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -180,6 +180,8 @@
       if(error)throw error;
       const{data:co}=await supabase.from('closeouts').select('id,game_name,venue_name,game_date');
       COMAP={}; (co||[]).forEach(c=>COMAP[c.id]=c);
+      // profile name lookup for the audit trail (who actioned a payment)
+      try{ const{data:pf}=await supabase.from('profiles').select('user_id,full_name'); PROFMAP={}; (pf||[]).forEach(p=>{ PROFMAP[p.user_id]=p.full_name||null; }); }catch(e){ PROFMAP={}; }
       // attach date from close-out, filter to range
       SHIFTS=(sh||[]).map(s=>{ const c=COMAP[s.closeout_id]||{}; return {...s, _date:c.game_date||null, _game:c.game_name||'', _venue:c.venue_name||''}; })
         .filter(s=>inRange(s._date));
@@ -235,10 +237,12 @@
                 : st==='acknowledged' ? '<span class="paytag ackd">⏳ '+(s.paid_method||'')+' pending</span>' : '';
       const undo = st!=='outstanding' ? '<button class="rowundo" data-undo="'+s.id+'" title="Undo — revert to outstanding">↺</button>' : '';
       const noteLine = (s.pay_note&&String(s.pay_note).trim()) ? '<div class="mt" style="color:var(--blue);margin-top:2px">📝 '+String(s.pay_note).trim()+'</div>' : '';
+      const byName = s.paid_by ? (PROFMAP[s.paid_by]||('user '+String(s.paid_by).slice(0,6))) : null;
+      const auditLine = (st!=='outstanding' && byName) ? '<div class="mt" style="color:var(--ink-faint);margin-top:2px">👤 '+(st==='paid'?'paid':'actioned')+' by '+byName+(s.paid_date?(' · '+s.paid_date):'')+'</div>' : '';
       return '<div class="shiftrow'+(st==='paid'?' ispaid':'')+(st==='acknowledged'?' isackd':'')+'">'+
         '<div class="ck"><input type="checkbox" data-sid="'+s.id+'"'+(canSelect?'':' checked disabled')+'></div>'+
         '<div class="info"><div class="gm">'+(s._game||'(game)')+(s.role?(' · '+s.role):'')+tag+'</div>'+
-        '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div>'+noteLine+'</div>'+
+        '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div>'+noteLine+auditLine+'</div>'+
         '<div class="pay">'+money(pay)+'</div>'+undo+'</div>';
     }).join('') || '<div class="empty">No shifts in this period.</div>';
     $('shiftList').querySelectorAll('[data-undo]').forEach(b=>b.addEventListener('click',()=>undoShift(b.dataset.undo)));
@@ -269,7 +273,7 @@
         upd={ paid:true, pay_status:'paid', paid_method:'cash', paid_date:new Date().toISOString().slice(0,10), paid_by:user.id };
       } else {
         // transfer/invoice → acknowledge (outstanding until confirmed)
-        upd={ paid:false, pay_status:'acknowledged', paid_method:method, paid_by:user.id };
+        upd={ paid:false, pay_status:'acknowledged', paid_method:method, paid_by:user.id, paid_date:new Date().toISOString().slice(0,10) };
         if(note) upd.pay_note=note; // one note applied to all selected shifts
       }
       const{error}=await supabase.from('staff_shifts').update(upd).in('id',ids);
