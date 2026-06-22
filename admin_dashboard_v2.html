@@ -619,110 +619,88 @@
             '<input id="openNoteIn" placeholder="Note (optional) - e.g. counted float at start of season" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
             '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
           '</div>';
-      // who-holds summary: Admin (with opening) first, then each TD currently holding
       const adminName = (computed.adminHolderName) || 'Admin';
-      const diagBlock =
-        '<div class="cashexp-toggle" data-listid="cdDiag" style="cursor:pointer"><div class="drow" style="border:1px dashed var(--ink-faint);background:none"><span class="l" style="font-size:12px;color:var(--ink-faint)">🔧 Show how Admin balance is calculated <span style="font-size:11px">tap ></span></span><span class="r"></span></div>'+
-          '<div id="cdDiag_wrap" style="display:none;padding:6px 2px 10px 2px;font-size:12px">'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">Opening balance</span><span style="color:var(--gold)">+'+money(computed.openAmt||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">Opening date</span><span style="color:var(--ink-faint)">'+(computed.openDate||'none set')+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">+ Received from TDs (after opening)</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">+ Cash injections</span><span style="color:var(--good)">+'+money(computed.injectAmt||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Given to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= '+adminName+' (Admin) holds</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
-            '<div style="font-size:11px;color:var(--ink-faint);margin-top:8px">If "Received from TDs" looks too low, some TD hand-ups are dated on/before the opening date, so they\'re counted inside the opening balance instead. The opening balance should equal all cash Admin held on the opening date.</div>'+
-          '</div>'+
+      const tk=Number(computed.ticketsAllocated)||0;
+      const totalHeld=Number(computed.totalCashHeld)||0;
+      const afterTickets=totalHeld-tk;
+
+      // Admin expandable breakdown (opening + received - expenses - wages - owners)
+      const adminDetail =
+        '<div id="adminDetail" style="display:none;padding:8px 4px 12px;background:var(--chip);border-radius:0 0 9px 9px;margin:-4px 0 8px">'+
+          (hasOpening?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Opening balance <span style="color:var(--ink-faint);font-size:11px">('+OPENING.as_of+')</span></span><span style="color:var(--gold)">+'+money(computed.openAmt||0)+'</span></div>':'')+
+          '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Cash received from TDs</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
+          ((computed.injectAmt||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Cash injections</span><span style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
+          ((computed.cashExp||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp)+'</span></div>':'')+
+          ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash)+'</span></div>':'')+
+          ((computed.cashToOwners||0)>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span style="color:var(--ink-dim)">Less: handed to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners)+'</span></div>':'')+
+          '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:13px;font-weight:700;border-top:1px solid var(--line);margin-top:5px"><span>= '+adminName+' holds</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
         '</div>';
-      const whoSummary =
-        '<div class="dsub" style="margin-top:6px">👤 Who is holding cash right now</div>'+
-        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>'+adminName+'</b> <span style="font-size:11px;color:var(--ink-faint)">Admin'+(hasOpening?' · incl. opening balance':'')+'</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
-        (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+' <span style="font-size:11px;color:var(--ink-faint)">TD</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
-        '<div class="drow" style="border-top:1px solid var(--line)"><span class="l"><b>Total still held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
-        diagBlock;
-      b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation - admin plus every TD'+(hasOpening?', including the opening balance':'')+'. This is a rolling balance until cash is handed to an owner.</div>'+
-        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
-        whoSummary+
-        openingBlock+
-        '<div class="drow"><span class="l">Held by Admin</span><span class="r" style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
-        '<div class="drow"><span class="l">Held by TDs (total)</span><span class="r" style="color:var(--good)">'+money(computed.tdHeldTotal||0)+'</span></div>'+
-        ((computed.injectAmt||0)>0?'<div class="drow"><span class="l">Cash injections</span><span class="r" style="color:var(--good)">+'+money(computed.injectAmt)+'</span></div>':'')+
-        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Add cash injection</span><span class="r" style="color:var(--blue)">></span></div>'+
+
+      // each TD expandable breakdown
+      const tdRows = tdList.length ? tdList.map((t,ti)=>{
+        const gameRows=t.games.map(g=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:'+((g.leftover||0)>=0?'var(--good)':'var(--red)')+'">'+money(g.leftover)+'</span></div>').join('');
+        const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up to admin:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">-'+money(h.amount)+'</span></div>').join('')):'';
+        return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer"><div class="drow" style="border:none;margin:0"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">TD · tap ></span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
+          '<div class="tdheld-detail" id="tdheld'+ti+'" style="display:none;padding:6px 4px 12px;background:var(--chip);border-radius:0 0 9px 9px;margin:-2px 0 8px">'+
+            '<div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">Leftover by tournament:</div>'+gameRows+handupRows+
+            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:13px;font-weight:700;border-top:1px solid var(--line);margin-top:6px"><span>= Currently holding</span><span style="color:var(--good)">'+money(t.held)+'</span></div>'+
+          '</div></div>';
+      }).join('') : '<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>';
+
+      // hand-to-owner form
+      const handOwnerBlock = (function(){
+        const owners=(PROFILES||[]).filter(p=>p.role==='owner');
+        const opts=owners.length?owners.map(o=>'<option value="'+(o.full_name||o.name||'')+'">'+(o.full_name||o.name||'(owner)')+'</option>').join(''):'<option value="">(no owners found)</option>';
+        return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">></span></div>'+
+          '<div id="handOwnerForm" style="display:none;background:var(--chip);border:1px solid var(--gold);border-radius:9px;padding:12px;margin-bottom:8px">'+
+            '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Record cash handed to an owner. This reduces admin cash held and shows on the owner\'s app.</div>'+
+            '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="hoAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="hoDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+            '<label style="font-size:12px;color:var(--ink-dim)">Owner</label>'+
+            '<select id="hoOwner" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin:4px 0 8px">'+opts+'</select>'+
+            '<input id="hoNote" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
+            '<button id="hoSaveBtn" style="width:100%;background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Record cash to owner</button>'+
+            '<div id="hoMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
+          '</div>';
+      })();
+
+      // cash injection form
+      const injectBlock =
+        '<div class="drow" style="border:1px dashed var(--line);background:none;cursor:pointer" id="addInjectRow"><span class="l" style="color:var(--blue)">＋ Cash injection</span><span class="r" style="color:var(--blue)">></span></div>'+
         '<div id="injectForm" style="display:none;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:8px">'+
           '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Add cash to the float (e.g. you put cash in). Increases total cash held from the date.</div>'+
           '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="injAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="injDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
           '<input id="injNote" type="text" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
           '<button id="saveInjectBtn" style="width:100%;background:var(--good);color:#06210f;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Add injection</button>'+
-        '</div>'+
-        '<div class="dsub" style="margin-top:14px">💵 Cash held by each TD</div>'+
-        (tdList.length?tdList.map((t,ti)=>{
-          const gameRows=t.games.map(g=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--line)"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:'+((g.leftover||0)>=0?'var(--good)':'var(--red)')+'">'+money(g.leftover)+'</span></div>').join('');
-          const handupRows=t.handups.length?('<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Handed up:</div>'+t.handups.map(h=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">⬆️ '+(h.date||'')+(h.to?(' → '+h.to):'')+(h.note?(' · '+h.note):'')+'</span><span style="color:var(--gold)">-'+money(h.amount)+'</span></div>').join('')):'';
-          return '<div class="tdheld-row" data-td="'+ti+'" style="cursor:pointer;border-bottom:1px solid var(--line)"><div class="drow" style="border:none"><span class="l">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">tap for breakdown ></span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>'+
-            '<div class="tdheld-detail" id="tdheld'+ti+'" style="display:none;padding:4px 4px 12px 4px">'+
-              '<div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">Leftover cash by tournament:</div>'+
-              gameRows+
-              handupRows+
-              '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:6px"><span>Currently holding</span><span style="color:var(--good)">'+money(t.held)+'</span></div>'+
-            '</div>'+
-          '</div>';
-        }).join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
-        '<div class="dsub" style="margin-top:14px">Admin balance detail</div>'+
-        expandableCashLine({id:'cdReceived', label:'Received from TDs (approved)', amount:computed.cashReceived||0, color:'var(--good)', sign:'+'})+
-        expandableCashLine({id:'cdExp', label:'Less: cash expenses', amount:computed.cashExp||0, color:'var(--red)', sign:'-'})+
-        ((computed.wagesCash||0)>0?expandableCashLine({id:'cashWage', label:'Less: wages paid in cash', amount:computed.wagesCash, color:'var(--red)', sign:'-'}):'')+
-        expandableCashLine({id:'cdOwners', label:'Less: given to owners', amount:computed.cashToOwners||0, color:'var(--gold)', sign:'-'})+
-        ((computed.ownerRecvList&&computed.ownerRecvList.length)?(
-          '<div class="dsub" style="margin-top:14px">💼 Money received by owners (all time)</div>'+
-          computed.ownerRecvList.map(o=>{ const mine=(MY_NAME&&o.name&&o.name.toLowerCase().trim()===MY_NAME.toLowerCase().trim()); return '<div class="drow"'+(mine?' style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"':'')+'><span class="l">'+(mine?'⭐ ':'')+o.name+(mine?' <span style="font-size:11px;color:var(--gold)">(you)</span>':'')+'</span><span class="r" style="color:var(--gold)">'+money(o.amt)+'</span></div>'; }).join('')+
-          '<div class="drow" style="border-color:var(--line)"><span class="l"><b>Total to owners</b></span><span class="r"><b>'+money(computed.ownerRecvTotal||0)+'</b></span></div>'
-        ):'')+
-        '<div class="cashexp-toggle" data-listid="cdAdminHeld" style="cursor:pointer"><div class="drow" style="border:1px solid var(--good-deep);background:rgba(92,184,138,.08)"><span class="l"><b>Admin cash held now</b> <span style="font-size:11px;color:var(--ink-faint)">tap ></span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
-          '<div id="cdAdminHeld_wrap" style="display:none;padding:6px 2px 10px 2px">'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Received from TDs</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp||0)+'</span></div>'+
-            ((computed.wagesCash||0)>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash)+'</span></div>':'')+
-            '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:var(--ink-dim)">Less: given to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners||0)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= Admin cash held</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
-          '</div>'+
-        '</div>'+
-        // ===== Hand cash to an owner =====
-        (function(){
-          const owners=(PROFILES||[]).filter(p=>p.role==='owner');
-          const opts=owners.length?owners.map(o=>'<option value="'+(o.full_name||o.name||'')+'">'+(o.full_name||o.name||'(owner)')+'</option>').join(''):'<option value="">(no owners found)</option>';
-          return '<div class="drow" style="border:1px dashed var(--gold);background:none;cursor:pointer;margin-top:10px" id="handOwnerRow"><span class="l" style="color:var(--gold)">💸 Hand cash to an owner</span><span class="r" style="color:var(--gold)">></span></div>'+
-            '<div id="handOwnerForm" style="display:none;background:var(--chip);border:1px solid var(--gold);border-radius:9px;padding:12px;margin-bottom:8px">'+
-              '<div style="font-size:12px;color:var(--ink-dim);margin-bottom:8px">Record cash you have handed to an owner. This reduces the admin cash held and shows on the owner\'s app.</div>'+
-              '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="hoAmt" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="hoDate" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
-              '<label style="font-size:12px;color:var(--ink-dim)">Owner</label>'+
-              '<select id="hoOwner" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin:4px 0 8px">'+opts+'</select>'+
-              '<input id="hoNote" placeholder="Note (optional) - e.g. profit distribution" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">'+
-              '<button id="hoSaveBtn" style="width:100%;background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Record cash to owner</button>'+
-              '<div id="hoMsg" style="font-size:12.5px;margin-top:8px;display:none"></div>'+
-            '</div>';
-        })()+
-        '<div class="dsub" style="margin-top:14px">Recent movements</div>'+
-        (recent.length?recent.map(m=>{const isUp=m.movement_type==='td_to_admin';return '<div class="drow"><span class="l">'+(isUp?('⬆️ handed up'+(m.status==='pending'?' (pending)':'')):'💰 to owners')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.to_admin?(' · to '+m.to_admin):'')+(m.note?(' · '+m.note):'')+'</span></span><span class="r" style="color:'+(isUp?'var(--good)':'var(--gold)')+'">'+(isUp?'+':'-')+money(m.amount)+'</span></div>';}).join(''):'<div class="empty">No cash movements yet.</div>')+
-        (function(){
-          const pend=(CASH||[]).filter(m=>m.movement_type==='td_to_admin'&&m.status!=='approved');
-          if(!pend.length) return '';
-          return '<div class="dsub" style="margin-top:16px;color:var(--amber)">⏳ Awaiting your confirmation</div>'+
-            pend.map(m=>'<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.06)"><span class="l">'+money(m.amount)+' from a TD'+(m.to_admin?(' → '+m.to_admin):'')+'<br><span style="font-size:11px;color:var(--ink-faint);font-family:JetBrains Mono">'+(m.move_date||'')+(m.note?(' · '+m.note):'')+'</span></span><button class="confirmcash" data-confirm="'+m.id+'" style="background:var(--good-deep);border:1px solid var(--good);color:#fff;border-radius:8px;padding:8px 13px;font-size:12.5px;cursor:pointer;font-weight:600">✓ Confirm receipt</button></div>').join('');
-        })()+
-        // ===== Net free cash summary =====
-        (function(){
-          const held=Number(computed.totalCashHeld!=null?computed.totalCashHeld:computed.cashHeld)||0;
-          const tk=Number(computed.ticketsAllocated)||0;
-          const free=held-tk;
-          return '<div class="dsub" style="margin-top:18px">🧮 Cash leftover after tickets</div>'+
-            '<div class="pnlbox" style="border-color:#c9b896">'+
-              '<div class="drow"><span class="l">Current cash held</span><span class="r" style="color:var(--gold)">'+money(held)+'</span></div>'+
-              '<div class="drow"><span class="l">Less: ticket money required <span style="font-size:11px;color:var(--ink-faint)">(satellite/seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'-'+money(tk):money(0))+'</span></div>'+
-              '<div class="netprofit '+(free>=0?'pos':'neg')+'"><span>CASH LEFTOVER AFTER TICKETS</span><span class="npval">'+money(free)+'</span></div>'+
-            '</div>'+
-            '<div class="dmut" style="margin-top:6px;font-size:11px">This is the cash genuinely free to use - total cash held minus the ticket/satellite seat money set aside for players who won seats (owed out as future entries).</div>';
-        })();
+        '</div>';
+
+      // opening-balance setter (only if not yet set)
+      const setOpeningBlock = hasOpening ? '' :
+        '<div class="drow" style="border:1px solid var(--amber);background:rgba(224,173,85,.07);flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">'+
+          '<div style="color:var(--amber);font-weight:600">⚑ Set opening cash balance</div>'+
+          '<div style="font-size:12px;color:var(--ink-dim)">Enter the total cash Admin already held as of a date. Locks once saved.</div>'+
+          '<div style="display:flex;gap:8px"><input id="openAmtIn" type="number" placeholder="Amount $" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"><input id="openDateIn" type="date" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></div>'+
+          '<input id="openNoteIn" placeholder="Note (optional)" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">'+
+          '<button id="saveOpeningBtn" style="background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:8px;padding:10px;cursor:pointer">Save opening balance (locks it)</button>'+
+        '</div>';
+
+      b.innerHTML='<div class="dtitle">🪙 Cash held</div>'+
+        '<div class="dsub">Rolling balance of all cash held by staff, until handed to an owner. Tap a name for their full breakdown.</div>'+
+        // TOTAL
+        '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.12)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(totalHeld)+'</b></span></div>'+
+        // WHO HOLDS IT
+        '<div class="dsub" style="margin-top:14px">Held by</div>'+
+        '<div class="cash-holder" data-holder="admin" style="cursor:pointer"><div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.06);margin:0"><span class="l"><b>'+adminName+'</b> <span style="font-size:11px;color:var(--ink-faint)">Admin · tap ></span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div></div>'+
+        adminDetail+
+        tdRows+
+        // LESS TICKET MONEY
+        '<div class="drow" style="margin-top:14px"><span class="l">Less: ticket money <span style="font-size:11px;color:var(--ink-faint)">(seat prizes owed to players)</span></span><span class="r" style="color:var(--red)">'+(tk>0?'-'+money(tk):money(0))+'</span></div>'+
+        // BALANCE AFTER TICKETS
+        '<div class="drow" style="border:1px solid var(--line)"><span class="l"><b>Balance after ticket money</b></span><span class="r" style="color:'+(afterTickets>=0?'var(--good)':'var(--red)')+'"><b>'+money(afterTickets)+'</b></span></div>'+
+        // ACTIONS
+        '<div class="dsub" style="margin-top:18px">Actions</div>'+
+        handOwnerBlock+
+        injectBlock+
+        setOpeningBlock;
     } else if(key==='flags'){
       const fl=computed.flags||[];
       const ofl=computed.ownerFlags||[];
@@ -895,6 +873,7 @@
         const af=ev.target.closest('[data-adminflag]'); if(af){ const f=(computed.flags||[])[Number(af.dataset.adminflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const of=ev.target.closest('[data-ownerflag]'); if(of){ const f=(computed.ownerFlags||[])[Number(of.dataset.ownerflag)]; if(f){ if(f.link) window.location.href=f.link; else if(f.drawer) openDetail(f.drawer); } return; }
         const tr=ev.target.closest('.tdheld-row'); if(tr){ const d=tr.querySelector('.tdheld-detail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
+        const ah=ev.target.closest('.cash-holder[data-holder="admin"]'); if(ah){ const d=$('adminDetail'); if(d) d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none'; return; }
       });
     }
     const sob=$('saveOpeningBtn'); if(sob && !sob.dataset.w){ sob.dataset.w='1'; sob.addEventListener('click', saveOpening); }
