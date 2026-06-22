@@ -6,132 +6,153 @@
 <title>Poker Palace — Tournament Clock</title>
 <style>
   :root{
-    --bg:#0d1410; --felt:#13241b; --card:#16201a; --line:#2a3a30;
+    --bg:#0d1410; --card:#16201a; --chip:#1b2620; --line:#2a3a30;
     --ink:#f3efe6; --ink-dim:#a9b3aa; --ink-faint:#6d7a70;
-    --gold:#d8b863; --gold-deep:#b8954a; --good:#5cb88a; --red:#e07a5f; --amber:#e0ad55;
+    --gold:#d8b863; --gold-bright:#e6cf8a; --good:#5cb88a; --red:#e07a5f; --amber:#e0ad55;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
-  .mono{font-family:'JetBrains Mono','SF Mono',ui-monospace,monospace}
-  #login{max-width:380px;margin:60px auto;padding:24px}
-  #login h1{font-size:20px;margin-bottom:16px;text-align:center;color:var(--gold)}
   input,select,button{font-family:inherit}
+  .hidden{display:none!important}
+  @keyframes ppmove{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+  /* login + setup */
+  #login,#setup{max-width:700px;margin:32px auto;padding:20px}
+  #login h1,#setup h1{font-size:21px;color:var(--gold);margin-bottom:4px}
+  .sub{color:var(--ink-dim);font-size:13px;margin-bottom:16px}
   .fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-size:15px;margin-bottom:10px}
   .btn{background:var(--gold);color:#1a1205;font-weight:700;border:none;border-radius:9px;padding:12px;font-size:15px;cursor:pointer;width:100%}
   .btn.sec{background:none;border:1px solid var(--line);color:var(--ink-dim);font-weight:600}
-  .hidden{display:none!important}
   .status{text-align:center;font-size:13px;margin-top:10px;min-height:18px}
   .status.err{color:var(--red)} .status.ok{color:var(--good)}
+  a.exit{color:var(--ink-faint);font-size:12px;text-decoration:none;display:inline-block;margin-bottom:10px}
+  .sect{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .sect h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin-bottom:12px}
+  label{font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px}
+  .row2{display:flex;gap:8px}.row2>*{flex:1}
+  .pphint{font-size:11px;color:var(--ink-faint);margin-top:4px}
+  .lvlrow{display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 28px;gap:5px;align-items:center;margin-bottom:5px}
+  .lvlrow input{padding:7px;font-size:13px;margin:0;background:var(--card);border:1px solid var(--line);border-radius:6px;color:var(--ink)}
+  .lvlhead{font-size:10px;color:var(--ink-faint);text-transform:uppercase;text-align:center}
+  .delx{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer}
+  .breakrow{background:rgba(92,184,138,.08);border-radius:6px}
 
-  /* ===== CLOCK DISPLAY ===== */
-  #clockView{display:flex;flex-direction:column;min-height:100vh;padding:3vh 3vw}
-  .ch-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-  .ch-name{font-size:clamp(18px,3.2vw,40px);font-weight:800;letter-spacing:-.01em;color:var(--ink)}
-  .ch-venue{font-size:clamp(11px,1.4vw,18px);color:var(--ink-faint);margin-top:2px;text-transform:uppercase;letter-spacing:.12em}
-  .ch-status{font-size:clamp(11px,1.3vw,16px);color:var(--gold);font-weight:600;text-align:right;white-space:nowrap}
-  .ch-status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:5px;vertical-align:middle}
-  .ch-status.paused .dot{background:var(--amber)}
-
-  .ch-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5vh;padding:2vh 0}
-  .ch-levellabel{font-size:clamp(13px,1.8vw,24px);color:var(--gold);text-transform:uppercase;letter-spacing:.2em;font-weight:700}
-  .ch-timer{font-size:clamp(80px,22vw,300px);font-weight:800;line-height:.9;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .ch-timer.warn{color:var(--amber)} .ch-timer.crit{color:var(--red);animation:pulse 1s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
-  .ch-blinds{display:flex;align-items:baseline;gap:2.5vw;margin-top:1vh}
-  .ch-blind-item{text-align:center}
-  .ch-blind-val{font-size:clamp(34px,8vw,110px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--gold)}
-  .ch-blind-lbl{font-size:clamp(11px,1.3vw,17px);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-top:6px}
-  .ch-sep{font-size:clamp(30px,6vw,90px);color:var(--line);font-weight:300}
-  .ch-break{font-size:clamp(40px,9vw,130px);font-weight:800;color:var(--good)}
-
-  .ch-next{font-size:clamp(12px,1.5vw,20px);color:var(--ink-dim);margin-top:1.5vh}
-  .ch-next b{color:var(--ink)}
-
-  .ch-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5vw;margin-top:2vh}
-  .ch-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.6vh 1vw;text-align:center}
-  .ch-stat-val{font-size:clamp(20px,3.4vw,46px);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
-  .ch-stat-val.gold{color:var(--gold)}
-  .ch-stat-lbl{font-size:clamp(9px,1.1vw,14px);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em;margin-top:6px}
-
-  /* ===== TD CONTROL BAR ===== */
-  #ctrlBar{position:fixed;bottom:0;left:0;right:0;background:rgba(13,20,16,.97);border-top:1px solid var(--line);padding:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;backdrop-filter:blur(8px);z-index:20}
-  .cbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;min-width:64px}
+  /* clock display */
+  #clockView{display:flex;flex-direction:column;min-height:100vh}
+  .ch-logo{text-align:center;padding:1.4vh 0 1vh;border-bottom:1px solid #1d2a22}
+  .ch-logo .brand{font-size:clamp(15px,2vw,26px);font-weight:600;color:var(--ink);letter-spacing:.05em}
+  .ch-logo .spon{font-size:clamp(9px,1.1vw,14px);letter-spacing:.2em;color:var(--gold);margin-left:10px}
+  .ch-main{flex:1;display:flex;align-items:center;justify-content:space-between;gap:1vw;padding:1.5vh 1.2vw}
+  .ch-side{flex-shrink:0;display:flex;flex-direction:column;gap:1vh}
+  .ch-left{width:clamp(120px,15vw,230px)}
+  .ch-right{width:clamp(120px,15vw,230px)}
+  .gamename{font-size:clamp(15px,1.8vw,30px);font-weight:600;color:var(--ink)}
+  .venuename{font-size:clamp(9px,1vw,14px);letter-spacing:.14em;color:var(--ink-faint);margin-bottom:1vh}
+  .bigbox{background:var(--card);border:1px solid var(--gold);border-radius:11px;padding:1.2vh 1vw;text-align:center}
+  .bigbox .v{font-size:clamp(28px,3.6vw,60px);font-weight:700;color:var(--gold);line-height:1}
+  .bigbox .l{font-size:clamp(8px,.9vw,13px);color:var(--ink-dim);letter-spacing:.08em;margin-top:.5vh}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:.7vh}
+  .statbox{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:1vh .6vw;text-align:center}
+  .statbox .v{font-size:clamp(16px,2vw,32px);font-weight:600;line-height:1}
+  .statbox .l{font-size:clamp(7px,.8vw,11px);color:var(--ink-faint);letter-spacing:.06em;margin-top:.4vh}
+  .breakbox{background:#111b15;border:1px solid var(--line);border-radius:9px;padding:1vh;text-align:center}
+  .breakbox .l{font-size:clamp(8px,.9vw,12px);letter-spacing:.1em;color:var(--ink-faint)}
+  .breakbox .v{font-size:clamp(16px,2vw,30px);font-weight:600;color:var(--good);font-variant-numeric:tabular-nums}
+  .ch-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1vh;min-width:0}
+  .watchwrap{width:clamp(280px,38vw,620px);max-width:100%}
+  .watchwrap svg{width:100%;height:auto;display:block}
+  .nextstrip{display:flex;align-items:center;justify-content:center;gap:1vw;background:#111b15;border:1px solid var(--line);border-radius:11px;padding:1vh 1.4vw;flex-wrap:wrap}
+  .nextstrip .lbl{font-size:clamp(9px,1vw,14px);letter-spacing:.14em;color:var(--ink-faint);font-weight:600}
+  .nextstrip .bl{font-size:clamp(16px,2vw,30px);font-weight:600;color:var(--gold)}
+  .nextstrip .sep{color:var(--line);font-size:clamp(12px,1.4vw,20px)}
+  /* payouts */
+  .payhdr{text-align:center;margin-bottom:1vh}
+  .payhdr .t{font-size:clamp(9px,1vw,13px);letter-spacing:.16em;color:var(--gold);font-weight:600}
+  .payhdr .pool{font-size:clamp(16px,2vw,30px);font-weight:600;color:var(--ink);line-height:1.1}
+  .payhdr .meta{font-size:clamp(7px,.8vw,11px);color:var(--ink-faint)}
+  .payrow{display:flex;justify-content:space-between;align-items:baseline;padding:.5vh 0;gap:6px}
+  .payrow .pl{font-size:clamp(11px,1.2vw,17px);color:var(--ink-dim);font-weight:600;flex-shrink:0}
+  .payrow .amt{font-size:clamp(12px,1.3vw,18px);color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto}
+  .payrow .nm{font-size:clamp(9px,1vw,13px);color:var(--good);flex-shrink:0;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .payrow.first .pl{color:var(--gold)}
+  .payrow.bubble{border-top:1px dashed var(--line);margin-top:.4vh;padding-top:.7vh}
+  .payrow.bubble .pl,.payrow.bubble .amt{color:var(--good)}
+  /* ticker */
+  .ch-ticker{background:var(--card);border-top:1px solid var(--line);padding:1vh 0;overflow:hidden;white-space:nowrap}
+  .ch-ticker .msg{display:inline-block;white-space:nowrap;font-size:clamp(13px,1.5vw,22px);color:var(--gold);font-weight:600;animation:ppmove 22s linear infinite}
+  /* control bar */
+  #ctrlBar{position:fixed;bottom:0;left:0;right:0;background:rgba(13,20,16,.97);border-top:1px solid var(--line);padding:10px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap;backdrop-filter:blur(8px);z-index:30}
+  .cbtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;min-width:56px}
   .cbtn.primary{background:var(--gold);color:#1a1205;border-color:var(--gold)}
   .cbtn.warn{border-color:var(--amber);color:var(--amber)}
   .cbtn:active{transform:scale(.96)}
-
-  /* setup panel */
-  #setup{max-width:680px;margin:20px auto;padding:20px}
-  #setup h1{font-size:22px;color:var(--gold);margin-bottom:4px}
-  #setup .sub{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
-  .sect{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
-  .sect h2{font-size:14px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:12px}
-  label{font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px}
-  .lvlrow{display:grid;grid-template-columns:32px 1fr 1fr 1fr 1fr 32px;gap:6px;align-items:center;margin-bottom:6px}
-  .lvlrow input{padding:8px;font-size:13px;margin:0}
-  .lvlrow .lvlnum{font-size:12px;color:var(--ink-faint);text-align:center}
-  .lvlhead{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;text-align:center}
-  .delx{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer}
-  .row2{display:flex;gap:8px}.row2>*{flex:1}
+  .ch-timer-warn .ch-digi{fill:var(--amber)!important}
   .tmpl-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer}
   .tmpl-item:hover{border-color:var(--gold)}
-  .tmpl-item.active{border-color:var(--gold);background:rgba(216,184,99,.08)}
-  .breakrow{background:rgba(92,184,138,.07)}
-  .pphint{font-size:11px;color:var(--ink-faint);margin-top:4px}
-  a.exit{color:var(--ink-faint);font-size:12px;text-decoration:none;display:inline-block;margin-bottom:10px}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login">
+  <a class="exit" href="index.html">‹ Back to Poker Palace</a>
   <h1>🃏 Tournament Clock</h1>
+  <div class="sub">Sign in to set up and control the clock.</div>
   <input id="email" class="fld" type="email" placeholder="Email" autocomplete="username">
   <input id="password" class="fld" type="password" placeholder="Password" autocomplete="current-password">
   <button class="btn" id="signinBtn">Sign in</button>
   <div class="status" id="loginStatus"></div>
-  <div style="text-align:center;margin-top:14px">
-    <a class="exit" href="index.html">‹ Back to Poker Palace</a>
-  </div>
 </div>
 
-<!-- SETUP (TD) -->
 <div id="setup" class="hidden"></div>
 
-<!-- CLOCK DISPLAY -->
 <div id="clockView" class="hidden">
-  <div class="ch-top">
-    <div>
-      <div class="ch-name" id="cName">Tournament</div>
-      <div class="ch-venue" id="cVenue"></div>
+  <div class="ch-logo">
+    <span class="brand" id="cLogoBrand">♠ POKER PALACE</span>
+    <span class="spon hidden" id="cSpon">OFFICIAL TIMEKEEPER · <span id="cSponName"></span></span>
+  </div>
+  <div class="ch-main">
+    <div class="ch-side ch-left">
+      <div>
+        <div class="gamename" id="cName">Tournament</div>
+        <div class="venuename" id="cVenue"></div>
+      </div>
+      <div class="bigbox"><div class="v" id="cPlayers">0</div><div class="l">PLAYERS LEFT</div></div>
+      <div class="statgrid">
+        <div class="statbox"><div class="v" id="cEntries" style="color:var(--ink)">0</div><div class="l">ENTRIES</div></div>
+        <div class="statbox"><div class="v" id="cPool" style="color:var(--gold)">$0</div><div class="l">POOL</div></div>
+        <div class="statbox"><div class="v" id="cAvg" style="color:var(--ink)">0</div><div class="l">AVG STACK</div></div>
+        <div class="statbox"><div class="v" id="cReg" style="color:var(--gold)">0</div><div class="l">RE-ENTRIES</div></div>
+      </div>
+      <div class="breakbox"><div class="l">NEXT BREAK IN</div><div class="v" id="cBreak">—</div></div>
     </div>
-    <div class="ch-status" id="cStatus"><span class="dot"></span><span id="cStatusTxt">LIVE</span></div>
+
+    <div class="ch-center">
+      <div class="watchwrap" id="watchWrap"></div>
+      <div class="nextstrip" id="nextStrip"></div>
+    </div>
+
+    <div class="ch-side ch-right">
+      <div class="payhdr">
+        <div class="t">PAYOUTS</div>
+        <div class="pool" id="payPool">$0</div>
+        <div class="meta" id="payMeta">—</div>
+      </div>
+      <div id="payList"></div>
+    </div>
   </div>
-  <div class="ch-center">
-    <div class="ch-levellabel" id="cLevelLabel">Level 1</div>
-    <div class="ch-timer" id="cTimer">20:00</div>
-    <div class="ch-blinds" id="cBlinds"></div>
-    <div class="ch-next" id="cNext"></div>
-  </div>
-  <div class="ch-stats">
-    <div class="ch-stat"><div class="ch-stat-val gold" id="cPlayers">0</div><div class="ch-stat-lbl">Players left</div></div>
-    <div class="ch-stat"><div class="ch-stat-val" id="cEntries">0</div><div class="ch-stat-lbl">Entries</div></div>
-    <div class="ch-stat"><div class="ch-stat-val gold" id="cPool">$0</div><div class="ch-stat-lbl">Prize pool</div></div>
-    <div class="ch-stat"><div class="ch-stat-val" id="cAvg">0</div><div class="ch-stat-lbl">Avg stack</div></div>
-  </div>
+  <div class="ch-ticker"><div class="msg" id="cTicker">Welcome to Poker Palace</div></div>
 </div>
 
-<!-- TD CONTROL BAR -->
 <div id="ctrlBar" class="hidden">
   <button class="cbtn" id="btnPrev">‹ Prev</button>
   <button class="cbtn primary" id="btnPlay">▶ Start</button>
   <button class="cbtn" id="btnNext">Next ›</button>
   <button class="cbtn" id="btnMinus">−1m</button>
   <button class="cbtn" id="btnPlus">+1m</button>
+  <button class="cbtn" id="btnMsg">✎ Message</button>
   <button class="cbtn warn" id="btnEdit">⚙ Setup</button>
 </div>
-
-<audio id="dingSound" preload="auto"></audio>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -140,76 +161,49 @@ const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>'$'+(Math.round(Number(n)||0)).toLocaleString();
+const moneyShort=n=>{ n=Number(n)||0; return n>=1000 ? '$'+(n/1000).toFixed(n>=10000?0:1)+'k' : '$'+Math.round(n); };
 
-// URL params decide the mode: ?view=tv (display only), ?view=player (display only), default = TD control
 const params=new URLSearchParams(location.search);
-const VIEW_MODE=params.get('view')||'';   // 'tv' | 'player' | '' (control)
-const CLOCK_ID=params.get('clock')||null;  // which clock_state row to show
-const isDisplayOnly = (VIEW_MODE==='tv'||VIEW_MODE==='player');
+const VIEW_MODE=params.get('view')||'';
+const CLOCK_ID=params.get('clock')||null;
+const THEME=params.get('theme')||'';
+const isDisplayOnly=(VIEW_MODE==='tv'||VIEW_MODE==='player');
 
-let user=null, role='', STATE=null, tickTimer=null, lastLevelIndex=-1, channel=null;
+let user=null, STATE=null, tickTimer=null, channel=null, GAMES_CACHE=[], TEMPLATES=[], editLevels=[];
+let useWatch = (THEME==='watch');
 
-// ---------- AUTH ----------
 async function signIn(){
   const email=$('email').value.trim(), password=$('password').value;
-  if(!email||!password){ setLoginStatus('Enter email and password.','err'); return; }
-  setLoginStatus('Signing in...','ok');
-  try{
-    const { data, error }=await supabase.auth.signInWithPassword({ email, password });
-    if(error) throw error;
-    await afterAuth(data.user);
-  }catch(e){ setLoginStatus(e.message||String(e),'err'); }
+  if(!email||!password){ ls('Enter email and password.','err'); return; }
+  ls('Signing in…','ok');
+  try{ const { data, error }=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; await afterAuth(data.user); }
+  catch(e){ ls(e.message||String(e),'err'); }
 }
-function setLoginStatus(m,k){ const s=$('loginStatus'); s.className='status '+(k||''); s.textContent=m; }
+function ls(m,k){ const s=$('loginStatus'); s.className='status '+(k||''); s.textContent=m; }
+async function afterAuth(u){ user=u; $('login').classList.add('hidden'); await bootControl(); }
+async function bootDisplay(){ $('login').classList.add('hidden'); await loadState(); $('clockView').classList.remove('hidden'); subscribe(); startTick(); renderClock(); }
+async function bootControl(){ await loadState(); if(!STATE||STATE.status==='setup'){ renderSetup(); } else { showClock(true); subscribe(); startTick(); } }
 
-async function afterAuth(u){
-  user=u;
-  try{ const { data }=await supabase.from('profiles').select('role').eq('user_id',u.id); role=(Array.isArray(data)&&data.length)?(data[0].role||''):''; }catch(e){ role=''; }
-  $('login').classList.add('hidden');
-  bootControl();
-}
-
-// Display-only mode: no login needed, just show the clock
-async function bootDisplay(){
-  $('login').classList.add('hidden');
-  $('clockView').classList.remove('hidden');
-  await loadState();
-  subscribe();
-  startTick();
-}
-
-// TD control mode
-async function bootControl(){
-  await loadState();
-  if(!STATE || STATE.status==='setup'){ renderSetup(); }
-  else { showClock(true); subscribe(); startTick(); }
-}
-
-// ---------- LOAD / SUBSCRIBE ----------
 async function loadState(){
   let q=supabase.from('clock_state').select('*').order('updated_at',{ascending:false}).limit(1);
   if(CLOCK_ID) q=supabase.from('clock_state').select('*').eq('id',CLOCK_ID).limit(1);
-  const { data }=await q;
-  STATE=(data&&data.length)?data[0]:null;
+  const { data }=await q; STATE=(data&&data.length)?data[0]:null;
 }
 function subscribe(){
   try{
-    channel=supabase.channel('clock-live')
+    channel=supabase.channel('clock-live-'+(CLOCK_ID||'any'))
       .on('postgres_changes',{event:'*',schema:'public',table:'clock_state'},(payload)=>{
         if(payload.new){ if(!CLOCK_ID || String(payload.new.id)===String(CLOCK_ID)){ STATE=payload.new; renderClock(); } }
       }).subscribe();
   }catch(e){}
-  // fallback poll every 5s in case realtime isn't enabled
-  setInterval(async ()=>{ await loadState(); renderClock(); }, 5000);
+  setInterval(async ()=>{ if(isDisplayOnly){ await loadState(); renderClock(); } }, 5000);
 }
 
-// ---------- CLOCK MATH ----------
 function levels(){ return (STATE&&Array.isArray(STATE.levels))?STATE.levels:[]; }
 function curLevel(){ const L=levels(); const i=STATE?STATE.current_level:0; return L[i]||null; }
 function levelSeconds(lv){ return Math.round((Number(lv&&lv.minutes)||0)*60); }
 function remainingSec(){
-  if(!STATE) return 0;
-  const lv=curLevel(); if(!lv) return 0;
+  if(!STATE) return 0; const lv=curLevel(); if(!lv) return 0;
   if(STATE.is_paused){ return (STATE.paused_remaining_sec!=null)?STATE.paused_remaining_sec:levelSeconds(lv); }
   if(!STATE.level_started_at) return levelSeconds(lv);
   const started=new Date(STATE.level_started_at).getTime();
@@ -217,303 +211,210 @@ function remainingSec(){
   return Math.max(0, levelSeconds(lv)-elapsed);
 }
 function fmtTime(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60); const ss=s%60; return m+':'+('0'+ss).slice(-2); }
+function nextBreakSeconds(){
+  if(!STATE) return null; const L=levels(); let i=STATE.current_level||0;
+  if(L[i]&&L[i].isBreak) return 0;
+  let total=remainingSec(); 
+  for(let j=i+1;j<L.length;j++){ if(L[j].isBreak) return total; total+=levelSeconds(L[j]); }
+  return null;
+}
 
-// ---------- RENDER CLOCK ----------
 function showClock(withControl){
   $('setup').classList.add('hidden');
   $('clockView').classList.remove('hidden');
   if(withControl && !isDisplayOnly) $('ctrlBar').classList.remove('hidden');
   renderClock();
 }
-function renderClock(){
-  if(!STATE){ return; }
-  $('cName').textContent=STATE.game_name||'Tournament';
-  $('cVenue').textContent=STATE.venue_name||'';
-  const lv=curLevel();
-  const paused=STATE.is_paused;
-  $('cStatus').className='ch-status'+(paused?' paused':'');
-  $('cStatusTxt').textContent=paused?'PAUSED':'LIVE';
 
-  const blindsBox=$('cBlinds'); const nextBox=$('cNext');
-  if(lv && lv.isBreak){
-    $('cLevelLabel').textContent='BREAK';
-    blindsBox.innerHTML='<div class="ch-break">'+(lv.breakName||'Break')+'</div>';
-    nextBox.innerHTML='';
-  } else if(lv){
-    $('cLevelLabel').textContent='Level '+(lv.level||(STATE.current_level+1));
-    let h='<div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.sb)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Small</div></div>';
-    h+='<div class="ch-sep">/</div>';
-    h+='<div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.bb)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Big</div></div>';
-    if(Number(lv.ante)>0){ h+='<div class="ch-sep">/</div><div class="ch-blind-item"><div class="ch-blind-val">'+(Number(lv.ante)||0).toLocaleString()+'</div><div class="ch-blind-lbl">Ante</div></div>'; }
-    blindsBox.innerHTML=h;
-    const L=levels(); const nx=L[STATE.current_level+1];
-    if(nx){ nextBox.innerHTML = nx.isBreak ? ('Next: <b>'+(nx.breakName||'Break')+'</b>') : ('Next: <b>'+(Number(nx.sb)||0).toLocaleString()+' / '+(Number(nx.bb)||0).toLocaleString()+(Number(nx.ante)>0?(' / '+(Number(nx.ante)||0).toLocaleString()):'')+'</b>'); }
-    else nextBox.innerHTML='<b>Final level</b>';
-  }
-  // stats
-  const entries=Number(STATE.entries)||0, left=Number(STATE.players_left)||0;
-  const stack=Number(STATE.starting_stack)||0;
+function renderClock(){
+  if(!STATE) return;
+  $('cName').textContent=STATE.game_name||'Tournament';
+  $('cVenue').textContent=(STATE.venue_name||'').toUpperCase();
+  if(STATE.sponsor_name){ $('cSpon').classList.remove('hidden'); $('cSponName').textContent=STATE.sponsor_name; }
+  else { $('cSpon').classList.add('hidden'); }
+
+  const lv=curLevel();
+  const entries=Number(STATE.entries)||0, left=Number(STATE.players_left)||0, stack=Number(STATE.starting_stack)||0;
+  const reentries=Number(STATE.reentries)||0;
   $('cEntries').textContent=entries;
   $('cPlayers').textContent=left;
-  $('cPool').textContent=money(STATE.prize_pool);
-  const totalChips=entries*stack;
-  $('cAvg').textContent= left>0 ? Math.round(totalChips/left).toLocaleString() : '—';
+  $('cReg').textContent=reentries;
+  $('cPool').textContent=moneyShort(STATE.prize_pool);
+  $('cAvg').textContent= left>0 ? Math.round((entries*stack)/left).toLocaleString() : '—';
 
-  // play button label
-  if($('btnPlay')) $('btnPlay').innerHTML = paused ? '▶ Start' : '⏸ Pause';
+  const nb=nextBreakSeconds();
+  $('cBreak').textContent = (nb==null) ? '—' : fmtTime(nb);
 
-  paintTimer();
+  // next level strip
+  const L=levels(); const nx=L[(STATE.current_level||0)+1];
+  const ns=$('nextStrip');
+  if(nx){
+    if(nx.isBreak){ ns.innerHTML='<span class="lbl">NEXT</span><span class="bl" style="color:var(--good)">'+(nx.breakName||'BREAK')+'</span>'; }
+    else { ns.innerHTML='<span class="lbl">NEXT · LVL '+(nx.level||'')+'</span><span class="bl">'+(Number(nx.sb)||0).toLocaleString()+'</span><span class="sep">/</span><span class="bl">'+(Number(nx.bb)||0).toLocaleString()+'</span>'+(Number(nx.ante)>0?('<span class="sep">/</span><span class="bl">'+(Number(nx.ante)||0).toLocaleString()+'</span>'):''); }
+  } else { ns.innerHTML='<span class="lbl">FINAL LEVEL</span>'; }
+
+  // ticker
+  if(STATE.ticker_msg){ $('cTicker').textContent=STATE.ticker_msg; }
+
+  // play button
+  if($('btnPlay')) $('btnPlay').innerHTML = STATE.is_paused ? '▶ Start' : '⏸ Pause';
+
+  renderWatch();
+  renderPayouts();
 }
-function paintTimer(){
-  const t=$('cTimer'); if(!t||!STATE) return;
+
+function renderWatch(){
+  const lv=curLevel();
   const rem=remainingSec();
-  t.textContent=fmtTime(rem);
-  t.className='ch-timer'+(rem<=10?' crit':(rem<=60?' warn':''));
+  const sb = lv&&!lv.isBreak ? (Number(lv.sb)||0) : 0;
+  const bb = lv&&!lv.isBreak ? (Number(lv.bb)||0) : 0;
+  const ante = lv&&!lv.isBreak ? (Number(lv.ante)||0) : 0;
+  const lvlLabel = lv ? (lv.isBreak ? (lv.breakName||'BREAK') : ('LEVEL '+(lv.level||(STATE.current_level+1)))) : '';
+  const timeColor = rem<=10 ? '#e07a5f' : (rem<=60 ? '#e0ad55' : '#f6f2e6');
+  const isBreak = lv && lv.isBreak;
+
+  if(useWatch){
+    $('watchWrap').innerHTML = watchSVG({sb,bb,ante,timer:fmtTime(rem),lvlLabel,timeColor,isBreak,sponsor:STATE.sponsor_name});
+  } else {
+    $('watchWrap').innerHTML = plainSVG({sb,bb,ante,timer:fmtTime(rem),lvlLabel,timeColor,isBreak});
+  }
 }
 
-// ticking — every display runs its own countdown off level_started_at, so all stay in sync
+function renderPayouts(){
+  const pool=Number(STATE.prize_pool)||0;
+  const pcts = Array.isArray(STATE.payout_pcts)&&STATE.payout_pcts.length ? STATE.payout_pcts : standardPayout(Number(STATE.entries)||0);
+  const amts = calcPayouts(pcts, pool);
+  const finishers = STATE.finishers || {}; // {place: name}
+  const placesPaid = pcts.length;
+  const left = Number(STATE.players_left)||0;
+  $('payPool').textContent=money(pool);
+  $('payMeta').textContent=placesPaid+' PAID · '+left+' LEFT';
+  const ord=n=>{ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+  let html='';
+  for(let i=0;i<pcts.length;i++){
+    const place=i+1;
+    const isBubble = (place===placesPaid);
+    const nm = finishers[place]||'';
+    html+='<div class="payrow'+(place===1?' first':'')+(isBubble?' bubble':'')+'">'+
+      '<span class="pl">'+ord(place)+'</span>'+
+      '<span class="amt">'+money(amts[i]||0)+'</span>'+
+      (nm?'<span class="nm">'+nm+'</span>':'')+
+    '</div>';
+  }
+  $('payList').innerHTML=html;
+}
+
+function paintTimer(){ if(STATE) renderWatch(); }
+
 function startTick(){
   if(tickTimer) clearInterval(tickTimer);
-  lastLevelIndex = STATE?STATE.current_level:-1;
   tickTimer=setInterval(()=>{
     if(!STATE) return;
     paintTimer();
-    // auto-advance when running and time hits 0 — only the TD control device writes the change
-    if(!isDisplayOnly && !STATE.is_paused){
-      const rem=remainingSec();
-      if(rem<=0){ autoAdvance(); }
-    }
-  },250);
+    const nb=nextBreakSeconds(); $('cBreak').textContent=(nb==null)?'—':fmtTime(nb);
+    if(!isDisplayOnly && !STATE.is_paused){ if(remainingSec()<=0) autoAdvance(); }
+  },500);
 }
 
-// ---------- TD CONTROLS ----------
+function watchSVG(o){
+  const sb=o.sb.toLocaleString(), bb=o.bb.toLocaleString(), ante=o.ante.toLocaleString();
+  const sponsor=o.sponsor||'SPONSOR';
+  const subInner = o.isBreak
+    ? '<text x="170" y="178" text-anchor="middle" fill="#1c1404" font-size="22" font-weight="700" font-family="sans-serif">BREAK</text>'
+    : '<g filter="url(#rShadow)"><circle cx="108" cy="170" r="39" fill="url(#rSub)" stroke="#6e521f" stroke-width="1"/><circle cx="108" cy="170" r="39" fill="none" stroke="#fff4cf" stroke-width="0.6" opacity="0.5"/></g>'+
+      '<text x="108" y="158" text-anchor="middle" fill="#5a4418" font-size="7.5" letter-spacing="1" font-family="sans-serif" font-weight="600">SMALL BLIND</text>'+
+      '<text x="108" y="183" text-anchor="middle" fill="#1c1404" font-size="24" font-weight="700" font-family="sans-serif">'+sb+'</text>'+
+      '<g filter="url(#rShadow)"><circle cx="232" cy="170" r="39" fill="url(#rSub)" stroke="#6e521f" stroke-width="1"/><circle cx="232" cy="170" r="39" fill="none" stroke="#fff4cf" stroke-width="0.6" opacity="0.5"/></g>'+
+      '<text x="232" y="158" text-anchor="middle" fill="#5a4418" font-size="7.5" letter-spacing="1" font-family="sans-serif" font-weight="600">BIG BLIND</text>'+
+      '<text x="232" y="185" text-anchor="middle" fill="#1c1404" font-size="22" font-weight="700" font-family="sans-serif">'+bb+'</text>'+
+      '<g filter="url(#rShadow)"><circle cx="170" cy="232" r="39" fill="url(#rSub)" stroke="#6e521f" stroke-width="1"/><circle cx="170" cy="232" r="39" fill="none" stroke="#fff4cf" stroke-width="0.6" opacity="0.5"/></g>'+
+      '<text x="170" y="220" text-anchor="middle" fill="#5a4418" font-size="7.5" letter-spacing="1" font-family="sans-serif" font-weight="600">ANTE</text>'+
+      '<text x="170" y="245" text-anchor="middle" fill="#1c1404" font-size="22" font-weight="700" font-family="sans-serif">'+ante+'</text>';
+  return '<svg viewBox="0 0 340 340" role="img" aria-label="Tournament clock watch">'+
+    '<defs>'+
+      '<radialGradient id="rbShade" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#fbf0c4"/><stop offset="40%" stop-color="#dcbc6c"/><stop offset="70%" stop-color="#b1873b"/><stop offset="100%" stop-color="#7c5a24"/></radialGradient>'+
+      '<linearGradient id="rbRing" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff4cf"/><stop offset="22%" stop-color="#d4b25e"/><stop offset="45%" stop-color="#9a722f"/><stop offset="62%" stop-color="#e7cd86"/><stop offset="80%" stop-color="#b78d3f"/><stop offset="100%" stop-color="#6e4f1f"/></linearGradient>'+
+      '<radialGradient id="rDial" cx="38%" cy="28%" r="88%"><stop offset="0%" stop-color="#7ba348"/><stop offset="35%" stop-color="#588035"/><stop offset="70%" stop-color="#3a6020"/><stop offset="100%" stop-color="#1f3a12"/></radialGradient>'+
+      '<radialGradient id="rGloss" cx="34%" cy="20%" r="52%"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.34"/><stop offset="60%" stop-color="#ffffff" stop-opacity="0.05"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>'+
+      '<radialGradient id="rSub" cx="40%" cy="30%" r="80%"><stop offset="0%" stop-color="#fbedba"/><stop offset="45%" stop-color="#e0c574"/><stop offset="78%" stop-color="#bf9a4c"/><stop offset="100%" stop-color="#8f6c2e"/></radialGradient>'+
+      '<linearGradient id="rHand" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#8f6c2e"/><stop offset="45%" stop-color="#fff6d8"/><stop offset="55%" stop-color="#fff6d8"/><stop offset="100%" stop-color="#8f6c2e"/></linearGradient>'+
+      '<linearGradient id="rMarker" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff4cf"/><stop offset="50%" stop-color="#d8b863"/><stop offset="100%" stop-color="#8f6c2e"/></linearGradient>'+
+      '<filter id="rShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.1" flood-color="#000" flood-opacity="0.45"/></filter>'+
+    '</defs>'+
+    '<circle cx="170" cy="170" r="166" fill="url(#rbShade)"/><circle cx="170" cy="170" r="166" fill="none" stroke="#5e4419" stroke-width="1.5"/><circle cx="170" cy="170" r="150" fill="url(#rbRing)"/>'+
+    '<g fill="#2e2109" font-family="sans-serif" font-size="8" font-weight="700" text-anchor="middle"><text x="170" y="26">60</text><text x="246" y="42">80</text><text x="300" y="96">100</text><text x="320" y="174">140</text><text x="300" y="248">180</text><text x="170" y="322">240</text><text x="40" y="248">100</text><text x="20" y="174">90</text><text x="40" y="96">75</text><text x="94" y="42">65</text></g>'+
+    '<circle cx="170" cy="170" r="132" fill="#1a1408"/><circle cx="170" cy="170" r="128" fill="url(#rDial)"/><circle cx="170" cy="170" r="128" fill="url(#rGloss)"/>'+
+    '<text x="170" y="64" text-anchor="middle" fill="#f0dba0" font-size="11" letter-spacing="3.5" font-family="sans-serif" font-weight="500" filter="url(#rShadow)">'+sponsor.toUpperCase()+'</text>'+
+    '<text x="170" y="77" text-anchor="middle" fill="#bcd49a" font-size="6.5" letter-spacing="2" font-family="sans-serif">TOURNAMENT TIMEKEEPER</text>'+
+    '<g filter="url(#rShadow)"><rect x="167" y="48" width="6" height="16" rx="1.5" fill="url(#rMarker)"/><rect x="167" y="276" width="6" height="16" rx="1.5" fill="url(#rMarker)"/><rect x="276" y="167" width="16" height="6" rx="1.5" fill="url(#rMarker)"/><rect x="48" y="167" width="16" height="6" rx="1.5" fill="url(#rMarker)"/></g>'+
+    subInner+
+    '<rect x="126" y="100" width="88" height="34" rx="3" fill="#0a1207" stroke="#e6cf8a" stroke-width="1.5" filter="url(#rShadow)"/>'+
+    '<text x="170" y="96" text-anchor="middle" fill="#bcd49a" font-size="7.5" letter-spacing="2" font-family="sans-serif">'+o.lvlLabel+'</text>'+
+    '<text x="170" y="125" text-anchor="middle" fill="'+o.timeColor+'" font-size="23" font-weight="700" font-family="sans-serif" font-variant-numeric="tabular-nums">'+o.timer+'</text>'+
+    '<g filter="url(#rShadow)"><line x1="170" y1="170" x2="170" y2="92" stroke="url(#rHand)" stroke-width="5" stroke-linecap="round"/><line x1="170" y1="170" x2="170" y2="128" stroke="url(#rHand)" stroke-width="6.5" stroke-linecap="round" transform="rotate(120 170 170)"/></g>'+
+    '<circle cx="170" cy="170" r="8" fill="url(#rMarker)" stroke="#6e521f" stroke-width="1"/><circle cx="170" cy="170" r="3" fill="#1c1404"/>'+
+  '</svg>';
+}
+
+function plainSVG(o){
+  const sb=o.sb.toLocaleString(), bb=o.bb.toLocaleString(), ante=o.ante.toLocaleString();
+  const blinds = o.isBreak
+    ? '<text x="170" y="185" text-anchor="middle" fill="#5cb88a" font-size="40" font-weight="700" font-family="sans-serif">'+(o.lvlLabel||'BREAK')+'</text>'
+    : '<text x="170" y="180" text-anchor="middle" fill="#d8b863" font-size="42" font-weight="700" font-family="sans-serif">'+sb+' / '+bb+'</text>'+
+      (o.ante>0?'<text x="170" y="212" text-anchor="middle" fill="#a9b3aa" font-size="18" font-family="sans-serif">ante '+ante+'</text>':'');
+  return '<svg viewBox="0 0 340 280" role="img" aria-label="Tournament clock">'+
+    '<text x="170" y="40" text-anchor="middle" fill="#d8b863" font-size="15" letter-spacing="4" font-family="sans-serif" font-weight="600">'+o.lvlLabel+'</text>'+
+    '<text x="170" y="130" text-anchor="middle" fill="'+o.timeColor+'" font-size="100" font-weight="700" font-family="sans-serif" font-variant-numeric="tabular-nums">'+o.timer+'</text>'+
+    blinds+
+  '</svg>';
+}
+
 async function pushState(patch){
   if(!STATE) return;
   const upd={ ...patch, updated_at:new Date().toISOString(), updated_by:user?user.id:null };
-  Object.assign(STATE, upd);
-  renderClock();
+  Object.assign(STATE, upd); renderClock();
   try{ await supabase.from('clock_state').update(upd).eq('id',STATE.id); }catch(e){}
 }
 async function playPause(){
   if(!STATE) return;
   if(STATE.is_paused){
-    // resume: set level_started_at so that remaining = paused_remaining_sec
     const lv=curLevel(); const full=levelSeconds(lv);
     const rem=(STATE.paused_remaining_sec!=null)?STATE.paused_remaining_sec:full;
     const started=new Date(Date.now()-(full-rem)*1000).toISOString();
     await pushState({ is_paused:false, level_started_at:started, paused_remaining_sec:null });
-  } else {
-    await pushState({ is_paused:true, paused_remaining_sec:remainingSec() });
-  }
+  } else { await pushState({ is_paused:true, paused_remaining_sec:remainingSec() }); }
 }
-async function gotoLevel(idx){
-  const L=levels(); if(idx<0||idx>=L.length) return;
-  const lv=L[idx];
-  await pushState({ current_level:idx, level_started_at:new Date().toISOString(), is_paused:false, paused_remaining_sec:null });
-  playDing();
-}
-async function nextLevel(){ if(!STATE) return; gotoLevel((STATE.current_level||0)+1); }
-async function prevLevel(){ if(!STATE) return; gotoLevel((STATE.current_level||0)-1); }
-async function autoAdvance(){
-  const L=levels(); const ni=(STATE.current_level||0)+1;
-  if(ni<L.length){ gotoLevel(ni); }
-  else { await pushState({ is_paused:true, paused_remaining_sec:0 }); } // end of structure
-}
-async function adjustMinutes(delta){
-  if(!STATE) return;
-  const rem=remainingSec()+delta*60;
+async function gotoLevel(idx){ const L=levels(); if(idx<0||idx>=L.length) return; await pushState({ current_level:idx, level_started_at:new Date().toISOString(), is_paused:false, paused_remaining_sec:null }); playDing(); }
+function nextLevel(){ if(STATE) gotoLevel((STATE.current_level||0)+1); }
+function prevLevel(){ if(STATE) gotoLevel((STATE.current_level||0)-1); }
+async function autoAdvance(){ const L=levels(); const ni=(STATE.current_level||0)+1; if(ni<L.length){ gotoLevel(ni); } else { await pushState({ is_paused:true, paused_remaining_sec:0 }); } }
+async function adjustMinutes(d){
+  if(!STATE) return; const rem=remainingSec()+d*60;
   if(STATE.is_paused){ await pushState({ paused_remaining_sec:Math.max(0,rem) }); }
   else { const lv=curLevel(); const full=levelSeconds(lv); const started=new Date(Date.now()-(full-Math.max(0,rem))*1000).toISOString(); await pushState({ level_started_at:started }); }
 }
+async function editMessage(){ const m=prompt('Scrolling message:', STATE.ticker_msg||''); if(m!==null) pushState({ ticker_msg:m }); }
 function playDing(){
-  try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const o=ctx.createOscillator(), g=ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value=880; o.type='sine';
-    g.gain.setValueAtTime(0.001,ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.4,ctx.currentTime+0.02);
-    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.9);
-    o.start(); o.stop(ctx.currentTime+0.95);
-  }catch(e){}
+  try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; o.type='sine'; g.gain.setValueAtTime(0.001,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.4,ctx.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.9); o.start(); o.stop(ctx.currentTime+0.95); }catch(e){}
 }
 
-// ---------- SETUP PANEL (TD) ----------
-let editLevels=[]; let TEMPLATES=[]; let GAMES_CACHE=[];
-async function renderSetup(){
-  $('clockView').classList.add('hidden');
-  $('ctrlBar').classList.add('hidden');
-  const s=$('setup'); s.classList.remove('hidden');
-  // load templates and games
-  TEMPLATES=((await supabase.from('blind_templates').select('*').order('name')).data)||[];
-  const allGames=((await supabase.from('games').select('*').order('name')).data)||[];
-  const games=allGames.filter(g=>g.active!==false);
-  GAMES_CACHE=games;
-  const tmplOpts=TEMPLATES.map(t=>'<div class="tmpl-item" data-tid="'+t.id+'"><span class="tmpl-use" data-tid="'+t.id+'">'+t.name+' <span style="color:var(--ink-faint);font-size:11px">('+((t.levels||[]).length)+' levels)</span></span><span style="display:flex;gap:10px;align-items:center"><button class="tmpl-export" data-tid="'+t.id+'" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">⬇ CSV</button><span class="tmpl-use" data-tid="'+t.id+'" style="color:var(--gold);cursor:pointer">use ›</span></span></div>').join('')||'<div class="pphint">No templates yet — build one below and save it.</div>';
-  const gameOpts='<option value="">— pick a game —</option>'+games.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'" data-buyin="'+(g.buy_in||0)+'" data-rake="'+(g.rake||0)+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
-  s.innerHTML=
-    '<a class="exit" href="index.html">‹ Back to Poker Palace</a>'+
-    '<h1>🃏 Set up tournament clock</h1>'+
-    '<div class="sub">Pick a blind template, set the tournament details, then launch the clock. The TV and player views update live.</div>'+
-    '<div class="sect"><h2>1 · Tournament</h2>'+
-      '<label>Which game?</label><select id="setGame" class="fld">'+gameOpts+'</select>'+
-      '<div class="row2"><div><label>Starting stack</label><input id="setStack" class="fld" type="number" value="10000"></div>'+
-      '<div><label>Entries so far</label><input id="setEntries" class="fld" type="number" value="0"></div></div>'+
-      '<div class="row2"><div><label>Players left</label><input id="setLeft" class="fld" type="number" value="0"></div>'+
-      '<div><label>Prize pool $</label><input id="setPool" class="fld" type="number" value="0"></div></div>'+
-      '<div class="pphint">Tip: you can update players-left and prize pool live from the clock later.</div>'+
-    '</div>'+
-    '<div class="sect"><h2>2 · Blind template</h2><div id="tmplList">'+tmplOpts+'</div>'+(TEMPLATES.length?'<button class="btn sec" id="exportAllTmpl" style="margin-top:8px">⬇ Export all templates to CSV</button>':'')+'</div>'+
-    '<div class="sect"><h2>3 · Blind levels <span style="color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:400">(auto-loaded from the game — edit or override here)</span></h2>'+
-      '<div id="blindSrcNote" class="pphint" style="margin-bottom:8px">Pick a game above to auto-load its blind structure. You can still edit it or pick a template to override.</div>'+
-      '<div class="lvlrow"><div class="lvlhead">#</div><div class="lvlhead">SB</div><div class="lvlhead">BB</div><div class="lvlhead">Ante</div><div class="lvlhead">Mins</div><div></div></div>'+
-      '<div id="lvlBody"></div>'+
-      '<div class="row2" style="margin-top:8px"><button class="btn sec" id="addLvl">+ Add level</button><button class="btn sec" id="addBreak">+ Add break</button></div>'+
-      '<div style="margin-top:10px"><label>Save this structure as a template</label><div class="row2"><input id="tmplName" class="fld" placeholder="Template name e.g. Standard NSW"><button class="btn sec" id="saveTmpl" style="flex:0 0 auto;width:auto;padding-left:18px;padding-right:18px">Save</button></div></div>'+
-    '</div>'+
-    '<button class="btn" id="launchBtn" style="margin-bottom:40px">🚀 Launch clock</button>';
-
-  // default structure if none
-  if(!editLevels.length) editLevels=defaultStructure();
-  renderLevelEditor();
-
-  // wire
-  $('setGame').addEventListener('change',(e)=>{
-    const o=e.target.selectedOptions[0]; if(!o) return;
-    const buyin=Number(o.dataset.buyin)||0, rake=Number(o.dataset.rake)||0; const ent=Number($('setEntries').value)||0;
-    if(ent>0 && Number($('setPool').value)===0){ $('setPool').value=(buyin-rake)*ent; }
-    // auto-load this game's saved blind structure (override still possible by editing or loading a template)
-    const g=(GAMES_CACHE||[]).find(x=>(x.name||'')===o.value);
-    if(g && Array.isArray(g.blind_levels) && g.blind_levels.length){
-      editLevels=JSON.parse(JSON.stringify(g.blind_levels)); renumber(); renderLevelEditor();
-      const note=$('blindSrcNote'); if(note) note.textContent='✓ Loaded blind structure from '+(g.name||'this game')+'. You can still edit or pick a template to override.';
-    } else {
-      const note=$('blindSrcNote'); if(note) note.textContent='This game has no saved blind structure — using the editor below (set one up in Game Setup to auto-load next time).';
-    }
-  });
-  $('setEntries').addEventListener('input',()=>{ if(!$('setLeft').value||Number($('setLeft').value)===0) $('setLeft').value=$('setEntries').value; });
-  s.querySelectorAll('.tmpl-use').forEach(el=>el.addEventListener('click',()=>{ const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t){ editLevels=JSON.parse(JSON.stringify(t.levels||[])); renderLevelEditor(); s.querySelectorAll('.tmpl-item').forEach(x=>x.classList.remove('active')); const item=s.querySelector('.tmpl-item[data-tid="'+t.id+'"]'); if(item) item.classList.add('active'); } }));
-  s.querySelectorAll('.tmpl-export').forEach(el=>el.addEventListener('click',(ev)=>{ ev.stopPropagation(); const t=TEMPLATES.find(x=>String(x.id)===el.dataset.tid); if(t) exportTemplateCSV(t); }));
-  if($('exportAllTmpl')) $('exportAllTmpl').addEventListener('click', exportAllTemplatesCSV);
-  $('addLvl').addEventListener('click',()=>{ const last=editLevels.filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round((last.bb||100)):100; editLevels.push({level:editLevels.filter(l=>!l.isBreak).length+1, sb:sb, bb:sb*2, ante:0, minutes:20, isBreak:false}); renumber(); renderLevelEditor(); });
-  $('addBreak').addEventListener('click',()=>{ editLevels.push({isBreak:true, breakName:'Break', minutes:10}); renderLevelEditor(); });
-  $('saveTmpl').addEventListener('click', saveTemplate);
-  $('launchBtn').addEventListener('click', launchClock);
+function standardPayout(entries){
+  const n=Math.max(1,Math.round(Number(entries)||0)); let p;
+  if(n<=6) p=[100]; else if(n<=9) p=[65,35]; else if(n<=15) p=[50,30,20];
+  else if(n<=24) p=[45,27,18,10]; else if(n<=35) p=[40,24,15,12,9];
+  else if(n<=49) p=[38,22,14,10,9,7]; else if(n<=74) p=[35,21,13,9,7,5.5,5,4.5];
+  else if(n<=99) p=[32,19.5,12.5,8.5,6.5,5,4,3.5,3,2.5,3];
+  else p=[30,18,11.5,8,6,4.6,3.6,3,2.5,2.2,2,1.8,1.6,1.4,1.8];
+  const s=p.reduce((a,b)=>a+b,0); return p.map(x=>+(x*100/s).toFixed(3));
 }
-function defaultStructure(){
-  return [
-    {level:1,sb:100,bb:200,ante:0,minutes:20,isBreak:false},
-    {level:2,sb:200,bb:400,ante:0,minutes:20,isBreak:false},
-    {level:3,sb:300,bb:600,ante:600,minutes:20,isBreak:false},
-    {level:4,sb:400,bb:800,ante:800,minutes:20,isBreak:false},
-    {isBreak:true,breakName:'Break',minutes:10},
-    {level:5,sb:500,bb:1000,ante:1000,minutes:20,isBreak:false},
-    {level:6,sb:700,bb:1400,ante:1400,minutes:20,isBreak:false},
-    {level:7,sb:1000,bb:2000,ante:2000,minutes:20,isBreak:false}
-  ];
-}
-function renumber(){ let n=0; editLevels.forEach(l=>{ if(!l.isBreak){ n++; l.level=n; } }); }
-function renderLevelEditor(){
-  const body=$('lvlBody'); if(!body) return;
-  body.innerHTML=editLevels.map((l,i)=>{
-    if(l.isBreak){
-      return '<div class="lvlrow breakrow"><div class="lvlnum">☕</div>'+
-        '<input data-i="'+i+'" data-f="breakName" value="'+(l.breakName||'Break')+'" placeholder="Break" style="grid-column:span 3">'+
-        '<input data-i="'+i+'" data-f="minutes" type="number" value="'+(l.minutes||10)+'">'+
-        '<button class="delx" data-del="'+i+'">×</button></div>';
-    }
-    return '<div class="lvlrow"><div class="lvlnum">'+(l.level||i+1)+'</div>'+
-      '<input data-i="'+i+'" data-f="sb" type="number" value="'+(l.sb||0)+'">'+
-      '<input data-i="'+i+'" data-f="bb" type="number" value="'+(l.bb||0)+'">'+
-      '<input data-i="'+i+'" data-f="ante" type="number" value="'+(l.ante||0)+'">'+
-      '<input data-i="'+i+'" data-f="minutes" type="number" value="'+(l.minutes||20)+'">'+
-      '<button class="delx" data-del="'+i+'">×</button></div>';
-  }).join('');
-  body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{ const i=+inp.dataset.i, f=inp.dataset.f; editLevels[i][f]= (f==='breakName')?inp.value : (Number(inp.value)||0); }));
-  body.querySelectorAll('.delx').forEach(b=>b.addEventListener('click',()=>{ editLevels.splice(+b.dataset.del,1); renumber(); renderLevelEditor(); }));
-}
-function csvCell(v){ const s=String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
-function downloadCSV(filename, rows){
-  const csv=rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
-  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
-  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-}
-function templateRows(t){
-  const rows=[['Level','Small Blind','Big Blind','Ante','Minutes','Type']];
-  (t.levels||[]).forEach((l,i)=>{
-    if(l.isBreak){ rows.push(['', '', '', '', (l.minutes||0), 'BREAK: '+(l.breakName||'Break')]); }
-    else { rows.push([(l.level||i+1), (l.sb||0), (l.bb||0), (l.ante||0), (l.minutes||0), 'Level']); }
-  });
-  return rows;
-}
-function exportTemplateCSV(t){
-  const safe=(t.name||'template').replace(/[^a-z0-9_\- ]/gi,'').trim().replace(/\s+/g,'_');
-  downloadCSV('blind_template_'+safe+'.csv', templateRows(t));
-}
-function exportAllTemplatesCSV(){
-  const rows=[['Template','Level','Small Blind','Big Blind','Ante','Minutes','Type']];
-  (TEMPLATES||[]).forEach(t=>{
-    (t.levels||[]).forEach((l,i)=>{
-      if(l.isBreak){ rows.push([t.name, '', '', '', '', (l.minutes||0), 'BREAK: '+(l.breakName||'Break')]); }
-      else { rows.push([t.name, (l.level||i+1), (l.sb||0), (l.bb||0), (l.ante||0), (l.minutes||0), 'Level']); }
-    });
-  });
-  downloadCSV('blind_templates_all.csv', rows);
-}
-async function saveTemplate(){
-  const name=($('tmplName').value||'').trim();
-  if(!name){ alert('Give the template a name first.'); return; }
-  try{
-    const { error }=await supabase.from('blind_templates').insert({ name, levels:editLevels, created_by:user?user.id:null });
-    if(error) throw error;
-    alert('Template "'+name+'" saved.');
-    renderSetup();
-  }catch(e){ alert('Could not save template: '+(e.message||e)); }
-}
-async function launchClock(){
-  const gameName=$('setGame').value;
-  if(!gameName){ alert('Pick a game first.'); return; }
-  if(!editLevels.length){ alert('Add at least one blind level.'); return; }
-  const o=$('setGame').selectedOptions[0];
-  const venue=o?o.dataset.venue:'';
-  const row={
-    game_name:gameName, venue_name:venue, game_date:new Date().toISOString().slice(0,10),
-    levels:editLevels, current_level:0, level_started_at:null, is_paused:true,
-    paused_remaining_sec:Math.round((Number(editLevels[0].minutes)||20)*60),
-    starting_stack:Number($('setStack').value)||10000,
-    entries:Number($('setEntries').value)||0,
-    players_left:Number($('setLeft').value)||Number($('setEntries').value)||0,
-    prize_pool:Number($('setPool').value)||0,
-    status:'running', updated_by:user?user.id:null, updated_at:new Date().toISOString()
-  };
-  try{
-    // reuse an existing row if one is already running for this game/date, else insert
-    let id=null;
-    const ex=await supabase.from('clock_state').select('id').eq('game_name',gameName).eq('game_date',row.game_date).limit(1);
-    if(ex.data&&ex.data.length){ id=ex.data[0].id; await supabase.from('clock_state').update(row).eq('id',id); }
-    else { const ins=await supabase.from('clock_state').insert(row).select(); if(ins.error) throw ins.error; id=ins.data[0].id; }
-    STATE={ ...row, id };
-    showClock(true); subscribe(); startTick();
-    // show share links
-    const base=location.origin+location.pathname;
-    setTimeout(()=>{ alert('Clock launched!\n\nTV display:\n'+base+'?view=tv&clock='+id+'\n\nPlayer view:\n'+base+'?view=player&clock='+id); }, 300);
-  }catch(e){ alert('Could not launch: '+(e.message||e)); }
+function calcPayouts(pcts,pool){
+  pool=Math.round(Number(pool)||0); if(!pcts||!pcts.length||pool<=0) return pcts?pcts.map(()=>0):[];
+  let r=pcts.map(p=>Math.round((pool*(Number(p)||0)/100)/5)*5);
+  let diff=pool-r.reduce((a,b)=>a+b,0); let i=0,g=0;
+  while(diff!==0&&g<10000){ const step=diff>0?5:-5; const idx=i%r.length; if(r[idx]+step>=0){ r[idx]+=step; diff-=step; } i++; g++; }
+  return r;
 }
 
-// live-edit players/pool from the clock (TD taps stats) — simple prompts
-function wireLiveStatEdits(){
-  if(isDisplayOnly) return;
-  $('cPlayers').style.cursor='pointer'; $('cPlayers').title='Tap to update';
-  $('cPool').style.cursor='pointer';
-  $('cEntries').style.cursor='pointer';
-  $('cPlayers').onclick=async ()=>{ const v=prompt('Players left:', STATE.players_left); if(v!==null) pushState({players_left:Number(v)||0}); };
-  $('cEntries').onclick=async ()=>{ const v=prompt('Total entries:', STATE.entries); if(v!==null) pushState({entries:Number(v)||0}); };
-  $('cPool').onclick=async ()=>{ const v=prompt('Prize pool $:', STATE.prize_pool); if(v!==null) pushState({prize_pool:Number(v)||0}); };
-}
-
-// ---------- WIRE CONTROL BAR ----------
 $('signinBtn').addEventListener('click', signIn);
 $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
 $('btnPlay').addEventListener('click', playPause);
@@ -521,19 +422,91 @@ $('btnNext').addEventListener('click', nextLevel);
 $('btnPrev').addEventListener('click', prevLevel);
 $('btnPlus').addEventListener('click', ()=>adjustMinutes(1));
 $('btnMinus').addEventListener('click', ()=>adjustMinutes(-1));
+$('btnMsg').addEventListener('click', editMessage);
 $('btnEdit').addEventListener('click', ()=>{ if(STATE){ STATE.status='setup'; } renderSetup(); });
 
-// keep play button label and stat-edit wiring fresh after each render
-const _origShowClock=showClock;
+async function renderSetup(){
+  $('clockView').classList.add('hidden'); $('ctrlBar').classList.add('hidden');
+  const s=$('setup'); s.classList.remove('hidden');
+  const allGames=((await supabase.from('games').select('*').order('name')).data)||[];
+  GAMES_CACHE=allGames.filter(g=>g.active!==false);
+  const gameOpts='<option value="">— pick a game —</option>'+GAMES_CACHE.map(g=>'<option value="'+(g.name||'')+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
+  s.innerHTML=
+    '<a class="exit" href="index.html">‹ Back to Poker Palace</a>'+
+    '<h1>🃏 Set up tournament clock</h1>'+
+    '<div class="sub">Pick a game — its blind structure and payouts load automatically. Set the numbers, choose a theme, and launch.</div>'+
+    '<div class="sect"><h2>1 · Tournament</h2>'+
+      '<label>Which game?</label><select id="setGame" class="fld">'+gameOpts+'</select>'+
+      '<div id="blindNote" class="pphint" style="margin-bottom:8px"></div>'+
+      '<div class="row2"><div><label>Starting stack</label><input id="setStack" class="fld" type="number" value="10000"></div>'+
+      '<div><label>Entries</label><input id="setEntries" class="fld" type="number" value="0"></div></div>'+
+      '<div class="row2"><div><label>Players left</label><input id="setLeft" class="fld" type="number" value="0"></div>'+
+      '<div><label>Prize pool $</label><input id="setPool" class="fld" type="number" value="0"></div></div>'+
+    '</div>'+
+    '<div class="sect"><h2>2 · Theme</h2>'+
+      '<div class="row2"><button class="btn sec" id="themeStd" type="button">Standard clock</button><button class="btn sec" id="themeWatch" type="button">Sponsor watch</button></div>'+
+      '<div id="sponsorWrap" class="hidden" style="margin-top:10px"><label>Sponsor name (shown on the dial)</label><input id="setSponsor" class="fld" placeholder="e.g. ACME WATCHES"></div>'+
+      '<div class="pphint" id="themeNote">Standard clock selected.</div>'+
+    '</div>'+
+    '<button class="btn" id="launchBtn" style="margin-bottom:40px">🚀 Launch clock</button>';
 
-// ---------- BOOT ----------
+  let pickedGame=null;
+  $('setGame').addEventListener('change',(e)=>{
+    pickedGame=GAMES_CACHE.find(g=>(g.name||'')===e.target.value)||null;
+    const note=$('blindNote');
+    if(pickedGame && Array.isArray(pickedGame.blind_levels) && pickedGame.blind_levels.length){
+      editLevels=JSON.parse(JSON.stringify(pickedGame.blind_levels));
+      note.innerHTML='✓ Loaded '+editLevels.length+' blind levels from this game.';
+    } else { editLevels=[]; note.innerHTML='⚠ This game has no blind structure yet — set one up in Game Setup.'; }
+    const ent=Number($('setEntries').value)||0;
+    if(pickedGame && ent>0 && Number($('setPool').value)===0){ $('setPool').value=((Number(pickedGame.buy_in)||0)-(Number(pickedGame.rake)||0))*ent; }
+  });
+  $('setEntries').addEventListener('input',()=>{ if(!$('setLeft').value||Number($('setLeft').value)===0) $('setLeft').value=$('setEntries').value; });
+  useWatch=false;
+  const setTheme=(w)=>{ useWatch=w; $('themeStd').style.background=w?'none':'var(--gold)'; $('themeStd').style.color=w?'var(--ink-dim)':'#1a1205'; $('themeWatch').style.background=w?'var(--gold)':'none'; $('themeWatch').style.color=w?'#1a1205':'var(--ink-dim)'; $('sponsorWrap').classList.toggle('hidden',!w); $('themeNote').textContent=w?'Sponsor watch theme — green & gold timepiece.':'Standard clock selected.'; };
+  $('themeStd').addEventListener('click',()=>setTheme(false));
+  $('themeWatch').addEventListener('click',()=>setTheme(true));
+  setTheme(false);
+  $('launchBtn').addEventListener('click',()=>launchClock(pickedGame));
+}
+
+async function launchClock(pickedGame){
+  const gameName=$('setGame').value;
+  if(!gameName){ alert('Pick a game first.'); return; }
+  if(!editLevels.length){ alert('This game has no blind structure. Set one up in Game Setup first.'); return; }
+  const g=pickedGame||GAMES_CACHE.find(x=>(x.name||'')===gameName);
+  const entries=Number($('setEntries').value)||0;
+  const row={
+    game_name:gameName, venue_name:g?g.venue_name:'', game_date:new Date().toISOString().slice(0,10),
+    levels:editLevels, current_level:0, level_started_at:null, is_paused:true,
+    paused_remaining_sec:Math.round((Number(editLevels[0].minutes)||20)*60),
+    starting_stack:Number($('setStack').value)||10000,
+    entries:entries, reentries:0,
+    players_left:Number($('setLeft').value)||entries,
+    prize_pool:Number($('setPool').value)||0,
+    payout_pcts: (g&&Array.isArray(g.payout_structure)&&g.payout_structure.length)?g.payout_structure:standardPayout(entries),
+    theme: useWatch?'watch':'standard',
+    sponsor_name: useWatch ? ($('setSponsor').value.trim()||'SPONSOR') : null,
+    ticker_msg:'Good luck everyone!',
+    finishers:{},
+    status:'running', updated_by:user?user.id:null, updated_at:new Date().toISOString()
+  };
+  try{
+    let id=null;
+    const ex=await supabase.from('clock_state').select('id').eq('game_name',gameName).eq('game_date',row.game_date).limit(1);
+    if(ex.data&&ex.data.length){ id=ex.data[0].id; await supabase.from('clock_state').update(row).eq('id',id); }
+    else { const ins=await supabase.from('clock_state').insert(row).select(); if(ins.error) throw ins.error; id=ins.data[0].id; }
+    STATE={ ...row, id }; useWatch=(row.theme==='watch');
+    showClock(true); subscribe(); startTick();
+    const base=location.origin+location.pathname;
+    setTimeout(()=>{ prompt('Clock launched! Share these links (copy):', 'TV: '+base+'?view=tv&clock='+id+'  |  Player: '+base+'?view=player&clock='+id); }, 300);
+  }catch(e){ alert('Could not launch: '+(e.message||e)); }
+}
+
 (async ()=>{
   if(isDisplayOnly){ await bootDisplay(); return; }
   const { data }=await supabase.auth.getSession();
-  if(data.session){ await afterAuth(data.session.user); } // -> bootControl
-  // else login screen stays
-  // wire live stat edits once clock is shown
-  const obs=setInterval(()=>{ if(!$('clockView').classList.contains('hidden')){ wireLiveStatEdits(); clearInterval(obs); } }, 500);
+  if(data.session){ await afterAuth(data.session.user); }
 })();
 </script>
 </body>
