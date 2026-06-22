@@ -496,8 +496,9 @@
     const openDate = OPENING && OPENING.as_of ? OPENING.as_of : null;
     computed.openAmt=openAmt; computed.openDate=openDate;
     const afterOpen = (d)=> !openDate || (d && String(d) > String(openDate)); // strictly after the opening date
-    // cash held by admin = approved received from TDs - cash expenses - given to owners (movements after opening date)
-    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
+    // cash held by admin = ALL approved cash received from TDs (all-time, matches TD handed-up),
+    // minus cash expenses and cash handed to owners. Opening balance is the pure starting float.
+    const received=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').reduce((s,m)=>s+(Number(m.amount)||0),0);
     const cashExp=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date)).reduce((s,e)=>s+(Number(e.amount)||0),0);
     const toOwners=CASH.filter(m=>m.movement_type==='admin_to_owner'&&afterOpen(m.move_date)).reduce((s,m)=>s+(Number(m.amount)||0),0);
     // wages paid in CASH come out of the float (after opening date)
@@ -534,7 +535,7 @@
     computed.adminHolderName = (OPENING && OPENING.set_by && PROFMAP[OPENING.set_by]) ? PROFMAP[OPENING.set_by] : 'Admin';
     // detail lists (for expandable date-filtered breakdowns) - name, date, amount, sub
     const tdNm=(uid)=>tdName(uid);
-    computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date))
+    computed.receivedList=CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved')
       .map(m=>({name:tdNm(m.from_user), date:m.move_date||'', amount:Number(m.amount)||0, sub:(m.to_admin?('→ '+m.to_admin):'')+(m.note?(' · '+m.note):'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     computed.cashExpList=EXPENSES.filter(e=>e.paid_from_cash&&afterOpen(e.expense_date||e.date))
       .map(e=>({name:e.note||e.category||e.venue_name||'Expense', date:(e.expense_date||e.date||''), amount:Number(e.amount)||0, sub:(e.venue_name?e.venue_name:'')})).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -544,8 +545,10 @@
     computed.cashClear=cashHeld-computed.ticketOwed;
     // cash held by each TD = their close-out leftovers - their approved hand-ups (after opening date)
     const byTd={};
-    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!afterOpen(c.game_date))return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].leftover+=Number(c.leftover_cash)||0; byTd[uid].games.push({name:c.game_name||'(no name)', date:c.game_date||'', cashIn:Number(c.cash_in)||0, leftover:Number(c.leftover_cash)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}); });
-    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved'&&afterOpen(m.move_date)).forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].handed+=Number(m.amount)||0; byTd[uid].handups.push({amount:Number(m.amount)||0, date:m.move_date||'', to:m.to_admin||'', note:m.note||''}); });
+    // TD holdings: a TD holding leftover cash still holds it regardless of when the game was -
+    // count ALL their close-out leftover, minus ALL they've handed up. (Rolling, all-time.)
+    (CLOSEOUTS||[]).forEach(c=>{ const uid=c.submitted_by; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].leftover+=Number(c.leftover_cash)||0; byTd[uid].games.push({name:c.game_name||'(no name)', date:c.game_date||'', cashIn:Number(c.cash_in)||0, leftover:Number(c.leftover_cash)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game')}); });
+    CASH.filter(m=>m.movement_type==='td_to_admin'&&m.status==='approved').forEach(m=>{ const uid=m.from_user; if(!uid)return; if(!byTd[uid])byTd[uid]={leftover:0,handed:0,games:[],handups:[]}; byTd[uid].handed+=Number(m.amount)||0; byTd[uid].handups.push({amount:Number(m.amount)||0, date:m.move_date||'', to:m.to_admin||'', note:m.note||''}); });
     const tdHeldTotal=Object.values(byTd).reduce((s,x)=>s+Math.max(0,x.leftover-x.handed),0);
     computed.tdHeldTotal=tdHeldTotal;
     computed.tdHeldList=Object.keys(byTd).map(uid=>({uid, name:tdName(uid), held:byTd[uid].leftover-byTd[uid].handed, leftover:byTd[uid].leftover, handed:byTd[uid].handed, games:byTd[uid].games.sort((a,b)=>(b.date||'').localeCompare(a.date||'')), handups:byTd[uid].handups.sort((a,b)=>(b.date||'').localeCompare(a.date||''))})).filter(r=>r.held>0.5).sort((a,b)=>b.held-a.held);
@@ -618,11 +621,26 @@
           '</div>';
       // who-holds summary: Admin (with opening) first, then each TD currently holding
       const adminName = (computed.adminHolderName) || 'Admin';
+      const diagBlock =
+        '<div class="cashexp-toggle" data-listid="cdDiag" style="cursor:pointer"><div class="drow" style="border:1px dashed var(--ink-faint);background:none"><span class="l" style="font-size:12px;color:var(--ink-faint)">🔧 Show how Admin balance is calculated <span style="font-size:11px">tap ></span></span><span class="r"></span></div>'+
+          '<div id="cdDiag_wrap" style="display:none;padding:6px 2px 10px 2px;font-size:12px">'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">Opening balance</span><span style="color:var(--gold)">+'+money(computed.openAmt||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">Opening date</span><span style="color:var(--ink-faint)">'+(computed.openDate||'none set')+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">+ Received from TDs (after opening)</span><span style="color:var(--good)">+'+money(computed.cashReceived||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">+ Cash injections</span><span style="color:var(--good)">+'+money(computed.injectAmt||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Cash expenses</span><span style="color:var(--red)">-'+money(computed.cashExp||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Wages paid in cash</span><span style="color:var(--red)">-'+money(computed.wagesCash||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--ink-dim)">− Given to owners</span><span style="color:var(--gold)">-'+money(computed.cashToOwners||0)+'</span></div>'+
+            '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>= '+adminName+' (Admin) holds</span><span style="color:var(--gold)">'+money(computed.cashHeld||0)+'</span></div>'+
+            '<div style="font-size:11px;color:var(--ink-faint);margin-top:8px">If "Received from TDs" looks too low, some TD hand-ups are dated on/before the opening date, so they\'re counted inside the opening balance instead. The opening balance should equal all cash Admin held on the opening date.</div>'+
+          '</div>'+
+        '</div>';
       const whoSummary =
         '<div class="dsub" style="margin-top:6px">👤 Who is holding cash right now</div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.08)"><span class="l"><b>'+adminName+'</b> <span style="font-size:11px;color:var(--ink-faint)">Admin'+(hasOpening?' · incl. opening balance':'')+'</span></span><span class="r" style="color:var(--gold)"><b>'+money(computed.cashHeld||0)+'</b></span></div>'+
         (tdList.length?tdList.map(t=>'<div class="drow"><span class="l">'+t.name+' <span style="font-size:11px;color:var(--ink-faint)">TD</span></span><span class="r" style="color:var(--good)">'+money(t.held)+'</span></div>').join(''):'<div class="drow"><span class="l" style="color:var(--ink-faint)">No TDs currently holding cash.</span></div>')+
-        '<div class="drow" style="border-top:1px solid var(--line)"><span class="l"><b>Total still held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>';
+        '<div class="drow" style="border-top:1px solid var(--line)"><span class="l"><b>Total still held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
+        diagBlock;
       b.innerHTML='<div class="dtitle">🪙 Total cash held</div><div class="dsub">All cash currently held across the operation - admin plus every TD'+(hasOpening?', including the opening balance':'')+'. This is a rolling balance until cash is handed to an owner.</div>'+
         '<div class="drow" style="border:1px solid var(--gold);background:rgba(201,184,150,.1)"><span class="l"><b>Total cash held</b></span><span class="r" style="color:var(--gold)"><b>'+money(computed.totalCashHeld||0)+'</b></span></div>'+
         whoSummary+
@@ -960,7 +978,7 @@
   $('detailBody').addEventListener('click',(e)=>{
     // expandable cash-detail toggles + date ranges
     const cdr=e.target.closest('.cdrange'); if(cdr){ e.stopPropagation(); const id=cdr.dataset.listid; const days=Number(cdr.dataset.days)||14; renderCashListById(id, days); const wrap=$(id+'_wrap'); if(wrap) wrap.querySelectorAll('.cdrange').forEach(x=>{ x.style.background='none'; x.style.color='var(--ink-dim)'; x.style.border='1px solid var(--line)'; x.style.fontWeight='400'; }); cdr.style.background='var(--gold)'; cdr.style.color='#1a1205'; cdr.style.border='none'; cdr.style.fontWeight='600'; return; }
-    const cdt=e.target.closest('.cashexp-toggle'); if(cdt){ const id=cdt.dataset.listid; const wrap=$(id+'_wrap'); if(wrap){ const show=(wrap.style.display==='none'||wrap.style.display===''); wrap.style.display=show?'block':'none'; if(show && id!=='cdAdminHeld') renderCashListById(id, 14); } return; }
+    const cdt=e.target.closest('.cashexp-toggle'); if(cdt){ const id=cdt.dataset.listid; const wrap=$(id+'_wrap'); if(wrap){ const show=(wrap.style.display==='none'||wrap.style.display===''); wrap.style.display=show?'block':'none'; if(show && id!=='cdAdminHeld' && id!=='cdDiag') renderCashListById(id, 14); } return; }
     const el=e.target.closest('[data-d]'); if(el && $('detailBody').contains(el)){ openDetail(el.dataset.d); }
   });
   $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('open'));
