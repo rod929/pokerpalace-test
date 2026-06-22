@@ -130,6 +130,7 @@
     <div class="ch-center">
       <div class="watchwrap" id="watchWrap"></div>
       <div class="nextstrip" id="nextStrip"></div>
+      <div id="regNotice" class="hidden" style="margin-top:1vh;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:9px;padding:.9vh 1.4vw;font-weight:600;letter-spacing:.04em"></div>
     </div>
 
     <div class="ch-side ch-right">
@@ -268,6 +269,28 @@ function renderClock(){
   renderWatch();
   renderPayouts();
   renderPint();
+  renderRegNotice();
+}
+
+function renderRegNotice(){
+  const el=$('regNotice'); if(!el) return;
+  const cutoff=Number(STATE.last_reg_level)||0; // level number (1-based) that is the LAST you can register
+  if(!cutoff){ el.classList.add('hidden'); return; }
+  const lv=curLevel();
+  const curNum = lv && !lv.isBreak ? (Number(lv.level)|| (STATE.current_level+1)) : null;
+  // figure the current playing level number (skip breaks)
+  let playingNum=0; const L=levels();
+  for(let i=0;i<=(STATE.current_level||0) && i<L.length;i++){ if(!L[i].isBreak) playingNum++; }
+  if(playingNum < cutoff){ el.classList.add('hidden'); return; } // before final level: no notice
+  if(playingNum === cutoff){
+    el.classList.remove('hidden');
+    el.style.background='rgba(224,173,85,.12)'; el.style.border='1px solid #e0ad55'; el.style.color='#e0ad55';
+    el.innerHTML='<span style="font-size:clamp(14px,1.6vw,22px)">⚠ LAST LEVEL TO REGISTER</span>';
+  } else {
+    el.classList.remove('hidden');
+    el.style.background='rgba(224,122,95,.12)'; el.style.border='1px solid #e07a5f'; el.style.color='#e07a5f';
+    el.innerHTML='<span style="font-size:clamp(14px,1.6vw,22px)">🔒 REGISTRATION CLOSED</span>';
+  }
 }
 
 function renderWatch(){
@@ -524,6 +547,7 @@ async function renderSetup(){
       '<div><label>Entries</label><input id="setEntries" class="fld" type="number" value="0"></div></div>'+
       '<div class="row2"><div><label>Players left</label><input id="setLeft" class="fld" type="number" value="0"></div>'+
       '<div><label>Prize pool $</label><input id="setPool" class="fld" type="number" value="0"></div></div>'+
+      '<label>Last level to register / re-enter (0 = no cutoff shown)</label><input id="setRegLevel" class="fld" type="number" value="0">'+
     '</div>'+
     '<div class="sect"><h2>2 · Theme</h2>'+
       '<div class="row2"><button class="btn sec" id="themeStd" type="button">Standard clock</button><button class="btn sec" id="themeWatch" type="button">Sponsor watch</button></div>'+
@@ -570,6 +594,7 @@ async function launchClock(pickedGame){
     theme: useWatch?'watch':'standard',
     sponsor_name: useWatch ? ($('setSponsor').value.trim()||'SPONSOR') : null,
     pint_sponsor: useWatch ? ($('setPint').value.trim()||'') : '',
+    last_reg_level: Number($('setRegLevel').value)||0,
     ticker_msg:'Good luck everyone!',
     finishers:{},
     status:'running', updated_by:user?user.id:null, updated_at:new Date().toISOString()
