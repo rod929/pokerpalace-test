@@ -272,8 +272,10 @@
     const entries=Number(c.entries)||0, addons=Number(c.addons)||0;
     const buyin=Number(g.buy_in)||0, rake=Number(g.rake)||0, addonPrice=Number(g.addon_price)||0, gtee=Number(g.guarantee)||0;
     const pool=(buyin-rake)*entries + addonPrice*addons;
-    const overlay=Math.max(0, gtee-pool);
-    const rakeColl=rake*entries;
+    const voidGame=(c.void===true);
+    const rakeFree=(g.rake_free===true||c.is_cash_game===true||c.game_name==='Rake Free Cash Game');
+    const overlay=(voidGame||rakeFree)?0:Math.max(0, gtee-pool);
+    const rakeColl=(voidGame||rakeFree)?0:rake*entries;
     const margin=rakeColl-overlay;
     const wages=shf.reduce((s,x)=>s+(Number(x.hours)||0)*(Number(x.rate)||0),0);
     // for the Rake Free Cash Game close-out, staff may have been logged against the void tournament
