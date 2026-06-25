@@ -53,6 +53,7 @@
 </style>
 
 <div class="wrap">
+  <a id="backBtn" href="#" style="display:inline-flex;align-items:center;gap:6px;color:#7fa0c4;text-decoration:none;font-size:14px;margin-bottom:10px">‹ Back</a>
   <h1>🛡️ Poker Palace — Admin View</h1>
   <p class="sub">Sign in. If you're an admin you'll see <b>all</b> close-outs; if you're a TD, only your own. The cloud enforces this — same page, different data per role.</p>
 
@@ -526,6 +527,7 @@
   }
   $('signinBtn').addEventListener('click', signIn);
   $('signoutBtn').addEventListener('click', signOut);
+  $('backBtn').addEventListener('click',(e)=>{ e.preventDefault(); if(history.length>1) history.back(); else window.location.href='admin_dashboard_v2.html'; });
   $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
 
   (async ()=>{ const { data } = await supabase.auth.getSession(); if(data.session) showApp(data.session.user); else showLogin(); })();
