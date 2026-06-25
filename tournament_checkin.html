@@ -321,10 +321,10 @@ async function removeEntry(id){
   ENTRIES=ENTRIES.filter(e=>String(e.id)!==String(id)); renderEntries();
 }
 async function setStatus(id,status){
-  // freeing a seat on bust mirrors table_manager.html: clear table_no/seat_no so the auto-balancer reuses it
-  const patch = status==='busted' ? { status, table_no:null, seat_no:null } : { status };
+  // on bust, free the seat (seat_no=null) so the auto-balancer can reuse it, but keep table_no as a record of where they last sat (used later to reseat re-entries away from that table)
+  const patch = status==='busted' ? { status, seat_no:null } : { status };
   await supabase.from('tournament_entries').update(patch).eq('id',id);
-  const e=ENTRIES.find(x=>String(x.id)===String(id)); if(e){ e.status=status; if(status==='busted'){ e.table_no=null; e.seat_no=null; } } renderEntries();
+  const e=ENTRIES.find(x=>String(x.id)===String(id)); if(e){ e.status=status; if(status==='busted'){ e.seat_no=null; } } renderEntries();
 }
 
 // ---- push count to clock ----
