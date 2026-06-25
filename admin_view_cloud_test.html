@@ -339,6 +339,15 @@
             +'<div class="dl" style="border-top:1px solid #34343a"><span><b>Total staff cost</b></span><span style="color:#e07a5f;font-family:JetBrains Mono"><b>-'+money(vWages)+'</b></span></div>'
         : '<div class="dmut">No staff recorded for this game/night.</div>';
       hv+='</div>';
+      // net result for the void tournament itself (it earned nothing — the cost is the staff wages)
+      const cashRanTonight=(CO_DATA||[]).some(x=>(x.is_cash_game===true||x.game_name==='Rake Free Cash Game') && x.venue_name===c.venue_name && x.game_date===c.game_date);
+      const vNet=-vWages;
+      hv+='<div class="pnlbox" style="border-color:#a14b39;margin-top:8px">'+
+        '<div class="dl"><span>Game earnings (void)</span><span>'+money(0)+'</span></div>'+
+        '<div class="dl"><span>Less: staff wages</span><span style="color:#e07a5f">'+(vWages>0?('-'+money(vWages)):money(0))+'</span></div>'+
+        '<div class="netprofit '+(vNet>=0?'pos':'neg')+'"><span>NET RESULT (void game)</span><span class="npval">'+money(vNet)+'</span></div>'+
+        (cashRanTonight?'<div class="dmut" style="font-size:11px;margin-top:8px">A cash game ran this night — club money and the full day total are shown below.</div>':'<div class="dmut" style="font-size:11px;margin-top:8px">This is the cost of the void night: no game ran, but staff were still paid.</div>')+
+        '</div>';
       hv += unifiedCashSection(c, g, {isVoid:true, margin:0, sms:0, promo:0, basis, rate2});
       return hv;
     }
