@@ -79,6 +79,15 @@
     <!-- search existing -->
     <div class="card">
       <h2>Add a player</h2>
+      <label style="font-size:12px;color:var(--ink-dim);display:block;margin-bottom:5px">Entry method</label>
+      <div class="seg" id="methodSeg" style="margin-bottom:6px">
+        <button id="mCash" class="on" data-method="cash">Cash</button>
+        <button id="mTransfer" data-method="transfer">Transfer</button>
+        <button id="mTicket" data-method="ticket" disabled style="opacity:.45;cursor:not-allowed">Ticket</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-bottom:12px">Ticket — coming soon</div>
+      <label style="font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px">Entry amount $</label>
+      <input id="entryAmount" class="fld" type="number" min="0" step="1" placeholder="0" autocomplete="off">
       <input id="search" class="fld" placeholder="Search by name…" autocomplete="off">
       <div id="searchRes"></div>
       <div class="seg" style="margin-top:12px">
@@ -117,7 +126,7 @@ const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 
-let user=null, GAMES=[], PLAYERS=[], ENTRIES=[], CUR={game:null,venue:null,date:null};
+let user=null, GAMES=[], PLAYERS=[], ENTRIES=[], CUR={game:null,venue:null,date:null,buyin:0}, ENTRY_METHOD='cash';
 
 // ---- auth ----
 async function signIn(){
@@ -137,7 +146,7 @@ async function showApp(u){
 async function loadGames(){
   const all=((await supabase.from('games').select('*').order('name')).data)||[];
   GAMES=all.filter(g=>g.active!==false); // include active=true AND active=null (only hide explicitly inactive)
-  $('gameSel').innerHTML='<option value="">— pick a tournament —</option>'+GAMES.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
+  $('gameSel').innerHTML='<option value="">— pick a tournament —</option>'+GAMES.map(g=>'<option value="'+(g.name||'')+'" data-venue="'+(g.venue_name||'')+'" data-buyin="'+(Number(g.buy_in)||0)+'">'+(g.name||'')+' · '+(g.venue_name||'')+'</option>').join('');
   $('gameDate').value=new Date().toISOString().slice(0,10);
 }
 async function loadPlayers(){
@@ -149,8 +158,9 @@ async function openDesk(){
   const sel=$('gameSel'); const name=sel.value;
   if(!name){ alert('Pick a tournament first.'); return; }
   const o=sel.selectedOptions[0];
-  CUR={ game:name, venue:o?o.dataset.venue:'', date:$('gameDate').value||new Date().toISOString().slice(0,10) };
+  CUR={ game:name, venue:o?o.dataset.venue:'', date:$('gameDate').value||new Date().toISOString().slice(0,10), buyin:o?(Number(o.dataset.buyin)||0):0 };
   $('pickCard').classList.add('hidden'); $('desk').classList.remove('hidden');
+  $('entryAmount').value=CUR.buyin;
   await loadEntries();
 }
 async function loadEntries(){
@@ -218,7 +228,7 @@ async function quickAdd(){
 
 // ---- entry CRUD ----
 async function addEntry(p){
-  const row={ game_name:CUR.game, venue_name:CUR.venue, game_date:CUR.date, player_id:p.player_id||null, player_name:p.player_name, member_no:p.member_no||null, mobile:p.mobile||null, status:'in', entry_type:'entry', checked_in_by:user?user.id:null };
+  const row={ game_name:CUR.game, venue_name:CUR.venue, game_date:CUR.date, player_id:p.player_id||null, player_name:p.player_name, member_no:p.member_no||null, mobile:p.mobile||null, status:'in', entry_method:ENTRY_METHOD, entry_amount:Number($('entryAmount').value)||0, checked_in_by:user?user.id:null };
   const ins=await supabase.from('tournament_entries').insert(row).select();
   if(ins.error){ alert('Could not check in: '+ins.error.message); return; }
   ENTRIES.push(ins.data[0]); renderEntries();
@@ -267,6 +277,11 @@ $('quickAddBtn').addEventListener('click',quickAdd);
 $('pushClockBtn').addEventListener('click',pushToClock);
 $('tabQuick').addEventListener('click',()=>showTab('quick'));
 $('tabFull').addEventListener('click',()=>showTab('full'));
+$('methodSeg').querySelectorAll('button[data-method]').forEach(b=>b.addEventListener('click',()=>{
+  if(b.disabled) return;
+  ENTRY_METHOD=b.dataset.method;
+  $('methodSeg').querySelectorAll('button[data-method]').forEach(x=>x.classList.toggle('on',x===b));
+}));
 
 // ---- boot ----
 (async ()=>{ const { data }=await supabase.auth.getSession(); if(data.session) showApp(data.session.user); })();
