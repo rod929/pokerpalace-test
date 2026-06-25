@@ -97,7 +97,14 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <select id="histVenue" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></select>
           <input id="histPeriod" type="month" style="flex:0 0 auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);font-family:'JetBrains Mono'">
-          <input id="histCount" type="number" min="0" placeholder="# games" style="flex:0 0 110px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="genbtn" id="histModeCount" type="button" style="flex:1;padding:7px;font-size:12.5px">By game count</button>
+          <button class="genbtn" id="histModeAmt" type="button" style="flex:1;padding:7px;font-size:12.5px;background:none;border:1px solid var(--line);color:var(--ink-dim)">Custom amount</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="histCount" type="number" min="0" placeholder="# games" style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">
+          <input id="histAmount" type="number" min="0" placeholder="$ amount (bonus/extra)" style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);display:none">
         </div>
         <input id="histNote" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">
         <button class="genbtn" id="histAddBtn" style="padding:9px 16px;font-size:13px">Add pre-app games</button>
@@ -118,6 +125,8 @@
   const $=id=>document.getElementById(id);
   let user=null,isAdmin=false,VENUES=[],CLOSEOUTS=[],INVOICES=[],rows=[],ytdMode=false,HISTGAMES=[];
   function histForMonth(venueName, period){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && h.period===period).reduce((s,h)=>s+(Number(h.games_count)||0),0); }
+  function histAmtForMonth(venueName, period){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && h.period===period).reduce((s,h)=>s+(Number(h.custom_amount)||0),0); }
+  function histAmtForYear(venueName, yr){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr).reduce((s,h)=>s+(Number(h.custom_amount)||0),0); }
   function histForYear(venueName, yr){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr).reduce((s,h)=>s+(Number(h.games_count)||0),0); }
   function histMonthsForYear(venueName, yr){ return new Set((HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr && (Number(h.games_count)||0)>0).map(h=>h.period)).size; }
   function curYear(){ const p=$('period').value; return p?p.slice(0,4):String(new Date().getFullYear()); }
@@ -197,12 +206,26 @@
         }
       }
       else { calc=0; how='no basis set'; }
+      // add any custom catch-up amounts (bonuses / extra games) for this venue & period
+      const custom=ytdMode?histAmtForYear(v.name, curYear()):histAmtForMonth(v.name, period);
+      if(custom>0){ calc+=custom; how=(how&&how!=='no basis set'?how+' + ':'')+'custom '+money(custom); }
       // existing saved invoice (month mode only — YTD is a read-only rollup)
       const ex=ytdMode?null:INVOICES.find(i=>i.venue_name===v.name && i.period===period);
-      return { venue:v.name, basis, rate, games, calc, how, gamesList, histGames,
+      return { venue:v.name, basis, rate, games, calc, how, gamesList, histGames, custom,
                override: ex&&ex.override_amount!=null?ex.override_amount:'',
                status: ex?ex.status:'draft', id: ex?ex.id:null };
     }).filter(r=>r.basis); // only venues with an agreement
+    // add rows for catch-up-only venues (e.g. Campbelltown Catholic Club) that have custom amounts but aren't configured venues
+    const knownNames=new Set(VENUES.map(v=>v.name));
+    const extraVenues=[...new Set((HISTGAMES||[]).map(h=>h.venue_name).filter(n=>n&&!knownNames.has(n)))];
+    extraVenues.forEach(name=>{
+      const custom=ytdMode?histAmtForYear(name, curYear()):histAmtForMonth(name, period);
+      const cnt=ytdMode?histForYear(name, curYear()):histForMonth(name, period);
+      if(custom>0||cnt>0){
+        rows.push({ venue:name, basis:'custom', rate:0, games:cnt, calc:custom, how:(custom>0?('custom '+money(custom)):(cnt+' game'+(cnt!==1?'s':'')+' (no rate set)')), gamesList:[], histGames:cnt, custom,
+          override:'', status:'draft', id:null });
+      }
+    });
     render();
   }
 
@@ -271,22 +294,33 @@
   setMode(false);
 
   function renderHistForm(){
-    const vsel=$('histVenue'); if(vsel && !vsel.dataset.filled){ vsel.innerHTML='<option value="">— venue —</option>'+VENUES.filter(v=>v.club_money_basis).map(v=>'<option>'+v.name+'</option>').join(''); vsel.dataset.filled='1'; }
+    const vsel=$('histVenue'); if(vsel && !vsel.dataset.filled){ const known=VENUES.filter(v=>v.club_money_basis).map(v=>v.name); const extras=['Campbelltown Catholic Club'].filter(x=>!known.includes(x)); vsel.innerHTML='<option value="">— venue —</option>'+known.concat(extras).map(n=>'<option>'+n+'</option>').join(''); vsel.dataset.filled='1'; }
     if($('histPeriod') && !$('histPeriod').value){ $('histPeriod').value=$('period').value; }
     const list=$('histList'); if(!list) return;
     const items=(HISTGAMES||[]).slice().sort((a,b)=>(b.period||'').localeCompare(a.period||''));
-    list.innerHTML = items.length ? items.map(h=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="color:var(--ink-dim)">'+(h.venue_name||'')+' · <span style="font-family:JetBrains Mono">'+(h.period||'')+'</span> · <b style="color:var(--gold)">'+(h.games_count||0)+' games</b>'+(h.note?(' · '+h.note):'')+'</span><button data-histdel="'+h.id+'" style="background:none;border:1px solid var(--line);color:var(--red);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">delete</button></div>').join('') : '<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">No pre-app games added yet.</div>';
+    list.innerHTML = items.length ? items.map(h=>{ const amt=Number(h.custom_amount)||0; const val= amt>0 ? ('<b style="color:var(--gold)">'+money(amt)+' custom</b>') : ('<b style="color:var(--gold)">'+(h.games_count||0)+' games</b>'); return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="color:var(--ink-dim)">'+(h.venue_name||'')+' · <span style="font-family:JetBrains Mono">'+(h.period||'')+'</span> · '+val+(h.note?(' · '+h.note):'')+'</span><button data-histdel="'+h.id+'" style="background:none;border:1px solid var(--line);color:var(--red);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">delete</button></div>'; }).join('') : '<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">No pre-app games added yet.</div>';
     list.querySelectorAll('[data-histdel]').forEach(b=>b.addEventListener('click',()=>delHist(b.dataset.histdel)));
   }
+  let histMode='count';
   async function addHist(){
-    const venue=$('histVenue').value, period=$('histPeriod').value, count=Number($('histCount').value)||0, note=$('histNote').value.trim();
-    if(!venue||!period||count<=0){ setStatus('Pick a venue, month, and a game count.','err'); return; }
+    const venue=$('histVenue').value, period=$('histPeriod').value, note=$('histNote').value.trim();
+    if(!venue||!period){ setStatus('Pick a venue and month.','err'); return; }
+    let count=0, custom=null;
+    if(histMode==='amount'){
+      custom=Number($('histAmount').value)||0;
+      if(custom<=0){ setStatus('Enter a custom $ amount.','err'); return; }
+    } else {
+      count=Number($('histCount').value)||0;
+      if(count<=0){ setStatus('Enter a game count.','err'); return; }
+    }
     try{
-      const { error } = await supabase.from('historical_games').insert({ venue_name:venue, period, games_count:count, note:note||null, created_by:user?user.id:null });
+      const rec={ venue_name:venue, period, games_count:count, custom_amount:custom, note:note||null, created_by:user?user.id:null };
+      let { error } = await supabase.from('historical_games').insert(rec);
+      if(error && /custom_amount/.test(error.message||'')){ delete rec.custom_amount; ({error}=await supabase.from('historical_games').insert(rec)); }
       if(error) throw error;
       HISTGAMES=(await supabase.from('historical_games').select('*')).data||[];
-      $('histCount').value=''; $('histNote').value='';
-      setStatus('✓ Added '+count+' pre-app game'+(count!==1?'s':'')+' for '+venue+' ('+period+').','ok');
+      $('histCount').value=''; $('histAmount').value=''; $('histNote').value='';
+      setStatus('✓ Added '+(histMode==='amount'?('$'+custom+' bonus'):(count+' game'+(count!==1?'s':'')))+' for '+venue+' ('+period+').','ok');
       renderHistForm(); recompute();
     }catch(e){ setStatus('Could not add: '+(e.message||e),'err'); }
   }
@@ -295,6 +329,9 @@
     try{ await supabase.from('historical_games').delete().eq('id',id); HISTGAMES=(await supabase.from('historical_games').select('*')).data||[]; renderHistForm(); recompute(); }catch(e){ setStatus('Could not delete: '+(e.message||e),'err'); }
   }
   if($('histAddBtn')) $('histAddBtn').addEventListener('click',addHist);
+  function setHistMode(m){ histMode=m; const cOn=m==='count'; $('histModeCount').style.background=cOn?'var(--gold)':'none'; $('histModeCount').style.color=cOn?'#1a1205':'var(--ink-dim)'; $('histModeCount').style.border=cOn?'none':'1px solid var(--line)'; $('histModeAmt').style.background=cOn?'none':'var(--gold)'; $('histModeAmt').style.color=cOn?'var(--ink-dim)':'#1a1205'; $('histModeAmt').style.border=cOn?'1px solid var(--line)':'none'; $('histCount').style.display=cOn?'':'none'; $('histAmount').style.display=cOn?'none':''; }
+  if($('histModeCount')) $('histModeCount').addEventListener('click',()=>setHistMode('count'));
+  if($('histModeAmt')) $('histModeAmt').addEventListener('click',()=>setHistMode('amount'));
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
   async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
   $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
