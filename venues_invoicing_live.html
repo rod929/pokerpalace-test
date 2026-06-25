@@ -84,10 +84,25 @@
       <div class="periodrow">
         <label>Invoice month</label>
         <input id="period" type="month">
+        <button class="genbtn" id="monthViewBtn" style="padding:7px 14px;font-size:13px">Month</button>
+        <button class="genbtn" id="ytdBtn" style="padding:7px 14px;font-size:13px;background:none;border:1px solid var(--line);color:var(--ink-dim)">Year to date</button>
       </div>
+      <div id="ytdNote" style="display:none;font-size:13px;color:var(--gold);margin-bottom:12px">📅 Year-to-date rollup — all games per venue for the year. Read-only summary (save invoices in Month view).</div>
       <div class="summ" id="summ"></div>
       <div class="saveline"><button class="genbtn" id="genBtn">Save / update this month's invoices</button></div>
       <div id="invList"></div>
+      <div id="histPanel" style="margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">🗓 Add pre-app games (catch-up)</div>
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:10px">For games that ran before you started using the app. Adds to the invoice game-count for that venue & month. No close-out needed — invoicing only.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <select id="histVenue" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)"></select>
+          <input id="histPeriod" type="month" style="flex:0 0 auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);font-family:'JetBrains Mono'">
+          <input id="histCount" type="number" min="0" placeholder="# games" style="flex:0 0 110px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink)">
+        </div>
+        <input id="histNote" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);margin-bottom:8px">
+        <button class="genbtn" id="histAddBtn" style="padding:9px 16px;font-size:13px">Add pre-app games</button>
+        <div id="histList" style="margin-top:12px"></div>
+      </div>
       <div class="note"><b>How it's worked out:</b> the system counts each venue's games this month from the close-outs. Per-game venues invoice rate × games; fixed-monthly venues invoice the flat rate. Enter an override if a venue's figure differs, then mark sent → paid. "Save / update" stores the invoices so the dashboard can read them.</div>
     </div>
     <div id="notAdmin" class="notadmin" style="display:none">This screen is for admins.</div>
@@ -101,7 +116,20 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,VENUES=[],CLOSEOUTS=[],INVOICES=[],rows=[];
+  let user=null,isAdmin=false,VENUES=[],CLOSEOUTS=[],INVOICES=[],rows=[],ytdMode=false,HISTGAMES=[];
+  function histForMonth(venueName, period){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && h.period===period).reduce((s,h)=>s+(Number(h.games_count)||0),0); }
+  function histForYear(venueName, yr){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr).reduce((s,h)=>s+(Number(h.games_count)||0),0); }
+  function histMonthsForYear(venueName, yr){ return new Set((HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr && (Number(h.games_count)||0)>0).map(h=>h.period)).size; }
+  function curYear(){ const p=$('period').value; return p?p.slice(0,4):String(new Date().getFullYear()); }
+  function ytdGamesList(venueName){
+    const yr=curYear();
+    return CLOSEOUTS.filter(c=>{
+      if((c.venue_name||'')!==venueName) return false;
+      const ds=c.game_date||c.created_at; if(!ds) return false;
+      return String(new Date(ds).getFullYear())===yr;
+    }).map(c=>({ name:c.game_name||'(no name)', date:c.game_date||(c.created_at||'').slice(0,10), entries:Number(c.entries)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game') }))
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  }
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
@@ -115,7 +143,7 @@
     if(!isAdmin){$('adminArea').style.display='none';$('notAdmin').style.display='block';return;}
     $('notAdmin').style.display='none';$('adminArea').style.display='block';
     $('period').value=(now.getFullYear())+'-'+('0'+(now.getMonth()+1)).slice(-2);
-    await loadData(); recompute();
+    await loadData(); recompute(); renderHistForm();
   }
   function showLogin(){user=null;$('app').classList.add('hidden');$('login').classList.remove('hidden');}
 
@@ -124,30 +152,41 @@
       VENUES=(await supabase.from('venues').select('*')).data||[];
       CLOSEOUTS=(await supabase.from('closeouts').select('*')).data||[];
       INVOICES=(await supabase.from('invoices').select('*')).data||[];
+      try{ HISTGAMES=(await supabase.from('historical_games').select('*')).data||[]; }catch(e){ HISTGAMES=[]; }
     }catch(e){setStatus('Could not load data: '+(e.message||e),'err');}
   }
 
   function gamesInMonth(venueName, period){
+    return gamesListInMonth(venueName, period).length;
+  }
+  function gamesListInMonth(venueName, period){
     return CLOSEOUTS.filter(c=>{
       if((c.venue_name||'')!==venueName) return false;
       const ds=c.game_date||c.created_at; if(!ds) return false;
       const d=new Date(ds); const p=('0'+(d.getMonth()+1)).slice(-2); const key=d.getFullYear()+'-'+p;
       return key===period;
-    }).length;
+    }).map(c=>({ name:c.game_name||'(no name)', date:c.game_date||(c.created_at||'').slice(0,10), entries:Number(c.entries)||0, isVoid:c.void===true, isCash:(c.is_cash_game===true||c.game_name==='Rake Free Cash Game') }))
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   }
 
   function recompute(){
     const period=$('period').value; if(!period) return;
     rows=VENUES.map(v=>{
       const basis=v.club_money_basis||''; const rate=Number(v.club_money_rate)||0;
-      const games=gamesInMonth(v.name, period);
+      const liveGames=ytdMode?ytdGamesList(v.name).length:gamesInMonth(v.name, period);
+      const histGames=ytdMode?histForYear(v.name, curYear()):histForMonth(v.name, period);
+      const games=liveGames+histGames;
+      const gamesList=ytdMode?ytdGamesList(v.name):gamesListInMonth(v.name, period);
       let calc=0, how='';
-      if(basis==='fixed_monthly'){ calc=rate; how='fixed monthly '+money(rate); }
-      else if(basis==='per_game'){ calc=rate*games; how=money(rate)+' × '+games+' game'+(games!==1?'s':''); }
+      if(basis==='fixed_monthly'){
+        if(ytdMode){ const liveMonths=new Set(ytdGamesList(v.name).map(g=>(g.date||'').slice(0,7))).size; const months=Math.max(liveMonths, histMonthsForYear(v.name, curYear())+0)||0; const totalMonths=new Set([...ytdGamesList(v.name).map(g=>(g.date||'').slice(0,7)), ...(HISTGAMES||[]).filter(h=>h.venue_name===v.name && (h.period||'').slice(0,4)===curYear() && (Number(h.games_count)||0)>0).map(h=>h.period)]).size; calc=rate*totalMonths; how='fixed monthly '+money(rate)+' × '+totalMonths+' month'+(totalMonths!==1?'s':'')+' active'; }
+        else { calc=rate; how='fixed monthly '+money(rate); }
+      }
+      else if(basis==='per_game'){ calc=rate*games; how=money(rate)+' × '+games+' game'+(games!==1?'s':'')+(histGames>0?(' (incl. '+histGames+' pre-app)'):''); }
       else { calc=0; how='no basis set'; }
-      // existing saved invoice?
-      const ex=INVOICES.find(i=>i.venue_name===v.name && i.period===period);
-      return { venue:v.name, basis, rate, games, calc, how,
+      // existing saved invoice (month mode only — YTD is a read-only rollup)
+      const ex=ytdMode?null:INVOICES.find(i=>i.venue_name===v.name && i.period===period);
+      return { venue:v.name, basis, rate, games, calc, how, gamesList, histGames,
                override: ex&&ex.override_amount!=null?ex.override_amount:'',
                status: ex?ex.status:'draft', id: ex?ex.id:null };
     }).filter(r=>r.basis); // only venues with an agreement
@@ -163,13 +202,28 @@
       '<div class="sbox total"><small>Total invoiced</small><b>'+money(total)+'</b></div>'+
       '<div class="sbox out"><small>Outstanding</small><b>'+money(out)+'</b></div>'+
       '<div class="sbox paid"><small>Paid</small><b>'+money(paid)+'</b></div>';
-    $('invList').innerHTML=rows.map((r,i)=>
-      '<div class="inv"><div class="invtop"><div><div class="invname">'+r.venue+'</div><div class="invbasis">'+(r.basis==='fixed_monthly'?'fixed monthly':'per game')+'</div></div>'+
-      '<div class="invamt">'+money(effAmt(r))+'</div><span class="pill '+r.status+'">'+r.status+'</span></div>'+
+    $('invList').innerHTML=rows.map((r,i)=>{
+      const gl=r.gamesList||[];
+      const hist=Number(r.histGames)||0;
+      const hasAny = gl.length || hist>0;
+      const breakdown = hasAny ? (
+        '<div class="gamebd" id="gamebd'+i+'" style="display:none;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">'+
+          gl.map(g=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px"><span style="color:var(--ink-dim)">'+(g.isVoid?'⛔ ':(g.isCash?'🎲 ':'🏆 '))+g.name+' <span style="color:var(--ink-faint);font-family:JetBrains Mono;font-size:10px">'+g.date+'</span></span><span style="color:var(--ink-faint)">'+g.entries+' entries</span></div>').join('')+
+          (hist>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px"><span style="color:var(--gold)">🗓 Pre-app games (manually added)</span><span style="color:var(--ink-faint)">'+hist+' game'+(hist!==1?'s':'')+'</span></div>':'')+
+          '<div style="display:flex;justify-content:space-between;padding:6px 0 0;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px"><span>'+(gl.length+hist)+' game'+((gl.length+hist)!==1?'s':'')+'</span><span>'+money(r.calc)+'</span></div>'+
+        '</div>'
+      ) : '';
+      const totalGameCount=gl.length+hist;
+      const expandBtn = hasAny ? '<button class="bdtoggle" data-bd="'+i+'" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;padding:4px 10px;font-size:11.5px;cursor:pointer;margin-top:6px">▸ '+totalGameCount+' game'+(totalGameCount!==1?'s':'')+' — show breakdown</button>' : '';
+      const actions = ytdMode ? '' :
+        '<div class="invactions"><input type="number" placeholder="override $" data-ov="'+i+'" value="'+(r.override!==null?r.override:'')+'">'+
+        '<button class="stbtn '+(r.status==='draft'?'send':'draft')+'" data-st="'+i+'">'+(r.status==='draft'?'Mark sent':(r.status==='sent'?'Mark paid':'Reset to draft'))+'</button></div>';
+      return '<div class="inv"><div class="invtop"><div><div class="invname">'+r.venue+'</div><div class="invbasis">'+(r.basis==='fixed_monthly'?'fixed monthly':'per game')+'</div></div>'+
+      '<div class="invamt">'+money(effAmt(r))+'</div><span class="pill '+r.status+'">'+(ytdMode?'YTD':r.status)+'</span></div>'+
       '<div class="invcalc">calculated: '+r.how+' = '+money(r.calc)+(r.override!==''&&r.override!=null?(' · overridden to '+money(r.override)):'')+'</div>'+
-      '<div class="invactions"><input type="number" placeholder="override $" data-ov="'+i+'" value="'+(r.override!==null?r.override:'')+'">'+
-      '<button class="stbtn '+(r.status==='draft'?'send':'draft')+'" data-st="'+i+'">'+(r.status==='draft'?'Mark sent':(r.status==='sent'?'Mark paid':'Reset to draft'))+'</button></div></div>'
-    ).join('');
+      expandBtn+breakdown+actions+'</div>';
+    }).join('');
+    $('invList').querySelectorAll('[data-bd]').forEach(b=>b.addEventListener('click',()=>{ const d=$('gamebd'+b.dataset.bd); if(d){ const open=d.style.display==='none'; d.style.display=open?'block':'none'; b.innerHTML=(open?'▾ ':'▸ ')+b.innerHTML.replace(/^[▸▾]\s/,''); } }));
     $('invList').querySelectorAll('[data-ov]').forEach(inp=>inp.addEventListener('input',()=>{rows[+inp.dataset.ov].override=inp.value===''?'':Number(inp.value);render();}));
     $('invList').querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{const r=rows[+b.dataset.st];r.status=r.status==='draft'?'sent':r.status==='sent'?'paid':'draft';render();}));
   }
@@ -184,13 +238,50 @@
         else { const{error}=await supabase.from('invoices').insert(rec); if(error)throw error; }
       }
       setStatus('✓ Invoices saved for '+period+'.','ok');
-      await loadData(); recompute();
+      await loadData(); recompute(); renderHistForm();
     }catch(e){setStatus('Could not save: '+(e.message||e),'err');}
     finally{$('genBtn').disabled=false;}
   }
 
   $('period').addEventListener('change',recompute);
   $('genBtn').addEventListener('click',saveInvoices);
+  function setMode(ytd){
+    ytdMode=ytd;
+    $('ytdBtn').style.background=ytd?'var(--gold)':'none'; $('ytdBtn').style.color=ytd?'#1a1205':'var(--ink-dim)';
+    $('monthViewBtn').style.background=ytd?'none':'var(--gold)'; $('monthViewBtn').style.color=ytd?'var(--ink-dim)':'#1a1205'; $('monthViewBtn').style.border=ytd?'1px solid var(--line)':'none';
+    $('ytdNote').style.display=ytd?'block':'none';
+    $('genBtn').style.display=ytd?'none':'block';
+    recompute();
+  }
+  $('monthViewBtn').addEventListener('click',()=>setMode(false));
+  $('ytdBtn').addEventListener('click',()=>setMode(true));
+  setMode(false);
+
+  function renderHistForm(){
+    const vsel=$('histVenue'); if(vsel && !vsel.dataset.filled){ vsel.innerHTML='<option value="">— venue —</option>'+VENUES.filter(v=>v.club_money_basis).map(v=>'<option>'+v.name+'</option>').join(''); vsel.dataset.filled='1'; }
+    if($('histPeriod') && !$('histPeriod').value){ $('histPeriod').value=$('period').value; }
+    const list=$('histList'); if(!list) return;
+    const items=(HISTGAMES||[]).slice().sort((a,b)=>(b.period||'').localeCompare(a.period||''));
+    list.innerHTML = items.length ? items.map(h=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="color:var(--ink-dim)">'+(h.venue_name||'')+' · <span style="font-family:JetBrains Mono">'+(h.period||'')+'</span> · <b style="color:var(--gold)">'+(h.games_count||0)+' games</b>'+(h.note?(' · '+h.note):'')+'</span><button data-histdel="'+h.id+'" style="background:none;border:1px solid var(--line);color:var(--red);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer">delete</button></div>').join('') : '<div style="font-size:12px;color:var(--ink-faint);padding:6px 0">No pre-app games added yet.</div>';
+    list.querySelectorAll('[data-histdel]').forEach(b=>b.addEventListener('click',()=>delHist(b.dataset.histdel)));
+  }
+  async function addHist(){
+    const venue=$('histVenue').value, period=$('histPeriod').value, count=Number($('histCount').value)||0, note=$('histNote').value.trim();
+    if(!venue||!period||count<=0){ setStatus('Pick a venue, month, and a game count.','err'); return; }
+    try{
+      const { error } = await supabase.from('historical_games').insert({ venue_name:venue, period, games_count:count, note:note||null, created_by:user?user.id:null });
+      if(error) throw error;
+      HISTGAMES=(await supabase.from('historical_games').select('*')).data||[];
+      $('histCount').value=''; $('histNote').value='';
+      setStatus('✓ Added '+count+' pre-app game'+(count!==1?'s':'')+' for '+venue+' ('+period+').','ok');
+      renderHistForm(); recompute();
+    }catch(e){ setStatus('Could not add: '+(e.message||e),'err'); }
+  }
+  async function delHist(id){
+    if(!confirm('Remove this pre-app games entry?')) return;
+    try{ await supabase.from('historical_games').delete().eq('id',id); HISTGAMES=(await supabase.from('historical_games').select('*')).data||[]; renderHistForm(); recompute(); }catch(e){ setStatus('Could not delete: '+(e.message||e),'err'); }
+  }
+  if($('histAddBtn')) $('histAddBtn').addEventListener('click',addHist);
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
   async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
   $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
