@@ -136,7 +136,13 @@
     const basis=v.club_money_basis||'', rate2=Number(v.club_money_rate)||0;
     let club=0;
     if(basis==='fixed_monthly'){ const ym=(c.game_date||'').slice(0,7); const gm=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym && !isCash(x)).length||1; club=rate2/gm; }
-    else if(rate2){ club=rate2; }
+    else if(rate2){
+      // per-game basis = one venue fee per night; attach to the primary (non-cash) close-out only
+      const sameNight=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date);
+      const primary = sameNight.filter(x=>!isCash(x)).sort((a,b)=>String(a.id).localeCompare(String(b.id)))[0]
+        || sameNight.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)))[0];
+      club = (primary && String(primary.id)===String(c.id)) ? rate2 : 0;
+    }
     const tournamentNet=(c.void===true)?0:(g.name?(margin-sms-promo):0);
     return tournamentNet + club - nightWages - cashPromo;
   }
@@ -306,7 +312,17 @@
       const ym=(c.game_date||'').slice(0,7);
       const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym).length || 1;
       club=rate2/gamesThatMonth; clubLbl=' (monthly '+money(rate2)+' ÷ '+gamesThatMonth+' games)';
-    } else if(rate2){ club=rate2; clubLbl=' (per game)'; }
+    } else if(rate2){
+      // per-game basis is charged ONCE PER NIGHT, not per game: if several games run the same
+      // venue+date, the single venue fee attaches to the primary close-out (the non-cash tournament,
+      // else the lowest id). The others show $0 to avoid double-charging the club fee.
+      const sameNight=(CO_DATA||[]).filter(x=>x.venue_name===c.venue_name && x.game_date===c.game_date);
+      const primary = sameNight.filter(x=>!(x.is_cash_game===true||x.game_name==='Rake Free Cash Game'))
+        .sort((a,b)=>String(a.id).localeCompare(String(b.id)))[0]
+        || sameNight.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)))[0];
+      if(primary && String(primary.id)===String(c.id)){ club=rate2; clubLbl=' (per night'+(sameNight.length>1?' · covers '+sameNight.length+' games':'')+')'; }
+      else { club=0; clubLbl=' (per night — charged on the main game tonight)'; }
+    }
     const net=margin+club-wages-sms;
     const promo=Number(c.promo_cost)||0;
     const isRakeFree = g.rake_free===true || c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
@@ -473,7 +489,7 @@
     // club money for the night (the venue fee — applies once because a game ran)
     let nightClub=0, nightClubLbl='';
     if(basis==='fixed_monthly'){ const ym=(c.game_date||'').slice(0,7); const gm=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym && !(x.is_cash_game===true||x.game_name==='Rake Free Cash Game')).length||1; nightClub=rate2/gm; nightClubLbl=' (monthly '+money(rate2)+' ÷ '+gm+')'; }
-    else if(rate2){ nightClub=rate2; nightClubLbl=' (per game)'; }
+    else if(rate2){ nightClub=rate2; nightClubLbl=' (per night)'; }
 
     // (void staff breakdown is now shown by the void view itself, above — not duplicated here)
 
