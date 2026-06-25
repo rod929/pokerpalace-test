@@ -182,7 +182,20 @@
         if(ytdMode){ const liveMonths=new Set(ytdGamesList(v.name).map(g=>(g.date||'').slice(0,7))).size; const months=Math.max(liveMonths, histMonthsForYear(v.name, curYear())+0)||0; const totalMonths=new Set([...ytdGamesList(v.name).map(g=>(g.date||'').slice(0,7)), ...(HISTGAMES||[]).filter(h=>h.venue_name===v.name && (h.period||'').slice(0,4)===curYear() && (Number(h.games_count)||0)>0).map(h=>h.period)]).size; calc=rate*totalMonths; how='fixed monthly '+money(rate)+' × '+totalMonths+' month'+(totalMonths!==1?'s':'')+' active'; }
         else { calc=rate; how='fixed monthly '+money(rate); }
       }
-      else if(basis==='per_game'){ calc=rate*games; how=money(rate)+' × '+games+' game'+(games!==1?'s':'')+(histGames>0?(' (incl. '+histGames+' pre-app)'):''); }
+      else if(basis==='per_game'){
+        // Ingleburn Bowlo is billed PER NIGHT — one $rate fee per distinct game-date, regardless of
+        // how many games (e.g. tournament + rake-free cash) ran that night.
+        const isPerNight = /ingleburn\s*bowlo/i.test(v.name||'');
+        if(isPerNight){
+          const liveNights = ytdMode
+            ? new Set(ytdGamesList(v.name).map(g=>(g.date||'').slice(0,10))).size
+            : new Set(gamesListInMonth(v.name, period).map(g=>(g.date||'').slice(0,10))).size;
+          const nights = liveNights + histGames; // pre-app entries counted as nights here
+          calc = rate*nights; how = money(rate)+' × '+nights+' night'+(nights!==1?'s':'')+(histGames>0?(' (incl. '+histGames+' pre-app)'):'');
+        } else {
+          calc = rate*games; how = money(rate)+' × '+games+' game'+(games!==1?'s':'')+(histGames>0?(' (incl. '+histGames+' pre-app)'):'');
+        }
+      }
       else { calc=0; how='no basis set'; }
       // existing saved invoice (month mode only — YTD is a read-only rollup)
       const ex=ytdMode?null:INVOICES.find(i=>i.venue_name===v.name && i.period===period);
