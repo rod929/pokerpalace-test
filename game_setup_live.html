@@ -370,9 +370,15 @@
     }
     if(!confirm('Delete "'+(name||'this game')+'" permanently? This game has no close-outs, so it\'s safe to remove. This cannot be undone.')) return;
     try{
-      // also remove any role rates? games has none. just delete the game row.
       const { error } = await supabase.from('games').delete().eq('id',gid);
       if(error) throw error;
+      // verify it actually deleted (a missing RLS delete policy blocks silently with no error)
+      const { data:check } = await supabase.from('games').select('id').eq('id',gid).limit(1);
+      if(check && check.length){
+        setStatus('Delete was blocked by the database (no delete permission). A one-time SQL policy is needed — see note.','err');
+        alert('The game could not be deleted because the database is missing a delete permission (RLS policy) on the games table.\n\nThis is a one-time fix. Run this in Supabase SQL editor:\n\ncreate policy "admins delete games" on games for delete to authenticated using (true);\n\nThen try again.');
+        return;
+      }
       setStatus('🗑 Game deleted.','ok');
       await loadGames();
     }catch(e){ setStatus('Could not delete: '+(e.message||e),'err'); }
