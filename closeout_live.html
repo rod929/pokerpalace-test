@@ -257,6 +257,10 @@
       <div id="mainPromoBox" style="display:none;margin-top:12px;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:11px 13px">
         <div style="color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">🎁 Tournament promotion (set by admin)</div>
         <div style="display:flex;justify-content:space-between;align-items:center"><span id="mainPromoDesc" style="color:var(--ink-dim);font-size:13px">—</span><b id="mainPromoAmt" style="font-family:'JetBrains Mono';color:var(--gold)">$0</b></div>
+        <div id="promoTicketWinWrap" style="display:none;margin-top:10px">
+          <label style="font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px">🎟 Who won the ticket? <span style="color:var(--ink-faint)">(logged to the ticket register)</span></label>
+          <input id="promoTicketWinner" placeholder="Player name" style="width:100%;box-sizing:border-box;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);font-size:14px">
+        </div>
       </div>
     </div>
 
@@ -546,14 +550,23 @@
   }
   function updateMainPromo(){
     const box=$('mainPromoBox'); if(!box) return;
+    const isTicket = currentGame && currentGame.promo_type==='ticket' && currentGame.promo_ticket_id;
     const pc = currentGame ? (Number(currentGame.promo_default)||0) : 0;
     const pd = currentGame ? (currentGame.promo_desc||'') : '';
-    // always show the tournament promo when a game with a promo is selected
-    if(currentGame && (pc>0 || pd)){
+    const winWrap=$('promoTicketWinWrap');
+    if(isTicket){
+      const tkt=(TICKETS||[]).find(t=>String(t.id)===String(currentGame.promo_ticket_id));
+      const tname=tkt?tkt.name:'(ticket)'; const tval=tkt?(Number(tkt.value)||0):pc;
+      box.style.display='block';
+      $('mainPromoAmt').textContent='🎟 $'+tval.toLocaleString();
+      $('mainPromoDesc').textContent='Ticket give-away: '+tname+(pd?(' · '+pd):'');
+      if(winWrap) winWrap.style.display='block';
+    } else if(currentGame && (pc>0 || pd)){
       box.style.display='block';
       $('mainPromoAmt').textContent='$'+pc.toLocaleString();
       $('mainPromoDesc').textContent = pd || '(no description)';
-    } else { box.style.display='none'; }
+      if(winWrap) winWrap.style.display='none';
+    } else { box.style.display='none'; if(winWrap) winWrap.style.display='none'; }
   }
   function applyRakeFreeMode(){
     // rake_free is now a PARALLEL cash game on the tournament — the tournament itself closes out normally.
@@ -1161,6 +1174,20 @@
       const { data: pdata, error: pErr } = await supabase.from('placings').insert(placeRows).select();
       if(pErr) throw new Error('Saved close-out, but placings failed: '+pErr.message);
       RECON = pdata||[];
+      // 🎟 promo ticket give-away → log to the ticket register as a placing
+      if(currentGame && currentGame.promo_type==='ticket' && currentGame.promo_ticket_id){
+        const winner=($('promoTicketWinner')?$('promoTicketWinner').value.trim():'');
+        if(winner){
+          const tkt=(TICKETS||[]).find(t=>String(t.id)===String(currentGame.promo_ticket_id));
+          const tval=tkt?(Number(tkt.value)||0):0;
+          try{
+            await supabase.from('placings').insert({ closeout_id:co.id, place:99, player_name:winner, amount:0, paid_by:'ticket', ticket_id:Number(currentGame.promo_ticket_id), ticket_value:tval, paid:true, is_promo:true });
+          }catch(promoErr){
+            // retry without the optional is_promo flag if that column doesn't exist
+            try{ await supabase.from('placings').insert({ closeout_id:co.id, place:99, player_name:winner, amount:0, paid_by:'ticket', ticket_id:Number(currentGame.promo_ticket_id), ticket_value:tval, paid:true }); }catch(e2){}
+          }
+        }
+      }
       clearStatus();
       // lock the form: disable placing edits + lock button, reveal reconciliation + phase 2
       $('lockBtn').textContent='🔒 Prize pool locked & saved';
