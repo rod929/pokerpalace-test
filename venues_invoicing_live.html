@@ -89,7 +89,7 @@
       </div>
       <div id="ytdNote" style="display:none;font-size:13px;color:var(--gold);margin-bottom:12px">📅 Year-to-date rollup — all games per venue for the year. Read-only summary (save invoices in Month view).</div>
       <div class="summ" id="summ"></div>
-      <div class="saveline"><button class="genbtn" id="genBtn">Save / update this month's invoices</button></div>
+      <div class="saveline"><button class="genbtn" id="genBtn">Save / update this month's invoices</button><span id="dirtyFlag" style="display:none;margin-left:10px;color:#e0ad55;font-size:12.5px;font-weight:700">● Unsaved changes</span></div>
       <div id="invList"></div>
       <div id="histPanel" style="margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px">
         <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">🗓 Add pre-app games (catch-up)</div>
@@ -124,6 +124,7 @@
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
   let user=null,isAdmin=false,VENUES=[],CLOSEOUTS=[],INVOICES=[],rows=[],ytdMode=false,HISTGAMES=[];
+  let DIRTY=false, lastPeriod='';   // unsaved-changes tracking; lastPeriod = the month currently rendered (to revert a cancelled month switch)
   function histForMonth(venueName, period){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && h.period===period).reduce((s,h)=>s+(Number(h.games_count)||0),0); }
   function histAmtForMonth(venueName, period){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && h.period===period).reduce((s,h)=>s+(Number(h.custom_amount)||0),0); }
   function histAmtForYear(venueName, yr){ return (HISTGAMES||[]).filter(h=>h.venue_name===venueName && (h.period||'').slice(0,4)===yr).reduce((s,h)=>s+(Number(h.custom_amount)||0),0); }
@@ -144,6 +145,12 @@
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function setStatus(m,k){const s=$('status');s.className='status show '+(k||'');s.innerHTML=m;}
   function clearStatus(){$('status').className='status';}
+  // ---- unsaved-changes (dirty) tracking — Save is still the only thing that writes to the DB ----
+  function updateDirtyFlag(){ const f=$('dirtyFlag'); if(f) f.style.display=DIRTY?'inline':'none'; const b=$('genBtn'); if(b) b.style.boxShadow=DIRTY?'0 0 0 2px #e0ad55':'none'; }
+  function markDirty(){ DIRTY=true; updateDirtyFlag(); }
+  function clearDirty(){ DIRTY=false; updateDirtyFlag(); }
+  // returns true if it's safe to proceed (nothing unsaved, or the user chose to discard)
+  function confirmDiscard(){ return !DIRTY || confirm('You have unsaved changes that will be lost.\n\nPress Cancel to go back and Save first, or OK to discard them.'); }
 
   async function showApp(u){
     user=u;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('whoEmail').textContent=u.email;
@@ -227,6 +234,8 @@
       }
     });
     render();
+    // rows were just rebuilt from saved data, so there are no pending edits now
+    lastPeriod=$('period').value; clearDirty();
   }
 
   function effAmt(r){ return (r.override!==''&&r.override!=null)?Number(r.override):r.calc; }
@@ -260,8 +269,8 @@
       expandBtn+breakdown+actions+'</div>';
     }).join('');
     $('invList').querySelectorAll('[data-bd]').forEach(b=>b.addEventListener('click',()=>{ const d=$('gamebd'+b.dataset.bd); if(d){ const open=d.style.display==='none'; d.style.display=open?'block':'none'; b.innerHTML=(open?'▾ ':'▸ ')+b.innerHTML.replace(/^[▸▾]\s/,''); } }));
-    $('invList').querySelectorAll('[data-ov]').forEach(inp=>inp.addEventListener('input',()=>{rows[+inp.dataset.ov].override=inp.value===''?'':Number(inp.value);render();}));
-    $('invList').querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{const r=rows[+b.dataset.st];r.status=r.status==='draft'?'sent':r.status==='sent'?'paid':'draft';render();}));
+    $('invList').querySelectorAll('[data-ov]').forEach(inp=>inp.addEventListener('input',()=>{rows[+inp.dataset.ov].override=inp.value===''?'':Number(inp.value);markDirty();render();}));
+    $('invList').querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{const r=rows[+b.dataset.st];r.status=r.status==='draft'?'sent':r.status==='sent'?'paid':'draft';markDirty();render();}));
   }
 
   async function saveInvoices(){
@@ -274,12 +283,14 @@
         else { const{error}=await supabase.from('invoices').insert(rec); if(error)throw error; }
       }
       setStatus('✓ Invoices saved for '+period+'.','ok');
+      clearDirty();
       await loadData(); recompute(); renderHistForm();
     }catch(e){setStatus('Could not save: '+(e.message||e),'err');}
     finally{$('genBtn').disabled=false;}
   }
 
-  $('period').addEventListener('change',recompute);
+  $('period').addEventListener('change',()=>{ if(!confirmDiscard()){ $('period').value=lastPeriod; return; } recompute(); });
+  window.addEventListener('beforeunload',(e)=>{ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
   $('genBtn').addEventListener('click',saveInvoices);
   function setMode(ytd){
     ytdMode=ytd;
@@ -289,8 +300,8 @@
     $('genBtn').style.display=ytd?'none':'block';
     recompute();
   }
-  $('monthViewBtn').addEventListener('click',()=>setMode(false));
-  $('ytdBtn').addEventListener('click',()=>setMode(true));
+  $('monthViewBtn').addEventListener('click',()=>{ if(!confirmDiscard())return; setMode(false); });
+  $('ytdBtn').addEventListener('click',()=>{ if(!confirmDiscard())return; setMode(true); });
   setMode(false);
 
   function renderHistForm(){
@@ -333,7 +344,7 @@
   if($('histModeCount')) $('histModeCount').addEventListener('click',()=>setHistMode('count'));
   if($('histModeAmt')) $('histModeAmt').addEventListener('click',()=>setHistMode('amount'));
   async function signIn(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password){setStatus('Enter email and password.','err');return;}setStatus('Signing in...','ok');try{const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;clearStatus();showApp(data.user);}catch(e){setStatus('✗ '+(e.message||e),'err');}}
-  async function signOut(){await supabase.auth.signOut();clearStatus();showLogin();}
+  async function signOut(){if(!confirmDiscard())return;await supabase.auth.signOut();clearStatus();showLogin();}
   $('signinBtn').addEventListener('click',signIn);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});$('signoutBtn').addEventListener('click',signOut);
   (async()=>{const{data}=await supabase.auth.getSession();if(data.session)showApp(data.session.user);else showLogin();})();
 </script>
