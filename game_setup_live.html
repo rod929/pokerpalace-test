@@ -129,6 +129,7 @@
   let BLIND_TEMPLATES=[];     // saved templates from blind_templates table
   let BLINDS={};              // per-game working blind levels, keyed by game id
   let PAYOUTS={};             // per-game working payout % structure, keyed by game id
+  let CSV_PENDING={};         // per-game parsed-but-unconfirmed CSV blind levels, keyed by game id
 
   // Standard payout table: number of places paid by field size, and the % each place gets.
   // Returns an array of percentages (summing to 100) for a given entry count.
@@ -229,6 +230,80 @@
     body.querySelectorAll('input[data-bg]').forEach(inp=>inp.addEventListener('input',()=>{ const g=inp.dataset.bg, i=+inp.dataset.bi, f=inp.dataset.bf; if(BLINDS[g]&&BLINDS[g][i]){ BLINDS[g][i][f]= (f==='breakName')?inp.value:(Number(inp.value)||0); } }));
     body.querySelectorAll('[data-bdel]').forEach(b=>b.addEventListener('click',()=>{ const g=b.dataset.bdel; (BLINDS[g]||[]).splice(+b.dataset.bdi,1); renumberBlinds(g); renderBlindEditor(g); }));
   }
+  // ===== CSV import for the blind structure: parse in-browser, review, then load into the existing editor =====
+  function csvMsg(gid,msg,kind){
+    const el=document.querySelector('[data-csvmsg="'+gid+'"]'); if(!el) return;
+    if(!msg){ el.style.display='none'; el.textContent=''; return; }
+    const border = kind==='err'?'#7a3328':(kind==='ok'?'var(--good-deep)':'var(--line)');
+    const bg = kind==='err'?'rgba(224,122,95,.12)':(kind==='ok'?'rgba(92,184,138,.12)':'var(--chip)');
+    const col = kind==='err'?'#f0b3a3':(kind==='ok'?'#9fe3c0':'var(--ink-dim)');
+    el.style.cssText='display:block;margin-bottom:8px;font-size:12.5px;padding:9px 11px;border-radius:8px;border:1px solid '+border+';background:'+bg+';color:'+col;
+    el.textContent=msg;
+  }
+  // Parse "Level, Small Blind, Big Blind, Ante, Duration" — comma-separated, header row, one row per level.
+  function parseBlindCsv(text){
+    const lines=String(text==null?'':text).split(/\r\n|\r|\n/);
+    const out=[]; let headerHandled=false;
+    for(let i=0;i<lines.length;i++){
+      const cells=lines[i].split(',').map(c=>c.trim());
+      if(cells.every(c=>c==='')) continue;             // skip fully empty rows
+      if(!headerHandled){                              // first non-empty row: drop it if it looks like a header
+        headerHandled=true;
+        const looksHeader = !isFinite(parseFloat(cells[0])) || !isFinite(parseFloat(cells[1])) || !isFinite(parseFloat(cells[2]));
+        if(looksHeader) continue;
+      }
+      if(cells.length<3) return { error:'Row '+(i+1)+' has fewer than 3 columns. Expected: Level, Small Blind, Big Blind, Ante, Duration.' };
+      const sb=Number(cells[1]), bb=Number(cells[2]);
+      const ante=(cells[3]===undefined||cells[3]==='')?0:Number(cells[3]);   // blank/missing ante = 0
+      const mins=(cells[4]===undefined||cells[4]==='')?20:Number(cells[4]);  // blank/missing duration = 20
+      if(![sb,bb,ante,mins].every(n=>isFinite(n))) return { error:'Row '+(i+1)+' has a non-numeric value. Small Blind, Big Blind, Ante and Duration must be numbers.' };
+      out.push({ level:0, sb:sb, bb:bb, ante:ante||0, minutes:mins||20, isBreak:false });
+    }
+    if(!out.length) return { error:'No blind levels found. Expected a header row, then one row per level: Level, Small Blind, Big Blind, Ante, Duration.' };
+    return { levels:out };
+  }
+  function handleCsvFile(gid,file){
+    csvMsg(gid,'',null);
+    const rv=document.querySelector('[data-csvreview="'+gid+'"]'); if(rv){ rv.style.display='none'; rv.innerHTML=''; }
+    delete CSV_PENDING[gid];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const res=parseBlindCsv(reader.result);
+      if(res.error){ csvMsg(gid,'⚠ '+res.error,'err'); return; }
+      CSV_PENDING[gid]=res.levels;
+      renderCsvReview(gid,res.levels);
+    };
+    reader.onerror=()=>{ csvMsg(gid,'⚠ Could not read that file. Please choose a plain .csv file.','err'); };
+    try{ reader.readAsText(file); }catch(e){ csvMsg(gid,'⚠ Could not read that file: '+(e.message||e),'err'); }
+  }
+  function renderCsvReview(gid,levels){
+    const box=document.querySelector('[data-csvreview="'+gid+'"]'); if(!box) return;
+    const rows=levels.map((l,i)=>'<div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr;gap:5px;font-size:12.5px;padding:2px 0"><div style="text-align:center;color:var(--ink-faint)">'+(i+1)+'</div><div style="text-align:center">'+l.sb+'</div><div style="text-align:center">'+l.bb+'</div><div style="text-align:center">'+l.ante+'</div><div style="text-align:center">'+l.minutes+'</div></div>').join('');
+    box.innerHTML='<div style="border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--chip)">'+
+      '<div style="font-size:12.5px;color:var(--ink-dim);margin-bottom:8px">Review '+levels.length+' level'+(levels.length>1?'s':'')+' from the CSV. Loading replaces the current blind list below — nothing is saved until you press “Save game”.</div>'+
+      '<div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr;gap:5px;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><div style="text-align:center">#</div><div style="text-align:center">SB</div><div style="text-align:center">BB</div><div style="text-align:center">Ante</div><div style="text-align:center">Mins</div></div>'+
+      rows+
+      '<div class="row2" style="display:flex;gap:8px;margin-top:10px"><button class="actbtn" data-csvapply="'+gid+'" type="button" style="flex:1">✓ Load these levels</button><button class="actbtn" data-csvcancel="'+gid+'" type="button" style="flex:1">Cancel</button></div>'+
+    '</div>';
+    box.style.display='block';
+    const ap=box.querySelector('[data-csvapply="'+gid+'"]'); if(ap) ap.addEventListener('click',()=>applyCsv(gid));
+    const cn=box.querySelector('[data-csvcancel="'+gid+'"]'); if(cn) cn.addEventListener('click',()=>cancelCsv(gid));
+  }
+  function applyCsv(gid){
+    const levels=CSV_PENDING[gid];
+    if(!levels||!levels.length){ csvMsg(gid,'⚠ Nothing to load — pick a CSV first.','err'); return; }
+    BLINDS[gid]=JSON.parse(JSON.stringify(levels));   // same in-memory structure the template loader populates
+    renumberBlinds(gid); renderBlindEditor(gid);
+    const box=document.querySelector('[data-csvreview="'+gid+'"]'); if(box){ box.style.display='none'; box.innerHTML=''; }
+    delete CSV_PENDING[gid];
+    csvMsg(gid,'✓ Loaded '+levels.length+' level'+(levels.length>1?'s':'')+' from CSV. Press “Save game” to keep them.','ok');
+  }
+  function cancelCsv(gid){
+    const box=document.querySelector('[data-csvreview="'+gid+'"]'); if(box){ box.style.display='none'; box.innerHTML=''; }
+    delete CSV_PENDING[gid];
+    csvMsg(gid,'',null);
+  }
   function getPayoutPcts(gid, entries){
     // use saved/edited structure if present, else standard for the entry count
     if(PAYOUTS[gid] && PAYOUTS[gid].length) return PAYOUTS[gid];
@@ -313,6 +388,9 @@
       '<div class="rfpromo" style="border-color:var(--gold)"><div class="rfpromoh" style="color:var(--gold)">⏱️ Blind structure (for the Tournament Clock)</div>'+
         '<div class="hint" style="margin-bottom:8px">Set the blind levels for this game. The Tournament Clock auto-loads these. You can start from a saved template, then tweak.</div>'+
         '<div class="row2" style="display:flex;gap:8px;margin-bottom:8px"><select data-blindtmpl="'+(g.id||'')+'" style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink)"><option value="">— start from a saved template —</option>'+blindTemplateOptions()+'</select><button class="actbtn" data-loadtmpl="'+(g.id||'')+'" type="button" style="flex:0 0 auto">Load</button></div>'+
+        '<div class="row2" style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><input type="file" data-csvfile="'+(g.id||'')+'" accept=".csv,text/csv" style="display:none"><button class="actbtn" data-csvpick="'+(g.id||'')+'" type="button" style="flex:0 0 auto">&#8593; Upload CSV</button><span class="hint" style="margin:0;flex:1">CSV columns, in order: Level, Small Blind, Big Blind, Ante, Duration (with a header row).</span></div>'+
+        '<div data-csvmsg="'+(g.id||'')+'" style="display:none"></div>'+
+        '<div data-csvreview="'+(g.id||'')+'" style="display:none"></div>'+
         '<div class="blindhead" style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 28px;gap:5px;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><div style="text-align:center">#</div><div style="text-align:center">SB</div><div style="text-align:center">BB</div><div style="text-align:center">Ante</div><div style="text-align:center">Mins</div><div></div></div>'+
         '<div data-blindbody="'+(g.id||'')+'"></div>'+
         '<div class="row2" style="display:flex;gap:8px;margin-top:8px"><button class="actbtn" data-addlvl="'+(g.id||'')+'" type="button" style="flex:1">+ Level</button><button class="actbtn" data-addbreak="'+(g.id||'')+'" type="button" style="flex:1">+ Break</button></div>'+
@@ -350,6 +428,9 @@
       const addL=card.querySelector('[data-addlvl="'+gid+'"]'); if(addL) addL.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; const last=BLINDS[gid].filter(l=>!l.isBreak).slice(-1)[0]; const sb=last?Math.round(last.bb||100):100; BLINDS[gid].push({level:0,sb:sb,bb:sb*2,ante:0,minutes:20,isBreak:false}); renumberBlinds(gid); renderBlindEditor(gid); });
       const addB=card.querySelector('[data-addbreak="'+gid+'"]'); if(addB) addB.addEventListener('click',()=>{ if(!BLINDS[gid])BLINDS[gid]=[]; BLINDS[gid].push({isBreak:true,breakName:'Break',minutes:10}); renderBlindEditor(gid); });
       const loadT=card.querySelector('[data-loadtmpl="'+gid+'"]'); if(loadT) loadT.addEventListener('click',()=>{ const sel=card.querySelector('[data-blindtmpl="'+gid+'"]'); const tid=sel?sel.value:''; const t=BLIND_TEMPLATES.find(x=>String(x.id)===String(tid)); if(!t){ alert('Pick a template first.'); return; } if((BLINDS[gid]||[]).length && !confirm('Replace the current blind levels with template "'+t.name+'"?')) return; BLINDS[gid]=JSON.parse(JSON.stringify(t.levels||[])); renumberBlinds(gid); renderBlindEditor(gid); });
+      // CSV import for the blind structure (parse → review → load into the same editor)
+      const csvPick=card.querySelector('[data-csvpick="'+gid+'"]'); const csvFile=card.querySelector('[data-csvfile="'+gid+'"]');
+      if(csvPick&&csvFile){ csvPick.addEventListener('click',()=>{ csvFile.value=''; csvFile.click(); }); csvFile.addEventListener('change',e=>handleCsvFile(gid, e.target.files&&e.target.files[0])); }
       // payout structure editor
       renderPayoutEditor(gid);
       const pe=card.querySelector('[data-payentries="'+gid+'"]'); if(pe) pe.addEventListener('input',()=>renderPayoutEditor(gid));
