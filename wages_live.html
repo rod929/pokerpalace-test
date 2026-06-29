@@ -90,7 +90,7 @@
     <div class="bar"><div>Signed in as <b id="whoEmail">-</b></div><button id="signoutBtn">Sign out</button></div>
     <div id="adminArea">
       <div class="presets" id="presets">
-        <button data-r="7" class="on">Last 7 days</button><button data-r="month">This month</button><button data-r="ytd">Year to date</button><button data-r="custom">Custom</button>
+        <button data-r="week" class="on">This week</button><button data-r="lastweek">Last week</button><button data-r="month">This month</button><button data-r="ytd">Year to date</button><button data-r="custom">Custom</button>
       </div>
       <div class="daterow" id="customRow" style="display:none;gap:10px;margin-bottom:12px">
         <div style="flex:1"><label style="margin-top:0">From</label><input id="from" type="date"></div>
@@ -125,6 +125,14 @@
             <button class="paysel" id="paySelBtn">Pay selected</button>
             <button class="payall" id="payAllBtn">Pay all outstanding</button>
           </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--ink-dim);cursor:pointer">
+            <input type="checkbox" id="roundUp" style="width:16px;height:16px"> Round up this staff member's total to the nearest $5
+          </label>
+          <div id="roundPreview" style="display:none;margin-top:6px;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--ink-dim)">Actual total</span><span id="rpActual" style="font-family:JetBrains Mono">$0</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="color:var(--ink-dim)">Round-up</span><span id="rpDiff" style="font-family:JetBrains Mono;color:var(--good)">+$0</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;padding-top:5px;border-top:1px solid var(--line);font-weight:700"><span>Pays</span><span id="rpRounded" style="font-family:JetBrains Mono;color:var(--gold)">$0</span></div>
+          </div>
           <div id="payNoteWrap" style="display:none;margin-top:10px">
             <label style="font-size:12px;color:var(--ink-dim);display:block;margin-bottom:4px">Note / comment for this payment <span style="color:var(--ink-faint)">(optional — saved against the shifts)</span></label>
             <textarea id="payNote" rows="2" placeholder="e.g. Invoice #1234, paid against May invoice, etc." style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--ink);font-family:inherit;font-size:14px;resize:vertical"></textarea>
@@ -147,22 +155,28 @@
   const SUPABASE_KEY='sb_publishable_vzcUkFyHTKSHr5SQV6WUMA_XpiEOT0z';
   const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
   const $=id=>document.getElementById(id);
-  let user=null,isAdmin=false,period='7',SHIFTS=[],COMAP={},PROFMAP={},q='',curStaff=null;
+  let user=null,isAdmin=false,period='week',SHIFTS=[],COMAP={},PROFMAP={},q='',curStaff=null;
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   $('dt').textContent=days[now.getDay()]+' '+('0'+now.getDate()).slice(-2)+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+now.getFullYear();
   const money=n=>'$'+Math.round(Number(n)||0).toLocaleString();
   function setStatus(m,k){const s=$('status');s.className='status show '+(k||'');s.innerHTML=m;}
   function clearStatus(){$('status').className='status';}
 
+  function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const day=(x.getDay()+6)%7; /* Mon=0..Sun=6 */ x.setDate(x.getDate()-day); return x; }
   function rangeStart(){
     const d=new Date();
-    if(period==='7'){ const x=new Date(); x.setDate(x.getDate()-7); return x; }
+    if(period==='week'){ return mondayOf(d); }
+    if(period==='lastweek'){ const m=mondayOf(d); m.setDate(m.getDate()-7); return m; }
     if(period==='month'){ return new Date(d.getFullYear(),d.getMonth(),1); }
     if(period==='ytd'){ return new Date(d.getFullYear(),0,1); }
     if(period==='custom'){ const f=$('from').value; return f?new Date(f):new Date(0); }
     return new Date(0);
   }
-  function rangeEnd(){ if(period==='custom'){ const t=$('to').value; if(t){ const x=new Date(t); x.setDate(x.getDate()+1); return x; } } return null; }
+  function rangeEnd(){
+    if(period==='lastweek'){ const m=mondayOf(new Date()); return m; } // up to (not incl.) this Monday
+    if(period==='custom'){ const t=$('to').value; if(t){ const x=new Date(t); x.setDate(x.getDate()+1); return x; } }
+    return null;
+  }
   function inRange(dateStr){ if(!dateStr) return true; const t=new Date(dateStr); const e=rangeEnd(); return t>=rangeStart() && (!e||t<e); }
 
   async function showApp(u){
@@ -224,9 +238,10 @@
   function renderDetail(){
     $('summaryView').style.display='none'; $('detailView').style.display='block';
     const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff).sort((a,b)=>(a._date||'').localeCompare(b._date||''));
-    const tot=mine.reduce((s,x)=>s+shiftPay(x),0);
-    const paid=mine.reduce((s,x)=>s+(shiftState(x)==='paid'?shiftPay(x):0),0);
-    const ackd=mine.reduce((s,x)=>s+(shiftState(x)==='acknowledged'?shiftPay(x):0),0);
+    const radj=s=>Number(s.round_adjust)||0;
+    const tot=mine.reduce((s,x)=>s+shiftPay(x)+radj(x),0);
+    const paid=mine.reduce((s,x)=>s+(shiftState(x)==='paid'?shiftPay(x)+radj(x):0),0);
+    const ackd=mine.reduce((s,x)=>s+(shiftState(x)==='acknowledged'?shiftPay(x)+radj(x):0),0);
     $('dName').textContent=curStaff;
     $('dTot').textContent=money(tot);
     $('dSub').textContent=mine.length+' shifts · '+money(paid)+' paid · '+money(ackd)+' acknowledged · '+money(tot-paid-ackd)+' outstanding';
@@ -237,13 +252,14 @@
                 : st==='acknowledged' ? '<span class="paytag ackd">⏳ '+(s.paid_method||'')+' pending</span>' : '';
       const undo = st!=='outstanding' ? '<button class="rowundo" data-undo="'+s.id+'" title="Undo — revert to outstanding">↺</button>' : '';
       const noteLine = (s.pay_note&&String(s.pay_note).trim()) ? '<div class="mt" style="color:var(--blue);margin-top:2px">📝 '+String(s.pay_note).trim()+'</div>' : '';
+      const roundLine = radj(s)>0 ? '<div class="mt" style="color:var(--good);margin-top:2px">＋ rounded up '+money(radj(s))+' (total '+money(pay+radj(s))+')</div>' : '';
       const byName = s.paid_by ? (PROFMAP[s.paid_by]||('user '+String(s.paid_by).slice(0,6))) : null;
       const auditLine = (st!=='outstanding' && byName) ? '<div class="mt" style="color:var(--ink-faint);margin-top:2px">👤 '+(st==='paid'?'paid':'actioned')+' by '+byName+(s.paid_date?(' · '+s.paid_date):'')+'</div>' : '';
       return '<div class="shiftrow'+(st==='paid'?' ispaid':'')+(st==='acknowledged'?' isackd':'')+'">'+
         '<div class="ck"><input type="checkbox" data-sid="'+s.id+'"'+(canSelect?'':' checked disabled')+'></div>'+
         '<div class="info"><div class="gm">'+(s._game||'(game)')+(s.role?(' · '+s.role):'')+tag+'</div>'+
-        '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div>'+noteLine+auditLine+'</div>'+
-        '<div class="pay">'+money(pay)+'</div>'+undo+'</div>';
+        '<div class="mt">'+(s._date||'')+(s._venue?(' · '+s._venue):'')+' · '+(s.start||'?')+'–'+(s.finish||'?')+' · '+(Math.round((Number(s.hours)||0)*10)/10)+'h × $'+(Number(s.rate)||0)+'</div>'+noteLine+roundLine+auditLine+'</div>'+
+        '<div class="pay">'+money(pay+radj(s))+'</div>'+undo+'</div>';
     }).join('') || '<div class="empty">No shifts in this period.</div>';
     $('shiftList').querySelectorAll('[data-undo]').forEach(b=>b.addEventListener('click',()=>undoShift(b.dataset.undo)));
     $('unpayBtn').style.display = mine.some(s=>shiftState(s)!=='outstanding') ? 'inline-block' : 'none';
@@ -262,10 +278,29 @@
 
   function selectedIds(){ return [...$('shiftList').querySelectorAll('input[data-sid]:checked:not(:disabled)')].map(c=>c.dataset.sid); }
 
+  // round-up preview: actual total of the would-be-paid shifts → nearest $5
+  function payableTotalFor(ids){ return ids.map(id=>SHIFTS.find(s=>String(s.id)===String(id))).filter(Boolean).reduce((a,s)=>a+shiftPay(s),0); }
+  function updateRoundPreview(){
+    const on=$('roundUp')&&$('roundUp').checked;
+    const prev=$('roundPreview'); if(!prev) return;
+    if(!on){ prev.style.display='none'; return; }
+    let ids=selectedIds();
+    if(!ids.length){ // default to all outstanding for this staffer (what "Pay all" would do)
+      ids=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && shiftState(s)==='outstanding').map(s=>String(s.id));
+    }
+    const actual=payableTotalFor(ids);
+    const rounded=Math.ceil(actual/5)*5;
+    prev.style.display='block';
+    $('rpActual').textContent=money(actual);
+    $('rpDiff').textContent='+'+money(rounded-actual);
+    $('rpRounded').textContent=money(rounded);
+  }
+
   async function payShifts(ids){
     if(!ids.length){ setStatus('No shifts selected.','err'); return; }
     const method=$('payMethod').value;
     const note=($('payNote')?$('payNote').value.trim():'');
+    const roundOn=$('roundUp')&&$('roundUp').checked;
     clearStatus();
     try{
       let upd;
@@ -276,10 +311,24 @@
         upd={ paid:false, pay_status:'acknowledged', paid_method:method, paid_by:user.id, paid_date:new Date().toISOString().slice(0,10) };
         if(note) upd.pay_note=note; // one note applied to all selected shifts
       }
+      // clear any prior round adjust on these shifts, then set fresh on one shift if rounding
+      upd.round_adjust=0;
       const{error}=await supabase.from('staff_shifts').update(upd).in('id',ids);
       if(error)throw error;
+      let roundedMsg='';
+      if(roundOn){
+        const actual=payableTotalFor(ids);
+        const diff=Math.ceil(actual/5)*5-actual;
+        if(diff>0){
+          // put the whole round-up difference on the last shift so the staffer's total = rounded
+          const lastId=ids[ids.length-1];
+          await supabase.from('staff_shifts').update({ round_adjust:Math.round(diff*100)/100 }).eq('id',lastId);
+          roundedMsg=' (rounded up +'+money(diff)+' to '+money(actual+diff)+')';
+        }
+      }
       if($('payNote')) $('payNote').value='';
-      setStatus(method==='cash'?('✓ Marked '+ids.length+' shift(s) paid in cash.'):('✓ '+ids.length+' shift(s) acknowledged for '+method+(note?' with note':'')+' — outstanding until confirmed.'),'ok');
+      if($('roundUp')) $('roundUp').checked=false;
+      setStatus(method==='cash'?('✓ Marked '+ids.length+' shift(s) paid in cash'+roundedMsg+'.'):('✓ '+ids.length+' shift(s) acknowledged for '+method+(note?' with note':'')+roundedMsg+' — outstanding until confirmed.'),'ok');
       await load();
     }catch(e){ setStatus('Could not record: '+(e.message||e),'err'); }
   }
@@ -300,6 +349,8 @@
   }
   $('paySelBtn').addEventListener('click',()=>payShifts(selectedIds()));
   $('payMethod').addEventListener('change',()=>{ const m=$('payMethod').value; const w=$('payNoteWrap'); if(w) w.style.display=(m==='invoice'||m==='transfer')?'block':'none'; });
+  if($('roundUp')) $('roundUp').addEventListener('change',updateRoundPreview);
+  if($('shiftList')) $('shiftList').addEventListener('change',(e)=>{ if(e.target&&e.target.matches('input[data-sid]')) updateRoundPreview(); });
   $('payAllBtn').addEventListener('click',()=>{
     const mine=SHIFTS.filter(s=>(s.staff_name||'(unnamed)')===curStaff && shiftState(s)==='outstanding').map(s=>s.id);
     payShifts(mine);
