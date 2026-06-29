@@ -165,10 +165,13 @@
       if(!CO_DATA.length){ $('coList').innerHTML='<div class="co">No close-outs visible to you.</div>'; return; }
       // helper: is this close-out the parallel rake-free cash game (saved as its own record)?
       const isCashCo=c=> c.is_cash_game===true || c.game_name==='Rake Free Cash Game';
-      // build the visible list: hide standalone cash-game records (they fold into the tournament card for that venue+date)
-      const visible=CO_DATA.filter(c=>!isCashCo(c));
+      // a cash game folds into a tournament card only if a NON-cash close-out exists same venue+date.
+      const hasTournamentSameNight=c=> CO_DATA.some(x=>!isCashCo(x) && x.venue_name===c.venue_name && x.game_date===c.game_date);
+      // visible = all non-cash close-outs, PLUS any "orphan" cash games with no tournament that night
+      // (otherwise a cash-flagged game with no paired tournament would vanish entirely).
+      const visible=CO_DATA.filter(c=>!isCashCo(c) || !hasTournamentSameNight(c));
       // map each visible close-out index back to its CO_DATA index, and find its paired cash game
-      const findCash=(c)=> CO_DATA.find(x=>isCashCo(x) && x.venue_name===c.venue_name && x.game_date===c.game_date) || null;
+      const findCash=(c)=> isCashCo(c) ? null : (CO_DATA.find(x=>isCashCo(x) && x.venue_name===c.venue_name && x.game_date===c.game_date) || null);
       $('coList').innerHTML = visible.map((c)=>{
         const i=CO_DATA.indexOf(c);
         const cash=findCash(c);
@@ -310,7 +313,7 @@
       club=0; clubLbl=rakeFreeRanTonight?' (shown on cash game)':' (void, no other game)';
     } else if(basis==='fixed_monthly'){
       const ym=(c.game_date||'').slice(0,7);
-      const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym).length || 1;
+      const gamesThatMonth=CO_DATA.filter(x=>x.venue_name===c.venue_name && (x.game_date||'').slice(0,7)===ym && !(x.is_cash_game===true||x.game_name==='Rake Free Cash Game')).length || 1;
       club=rate2/gamesThatMonth; clubLbl=' (monthly '+money(rate2)+' ÷ '+gamesThatMonth+' games)';
     } else if(rate2){
       // per-game basis is charged ONCE PER NIGHT, not per game: if several games run the same
